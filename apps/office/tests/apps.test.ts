@@ -152,7 +152,10 @@ test('ứng dụng tùy chọn chỉ vào danh mục khi đường kiểm sức 
   assert.deepEqual(c.builtin.map((e) => [e.name, e.title, e.href, e.internal, e.version, e.state]).at(-1),
     ['wiki', 'Wiki nội bộ', '/wiki/', false, 'DokuWiki 2026-07-14c', 'builtin'])
   assert.deepEqual(appCatalog(tVi, [], null, ['khac']).builtin.length, 2)
-  assert.match(page, /fetch\(a\.probe, \{ cache: 'no-store' \}\)/)
+  // đường kiểm có hạn, danh sách không chờ nó: wiki chưa cài thì /wiki/health.php treo tới khi cổng hết hạn
+  assert.match(page, /fetch\(a\.probe, \{ cache: 'no-store', signal: AbortSignal\.timeout\(PROBE_TIMEOUT_MS\) \}\)/)
+  assert.match(page, /void probeOptional\(\)/)
+  assert.doesNotMatch(page, /loadCoreVersion\(\),\s*probeOptional\(\)/)
   assert.match(page, /res\.ok && \(await res\.text\(\)\)\.trim\(\) === 'ok' \? a\.name : null/)
   assert.match(page, /appCatalog\(t, rows\.value, coreVersion\.value, optional\.value\)/)
 })

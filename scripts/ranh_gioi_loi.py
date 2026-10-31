@@ -75,6 +75,7 @@ NHOM: dict[str, str] = {
     "svc_files/assist/api.py": DANG, "svc_files/assist/chunks.py": DANG, "svc_files/assist/data.py": DANG,
     "svc_files/assist/extract.py": DANG, "svc_files/assist/grounding.py": DANG, "svc_files/assist/guide.py": DANG,
     "svc_files/assist/index.py": DANG, "svc_files/assist/meili.py": DANG, "svc_files/assist/retrieve.py": DANG,
+    "svc_files/assist/intent.py": DANG,
     "svc_files/assist/route.py": DANG, "svc_files/assist/scope.py": DANG, "svc_files/assist/vi.py": DANG,
     "svc_files/archive.py": VP, "svc_files/archive_stats.py": VP, "svc_files/dispatch.py": VP,
     "svc_files/registers.py": VP, "svc_files/render.py": VP, "svc_files/assist/similar.py": VP,
