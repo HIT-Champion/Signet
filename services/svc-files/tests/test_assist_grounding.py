@@ -201,11 +201,21 @@ def test_every_sentence_gets_its_own_citation_before_the_final_punctuation():
     assert validate(reply("Biên bản gửi về Phòng trước ngày 15/11/2026"), srcs, q).text.endswith("15/11/2026 [1]")
 
 
-def test_a_sentence_without_evidence_rejects_the_whole_answer():
+def test_a_sentence_without_evidence_is_dropped_and_the_grounded_ones_kept():
+    srcs = srcs_of(PAGE_88, PAGE_131)
+    # một câu đúng, một câu bịa: bỏ câu bịa, giữ câu đúng
+    got = validate(reply("Ngoài ra phải nộp giấy khám sức khỏe và bản sao hộ chiếu. Sinh viên cần điểm từ 3,2 trở lên. "
+                         "Hãy liên hệ thầy cô để biết thêm chi tiết."), srcs, QUESTION)
+    assert got == grounding.Verdict("Sinh viên cần điểm từ 3,2 trở lên [1].", False, "trimmed")
+    # câu bịa mang số không có ở nguồn nào: vẫn loại cả câu trả lời
+    got = validate(reply("Sinh viên cần điểm từ 3,2 trở lên [1]. Mức học bổng là 2.500.000 đồng."), srcs, QUESTION)
+    assert got == grounding.Verdict(None, False, "unsupported_number")
+
+
+def test_an_answer_with_no_grounded_sentence_is_rejected():
     srcs = srcs_of(PAGE_88, PAGE_131)
     for text in (
-        # một câu đúng, một câu bịa
-        "Sinh viên cần điểm từ 3,2 trở lên [1]. Ngoài ra phải nộp giấy khám sức khỏe và bản sao hộ chiếu [1].",
+        "Ngoài ra phải nộp giấy khám sức khỏe và bản sao hộ chiếu.",
         # nhắc lại câu hỏi rồi thêm ý không có ở nguồn nào: độ phủ đạt nhờ câu hỏi, nhưng ý mới không có căn cứ
         "Điều kiện xét học bổng khuyến khích học tập là đóng đủ học phí.",
     ):

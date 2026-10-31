@@ -479,7 +479,9 @@ người hỏi không được đọc.
   `[n]`: 0/19 câu qua cách kiểm cũ): bỏ mọi `[n]` mô hình ghi, rồi với từng câu chọn đoạn chứa mọi số từ 2 chữ số của
   câu (`3.2` khớp `3,2`, `200 000` khớp `200.000`, `15/11` khớp `15/11/2026`; số trong câu hỏi cũng được) và ≥ 60 % từ
   mới của câu (từ không có trong câu hỏi), nhiều từ mới nhất thì được trích; `[n]` đặt trước dấu câu cuối. Một câu
-  không đoạn nào đạt là loại cả câu trả lời. Không đạt thì người dùng vẫn thấy câu trích, kèm `model_rejected`. Giao diện hiện câu trả lời dạng chữ thuần.
+  có số mà không đoạn nào có đủ số đó là loại cả câu trả lời; câu không đoạn nào phủ đủ từ mới thì bỏ riêng câu đó,
+  còn ít nhất một câu có căn cứ thì vẫn đạt. Không đạt thì người dùng vẫn thấy câu trích, kèm `model_rejected`. Giao
+  diện hiện câu trả lời dạng chữ thuần.
 - **Hạn và lượt.** Hạn tổng `MOC_ASK_DEADLINE_S` (50 giây, dưới 60 giây của APISIX); nhúng câu hỏi ≤ 5 giây (lỗi thì
   tìm từ khóa, `embed_unavailable`); gọi mô hình ≤ `MOC_ASK_MODEL_TIMEOUT_S`. Một lượt `generate` một lúc
   (`MOC_ASK_CONCURRENCY`), chờ quá `MOC_ASK_QUEUE_S` thì `503 busy` kèm `Retry-After: 10`; `extract` không phải chờ.

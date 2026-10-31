@@ -29,8 +29,9 @@
     trong các đoạn có đủ mọi số từ 2 chữ số của câu (đoạn ∪ câu hỏi) và ≥ 60 % term **mới** của câu. Độ phủ tính
     trên term mới chứ không trên cả câu: term của câu hỏi luôn "có", nên câu nhắc lại câu hỏi rồi thêm một ý bịa vẫn
     đạt 60 % nhờ một term trùng tình cờ (bỏ dấu: "đủ" ~ "dự");
-  - không đoạn nào đạt, kể cả khi term mới không có ở đoạn nào → loại cả câu trả lời (``unsupported_number`` nếu do
-    số, không thì ``unsupported``): không để lọt câu không căn cứ;
+  - câu có số mà không đoạn nào có đủ số đó → loại cả câu trả lời (``unsupported_number``);
+  - câu không đoạn nào phủ đủ term mới → bỏ riêng câu đó, giữ các câu có căn cứ (``reason: trimmed``, vẫn đạt; mô
+    hình nhỏ hay thêm một câu lan man làm hỏng cả câu trả lời đúng); không còn câu nào có căn cứ → ``unsupported``;
   - câu chỉ nhắc lại câu hỏi (không có term mới) đi kèm trích dẫn của câu có căn cứ liền trước (câu đầu: liền sau);
     cả câu trả lời chỉ nhắc lại câu hỏi → ``unsupported``.
   Dấu ``[n]`` đặt trước dấu câu cuối câu: "… loại Tốt [2].". Không đạt thì người dùng chỉ thấy câu trích nguyên văn.
@@ -114,7 +115,7 @@ class Verdict:
     text: str | None    # câu trả lời đã chuẩn hóa, khi đạt
     declined: bool      # mô hình nói các đoạn trích không đủ căn cứ
     reason: str | None  # lý do không đạt: bad_json · declined · bad_length · bad_text · unsupported_number ·
-                        # unsupported
+                        # unsupported; khi đạt: None, hoặc trimmed (đã bỏ câu không căn cứ)
 
 
 def clean(text: str) -> str:
@@ -233,7 +234,8 @@ def _cite(text: str, srcs: Sequence[Source], question: str) -> tuple[str | None,
     sources = [_evidence(s.n, f"{s.symbol} {s.page} {s.text}") for s in srcs]
     spans = vi.sentences(text)
     picks: list[list[int] | None] = []      # None: chỉ nhắc lại câu hỏi · []: không có term nào (không gắn [n])
-    for a, b in spans:
+    dropped: set[int] = set()               # câu không đoạn nào phủ đủ term mới: bỏ khỏi câu trả lời
+    for i, (a, b) in enumerate(spans):
         sentence = text[a:b]
         words = vi.terms(sentence)
         fresh = [w for w in words if not asked.has(w)]
@@ -246,7 +248,9 @@ def _cite(text: str, srcs: Sequence[Source], question: str) -> tuple[str | None,
             return None, "unsupported_number"
         scored = [(k, e.n) for e in fits if (k := sum(map(e.has, fresh))) >= MIN_COVERAGE * len(fresh)]
         if not scored:
-            return None, "unsupported"
+            dropped.add(i)
+            picks.append([])
+            continue
         top = max(k for k, _ in scored)
         picks.append([n for k, n in scored if k == top])
     grounded = [p for p in picks if p]
@@ -255,7 +259,10 @@ def _cite(text: str, srcs: Sequence[Source], question: str) -> tuple[str | None,
     last = grounded[0]
     out: list[str] = []
     at = 0
-    for (a, b), pick in zip(spans, picks, strict=True):
+    for i, ((a, b), pick) in enumerate(zip(spans, picks, strict=True)):
+        if i in dropped:
+            at = max(at, b)
+            continue
         if pick:
             last = pick
         marks = "".join(f"[{n}]" for n in (last if pick is None else pick))
@@ -264,7 +271,8 @@ def _cite(text: str, srcs: Sequence[Source], question: str) -> tuple[str | None,
         cut = tail.start() if tail else len(sentence)
         out.append(text[at:a] + (f"{sentence[:cut].rstrip()} {marks}{sentence[cut:]}" if marks else sentence))
         at = b
-    return "".join(out) + text[at:], None
+    kept = ("".join(out) + text[at:]).strip()
+    return kept, "trimmed" if dropped else None
 
 
 def validate(content: str, srcs: Sequence[Source], question: str) -> Verdict:

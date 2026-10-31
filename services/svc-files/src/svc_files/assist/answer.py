@@ -418,6 +418,8 @@ class Assistant:
             return None, model, result.warning or "model_unavailable", masker.total
         verdict = (grounding.validate_intro if intro else grounding.validate)(result.content, srcs, asked)
         if verdict.text:
+            if verdict.reason:      # trimmed: đã bỏ câu không căn cứ, chỉ ghi mã
+                _log("office.assist.model_trimmed", request_id, model=model, masked=masker.total)
             return verdict.text, model, None, masker.total
         if verdict.declined:
             return None, model, "model_declined", masker.total
