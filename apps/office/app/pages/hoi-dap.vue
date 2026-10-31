@@ -583,7 +583,10 @@ onBeforeUnmount(() => {
               </section>
 
               <template v-else>
-                <p v-if="turn.result.status === 'passages_only'" class="moc-note" data-testid="ask-passages">
+                <p
+                  v-if="turn.result.status === 'passages_only' && !modelWriting(turn) && !declined(turn.result)"
+                  class="moc-note" data-testid="ask-passages"
+                >
                   {{ t('assist.passagesOnly') }}
                 </p>
 
@@ -625,7 +628,7 @@ onBeforeUnmount(() => {
                 >
                   <p>{{ t('assist.declinedAnswer') }}</p>
                   <button
-                    v-if="blocks(turn.result).extract" type="button"
+                    v-if="blocks(turn.result).extract || turn.result.sources.length" type="button"
                     class="mt-2 min-h-6 text-[13px] font-medium text-brand-700 underline underline-offset-2"
                     :aria-expanded="turn.showExtract" :aria-controls="`trich-${turn.key}`"
                     @click="turn.showExtract = !turn.showExtract"
