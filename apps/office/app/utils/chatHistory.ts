@@ -69,7 +69,9 @@ function savedTurn(x: unknown): SavedTurn | null {
     question: t.question,
     direction: t.direction === 'in' || t.direction === 'out' ? t.direction : '',
     year: typeof t.year === 'number' ? t.year : null,
-    document: doc && typeof doc.id === 'string' && typeof doc.label === 'string' ? { id: doc.id, label: doc.label } : null,
+    document: doc && typeof doc.id === 'string' && typeof doc.label === 'string'
+      ? { id: doc.id, label: doc.label }
+      : null,
     ...(typeof t.previous === 'string' ? { previous: t.previous } : {}),
     result: result as unknown as AskResult,
   }
