@@ -131,8 +131,8 @@ biến môi trường để ở PR và tài liệu của tính năng.
 | `bang-tin` | `apps/bang-tin` — Bảng tin đơn vị, ứng dụng thứ ba, cắm bằng `moc app install` | Frontend · Backend |
 | `nghi-phep` | `apps/nghi-phep` — Đơn nghỉ phép, ứng dụng thứ tư, quy trình chạy trên lõi (#301) | Frontend · Backend |
 | `lich-giang` | `apps/lich-giang` — Đổi, bù lịch giảng, ứng dụng ngành (Tầng 3), hai cấp duyệt trên lõi | Frontend · Backend |
-| `ai` | `svc-ai`: RAG, OCR, tác tử | AI |
-| `data` | Kestra, nóng → lạnh, lineage | AI |
+| `ai` | Trợ lý hỏi đáp, đọc văn bản đến, OCR trong `svc-files` (`assist/`, `docread/`, `ocr.py`); Ollama | AI |
+| `data` | Nạp lô và nguồn công khai (`imports/`, `open_data.py`), nộp lưu nóng → lạnh (`archive.py`), phả hệ (`lineage.py`) | AI |
 | `ops` | Compose, reconciler, sao lưu, giám sát, OpenBao | Backend |
 | `cli` | Lệnh `scripts/moc.py` | Backend |
 | `scripts` | Các kịch bản khác trong `scripts/`: seed, smoke, demo, phát hành | Ai cũng được |
