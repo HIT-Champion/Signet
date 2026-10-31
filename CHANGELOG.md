@@ -17,6 +17,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trợ lý hỏi đáp: lúc chờ tìm và chờ soạn câu trả lời hiện logo Signet chuyển động thay vòng xoay (#499).
 - Trợ lý hỏi đáp: mọi câu trả lời do mô hình viết, kể cả đếm văn bản, việc của tôi, câu ngoài phạm vi, không tìm
   thấy và "tôi vừa hỏi gì?"; bỏ các dòng phụ, dòng chờ nói đúng bước đang làm (#503).
+- Trợ lý hỏi đáp tóm tắt được văn bản đang hỏi ("Tóm tắt nội dung văn bản này") thay vì báo không tìm thấy (#503).
 
 ### Đã sửa lỗi
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
