@@ -47,3 +47,9 @@ gì?", "Nộp đơn nghỉ phép ở đâu?", "Việc nào của tôi sắp quá
 Câu này nằm ngoài phạm vi của tôi. Tôi trả lời câu hỏi về nội dung các văn bản bạn được xem, về cách dùng Signet, về
 việc của bạn và số văn bản. Bạn có thể hỏi, ví dụ: "Điều kiện xét học bổng là gì?", "Nộp đơn nghỉ phép ở đâu?", "Việc
 nào của tôi sắp quá hạn?", "Bạn làm được gì?".
+
+## Không tìm thấy {#khong-tim-thay}
+
+Tôi không tìm thấy văn bản nào bạn được xem có nội dung trả lời câu này. Có thể văn bản chưa có trong kho, bạn chưa
+được xem, hoặc câu hỏi cần nêu rõ hơn tên văn bản, số ký hiệu hay chủ đề. Bạn thử hỏi lại cụ thể hơn, bỏ bớt bộ lọc,
+hoặc tìm ở trang Tìm kiếm.

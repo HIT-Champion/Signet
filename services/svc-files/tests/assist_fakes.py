@@ -37,7 +37,7 @@ import jwt
 from conftest import ISSUER, TENANT_A, FakeHasura
 from svc_files.auth import HASURA_CLAIMS
 from svc_files.assist.ai import OllamaAi
-from svc_files.assist.retrieve import Passage, Retrieval
+from svc_files.assist.retrieve import Passage, Retrieval, symbol_key, symbols
 from svc_files.hasura import HasuraAuthError, HasuraError
 
 CHAT_MODEL = "qwen3:1.7b"
@@ -96,15 +96,39 @@ class FakeRetriever:
     fail: Exception | None = None
     hybrid_error: str | None = None
 
+    no_match: bool = False      # search không khớp đoạn nào (vd "tóm tắt văn bản này"); leading vẫn trả đoạn
+    leading_calls: list[dict[str, Any]] = field(default_factory=list)
+    named_calls: list[str] = field(default_factory=list)
+
+    def _visible(self, scope) -> list[Passage]:
+        ns = jwt.decode(scope.token, options={"verify_signature": False})[HASURA_CLAIMS] if scope.token else {}
+        sub = ns.get("x-hasura-user-id")
+        return [p for p in self.passages if p.document_id not in self.restricted
+                and (p.document_id not in self.readers or sub in self.readers[p.document_id])]
+
+    async def leading(self, scope, document_id: str, limit: int) -> Retrieval:
+        """Các đoạn đầu của một văn bản theo thứ tự trong ``passages``, cùng hậu kiểm như ``search``."""
+        self.leading_calls.append({"document_id": document_id, "limit": limit})
+        if self.fail is not None:
+            raise self.fail
+        mine = [p for p in self._visible(scope) if p.document_id == document_id]
+        return Retrieval(mine[:limit], len(mine), False)
+
+    async def named(self, scope, question: str) -> list[str]:
+        """Văn bản thấy được có số ký hiệu (``doc["symbol"]`` của đoạn) đúng như câu hỏi nêu (``Retriever.named``)."""
+        self.named_calls.append(question)
+        if self.fail is not None:
+            raise self.fail
+        keys = {symbol_key(c) for c in symbols(question)}
+        return list(dict.fromkeys(p.document_id for p in self._visible(scope)
+                                  if symbol_key(str(p.doc.get("symbol") or "")) in keys))
+
     async def search(self, scope, *, q, vector, limit=5, filters=None, question=None) -> Retrieval:
         self.calls.append({"scope": scope, "q": q, "vector": vector, "limit": limit, "filters": filters,
                            "question": question})
         if self.fail is not None:
             raise self.fail
-        ns = jwt.decode(scope.token, options={"verify_signature": False})[HASURA_CLAIMS] if scope.token else {}
-        sub = ns.get("x-hasura-user-id")
-        visible = [p for p in self.passages if p.document_id not in self.restricted
-                   and (p.document_id not in self.readers or sub in self.readers[p.document_id])]
+        visible = [] if self.no_match else self._visible(scope)
         if vector is not None and self.hybrid_error:
             return Retrieval(visible[:limit], len(self.passages), False, self.hybrid_error)
         return Retrieval(visible[:limit], len(self.passages), vector is not None)

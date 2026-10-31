@@ -154,11 +154,36 @@ def test_a_document_question_with_no_passage_is_answered_from_the_user_guide(ask
     assert body["sources"] and body["sources"][0]["kind"] == "guide"
 
 
+def test_what_did_i_just_ask_is_answered_from_the_previous_question(asking):
+    said = "Bạn vừa hỏi tôi: “hello em”."
+    q = "anh vừa hỏi em cái gì"
+    fake = FakeOllama(reply=model(says("hoi_cau_truoc", q, can_cau_truoc=True),
+                                  json.dumps({"du_can_cu": True, "tra_loi": said}, ensure_ascii=False)))
+    env = asking(env=ON, passages=demo(), ai=ollama(fake))
+    first = routed(env, q, previous="hello em")
+    assert (first["route"], first["route_reason"], first["status"]) == ("gioi_thieu", "llm:cau-truoc", "answered")
+    assert first["answer"] == {"text": "Câu hỏi trước của bạn là: “hello em”.", "source": "fixed", "model": None}
+    assert env.retriever.calls == [] and first["sources"] == []
+    (only,) = intent_calls(fake)                # không gọi lượt hai kèm câu trước
+    assert "<cau_truoc>" not in only
+    second = routed(env, q, previous="hello em", mode="generate", ask_id=first["ask_id"])
+    assert second["answer"] == {"text": said, "source": "model", "model": second["answer"]["model"]}
+    alone = routed(env, q)
+    assert alone["answer"]["text"].startswith("Đây là câu hỏi đầu tiên của bạn")
+
+
 def test_a_question_inside_one_document_skips_the_intent_step(asking):
     fake = FakeOllama(reply=model(says("ngoai_pham_vi", "x")))
     env = asking(env=ON, passages=demo(), ai=ollama(fake))
     body = routed(env, "Văn bản này yêu cầu gì?", document_id=D88)
     assert body["route"] == "van_ban" and intent_calls(fake) == []
+
+
+def test_a_question_naming_one_document_by_symbol_skips_the_intent_step(asking):
+    fake = FakeOllama(reply=model(says("huong_dan", "x")))
+    env = asking(env=ON, passages=demo(), ai=ollama(fake))
+    body = routed(env, "Công văn 88/CTSV yêu cầu những gì?")
+    assert (body["route"], body["route_reason"]) == ("van_ban", "so-ky-hieu") and intent_calls(fake) == []
 
 
 def test_without_a_model_the_rules_route(asking):

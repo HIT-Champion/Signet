@@ -33,17 +33,20 @@ Theo đúng thứ tự, mỗi bước chặn được thì chặn trước khi t
 8. Ghi **một** dòng ``assistant.answered`` vào sổ kiểm toán bằng vai trò ``agent`` **rồi mới trả lời** — không ghi được
    sổ thì 503, không trả gì.
 
-Không có đoạn nào → ``no_evidence``, không gọi mô hình; giống hệt dù văn bản không tồn tại hay người hỏi không được
-đọc.
+Không có đoạn nào → ``no_evidence``; giống hệt dù văn bản không tồn tại hay người hỏi không được đọc.
+
+Lượt ``generate`` của mọi đường đều do mô hình viết lời đáp: đường không có đoạn cho mô hình đọc (đếm văn bản, việc
+của tôi, ngoài phạm vi, không tìm thấy, hỏi lại câu trước) thì máy chủ soạn kết quả, mô hình diễn đạt lại
+(``grounding.SYSTEM_NOTE``, kiểm số bằng ``validate_intro``); mô hình không viết được thì trả câu máy chủ đã soạn.
 
 Bộ định tuyến (route.py, #423) chọn đường sau bước 2, trước khi tốn gì thêm: ``gioi_thieu`` trả mục của tệp Giới thiệu
 trợ lý (lượt ``generate``: mô hình viết lời đáp từ các mục đó, lời dặn nêu phạm vi trợ lý; không đạt thì vẫn là
-câu trích), ``ngoai_pham_vi`` trả câu cố định — cả hai không tìm; ``ngoai_pham_vi`` không gọi mô hình; ``huong_dan`` tìm
+câu trích), ``ngoai_pham_vi`` trả câu cố định — cả hai không tìm; ``huong_dan`` tìm
 trong kho hướng dẫn sử dụng (guide.py) thay cho bước 4–5, rồi câu trích và mô hình như văn bản — kho không có mục nào
 khớp thì đi như ``van_ban`` (mã lý do ``khong-khop-huong-dan``); ``van_ban`` như trên. Hai đường dữ liệu (#441, data.py)
 ``viec_cua_toi``, ``dem_van_ban`` đếm thẳng trong CSDL qua Hasura bằng token người hỏi, trả câu có số, ``data`` và
-``link``; không tìm, không gọi mô hình. ``van_ban`` mặc định mà không ra đoạn nào thì qua lưới an toàn
-(``route.fallback``): câu ngắn, không chỉ văn bản thành ``gioi_thieu`` mã ``luoi-an-toan``, không gọi mô hình.
+``link``; không tìm. ``van_ban`` mặc định mà không ra đoạn nào thì qua lưới an toàn
+(``route.fallback``): câu ngắn, không chỉ văn bản thành ``gioi_thieu`` mã ``luoi-an-toan``.
 Câu nối tiếp (có ``previous``) được ghép thành câu độc lập trước khi chọn đường; câu ghép thay câu hỏi ở mọi bước sau
 và trả về ở ``rewritten``. Sổ kiểm toán, nhật ký ghi đường và mã lý do, không ghi câu ghép. Nhật ký không bao giờ
 có câu hỏi, câu trả lời, đoạn trích: chỉ độ dài, số term, số đoạn, thời gian.
@@ -75,7 +78,7 @@ from .. import pii
 from ..auth import Principal
 from ..hasura import HasuraAuthError, HasuraError
 from ..search import SearchError
-from . import data, extract, grounding, guide, route, vi
+from . import data, extract, grounding, guide, intent, route, vi
 from .ai import AiClient
 from .guide import GuideStore
 from .intent import IntentStep
@@ -161,6 +164,16 @@ def _previous(text: str | None) -> str | None:
     return out if out and len(out) <= MAX_QUESTION else None
 
 
+def _recall(previous: str | None, lang: str) -> str:
+    """Lời đáp cho "tôi vừa hỏi gì?": câu hỏi lượt trước của chính người hỏi (giao diện gửi ở ``previous``)."""
+    before = _previous(previous)
+    if lang == "en":
+        return (f"Your previous question was: “{before}”." if before
+                else "This is your first question on this page; there is no previous question yet.")
+    return (f"Câu hỏi trước của bạn là: “{before}”." if before
+            else "Đây là câu hỏi đầu tiên của bạn trên trang này, chưa có câu hỏi trước.")
+
+
 class Assistant:
     def __init__(self, settings: Settings, *, retriever: Retriever, ai: AiClient, indexer: _Hold, hasura: _Hasura,
                  guides: GuideStore | None = None, clock: Callable[[], float] = time.monotonic,
@@ -208,28 +221,39 @@ class Assistant:
             raise AskError(400, "invalid_question", "Câu hỏi trống, dài quá 500 ký tự, có ký tự điều khiển hoặc chưa "
                                                     "có từ nào để tìm — hãy hỏi cụ thể hơn")
         scoped = body.document_id is not None
+        # câu hỏi nêu đúng số ký hiệu của một văn bản người hỏi được đọc ("Nghị định 168/2024/NĐ-CP yêu cầu gì?"): hỏi
+        # trong văn bản đó như "Hỏi về văn bản này" — tìm cả kho thì ngưỡng điểm tìm theo nghĩa có thể loại hết đoạn
+        named = None if scoped else await self._named(scope, question, request_id)
         chosen = route.route(question, scoped=scoped)     # bộ luật: dự phòng khi không có bước ý định
+        if named is not None:
+            chosen = route.Route("van_ban", route.NAMED_REASON, chosen.lang)
         rewritten = None
-        understood = None if scoped else await self._understand(principal, question, body.previous, chosen.lang,
-                                                                 start, request_id)
+        understood = None if scoped or named is not None else await self._understand(
+            principal, question, body.previous, chosen.lang, start, request_id)
         if understood is not None:
             chosen, rewritten = understood.route, understood.rewritten
         elif chosen.name in ("van_ban", "huong_dan"):
             rewritten = route.follow_up(question, _previous(body.previous))
-            if rewritten is not None and chosen.name == "van_ban":
+            if rewritten is not None and chosen.name == "van_ban" and named is None:
                 chosen = route.route(rewritten, scoped=scoped)
+        if named is None and not scoped and rewritten is not None and chosen.name in ("van_ban", "huong_dan"):
+            # câu nối tiếp ("nó yêu cầu gì?") mà câu đã ghép nêu số ký hiệu
+            named = await self._named(scope, rewritten, request_id)
+            if named is not None:
+                chosen = route.Route("van_ban", route.NAMED_REASON, chosen.lang)
         if chosen.name == "huong_dan" and not self.guides.search(rewritten or question, s.ask_top_k):
             # hướng dẫn sử dụng không có mục nào khớp: có thể là câu về một văn bản, tìm như van_ban
             chosen = route.Route("van_ban", route.NO_GUIDE_REASON, chosen.lang)
-        if body.mode != "generate" or chosen.name in route.DIRECT_ROUTES:
-            return await self._answer(principal, body, question, rewritten, chosen, scope, request_id, start)
+        doc_id = str(body.document_id) if scoped else named
+        if body.mode != "generate":
+            return await self._answer(principal, body, question, rewritten, chosen, scope, doc_id, request_id, start)
         try:
             await asyncio.wait_for(self.slots.acquire(), s.ask_queue_s)
         except TimeoutError:
             raise AskError(503, "busy", "Trợ lý đang soạn câu trả lời khác, thử lại sau ít giây",
                            headers={"Retry-After": RETRY_AFTER}) from None
         try:
-            return await self._answer(principal, body, question, rewritten, chosen, scope, request_id, start)
+            return await self._answer(principal, body, question, rewritten, chosen, scope, doc_id, request_id, start)
         finally:
             self.slots.release()
 
@@ -248,22 +272,32 @@ class Assistant:
         return got
 
     async def _answer(self, principal: Principal, body: AskBody, question: str, rewritten: str | None,
-                      chosen: route.Route, scope: Any, request_id: str, start: float) -> dict[str, Any]:
+                      chosen: route.Route, scope: Any, doc_id: str | None, request_id: str, start: float
+                      ) -> dict[str, Any]:
+        """``doc_id``: văn bản đang hỏi — ``body.document_id``, hoặc văn bản câu hỏi nêu đúng số ký hiệu."""
         s = self.settings
         deadline = start + s.ask_deadline_s
         warnings: list[str] = []
         asked = rewritten or question               # câu đem đi tìm, trích, hỏi mô hình
-        fixed: str | None = None                    # câu cố định của đường ngoai_pham_vi
+        fixed: str | None = None                    # câu soạn sẵn: ngoài phạm vi, câu hỏi trước
         counted: data.Answer | None = None          # câu có số của đường dữ liệu
+        recalled = chosen.reason == intent.RECALL   # hỏi lại câu trước ("tôi vừa hỏi gì?"): trả lời từ previous
         if chosen.name == "van_ban":
-            found = await self._search(body, asked, scope, deadline, warnings, request_id)
+            found = await self._search(body, asked, scope, doc_id, deadline, warnings, request_id)
+            if doc_id is not None and (not found.passages or route.wants_summary(asked)):
+                # hỏi trong một văn bản mà không đoạn nào khớp, hoặc xin tóm tắt: các đoạn đầu của văn bản theo thứ tự
+                # đọc làm căn cứ cho mô hình ("Tóm tắt nội dung văn bản này")
+                lead = await self._leading(scope, doc_id, request_id)
+                if lead.passages:
+                    found = Retrieval(lead.passages, candidates=found.candidates + lead.candidates,
+                                      semantic=found.semantic, hybrid_error=found.hybrid_error)
             filtered = any(f is not None for f in (body.direction, body.year, body.type_code))
             # kho văn bản không có đoạn nào: thử hướng dẫn sử dụng trước khi nói không tìm thấy ("Nộp đơn nghỉ phép ở
             # đâu?" bị chọn nhầm là câu hỏi văn bản vẫn có câu trả lời)
-            guided = ([] if found.passages or filtered or body.document_id is not None
+            guided = ([] if found.passages or filtered or doc_id is not None
                       else self.guides.search(asked, s.ask_top_k))
             caught = None if found.passages or guided else route.fallback(
-                asked, chosen, scoped=body.document_id is not None, filtered=filtered)
+                asked, chosen, scoped=doc_id is not None, filtered=filtered)
             if guided:
                 chosen = route.Route("huong_dan", route.NO_DOC_REASON, chosen.lang)
                 found = Retrieval(guided, candidates=len(guided), semantic=found.semantic)
@@ -275,6 +309,8 @@ class Assistant:
         else:
             if chosen.name == "huong_dan":
                 found_passages = self.guides.search(asked, s.ask_top_k)
+            elif recalled:
+                found_passages, fixed = [], _recall(body.previous, chosen.lang)
             elif chosen.name == "gioi_thieu":
                 found_passages = self.guides.intro(chosen.reason, chosen.lang)
             elif chosen.name in route.DATA_ROUTES:
@@ -302,8 +338,13 @@ class Assistant:
                 warnings.append(warning)
             if model_text:
                 cited = grounding.citations(model_text)
+        elif body.mode == "generate":
+            # không có đoạn cho mô hình đọc: mô hình diễn đạt lại kết quả máy chủ đã soạn; không đạt thì trả câu đó
+            note = (counted.text if counted is not None else fixed if fixed is not None
+                    else self.guides.note(guide.NOT_FOUND, chosen.lang))
+            model_text, model, _, masked = await self._phrase(asked, note, deadline, request_id)
 
-        if counted is not None:
+        if counted is not None or recalled:
             status = "answered"
         elif not passages:
             status = "no_evidence"
@@ -313,11 +354,11 @@ class Assistant:
             status = "answered"
         extract_out = {"text": quoted.text, "source": "extract", "model": None} if quoted.text else None
         answer_out = {"text": model_text, "source": "model", "model": model} if model_text else extract_out
-        if fixed is not None:
+        if fixed is not None and model_text is None:
             answer_out = {"text": fixed, "source": "fixed", "model": None}
-        if counted is not None:
+        if counted is not None and model_text is None:
             answer_out = {"text": counted.text, "source": "data", "model": None}
-        answer_source = ("data" if counted else "model" if model_text else "extract" if quoted.text
+        answer_source = ("model" if model_text else "data" if counted else "extract" if quoted.text
                          else "fixed" if fixed else "none")
         warnings = [w for w in dict.fromkeys(warnings) if w in WARNINGS]
         ask_id = str(body.ask_id or uuid.uuid4())
@@ -344,7 +385,8 @@ class Assistant:
              mode=body.mode, status=status, route=chosen.name, route_reason=chosen.reason,
              followup=rewritten is not None, q_length=len(question), terms=len(vi.terms(asked)),
              candidates=found.candidates, relaxed=found.relaxed, hits=len(passages), cited=len(cited),
-             semantic=found.semantic, ratio=found.ratio, scoped=body.document_id is not None, model=model,
+             semantic=found.semantic, ratio=found.ratio, scoped=body.document_id is not None,
+             named=doc_id is not None and body.document_id is None, model=model,
              warnings=",".join(warnings), masked=masked, duration_ms=duration_ms)
         cited_set = set(cited)
         return {
@@ -382,8 +424,8 @@ class Assistant:
             _log("office.assist.count_failed", request_id, route=chosen.name, error=str(exc), code=exc.code)
             raise AskError(503, "database_unavailable", "CSDL chưa sẵn sàng") from exc
 
-    async def _search(self, body: AskBody, question: str, scope: Any, deadline: float, warnings: list[str],
-                      request_id: str) -> Retrieval:
+    async def _search(self, body: AskBody, question: str, scope: Any, doc_id: str | None, deadline: float,
+                      warnings: list[str], request_id: str) -> Retrieval:
         """Bước 4–5 của đường ``van_ban``: nhúng câu hỏi, tìm lai trong kho văn bản, hậu kiểm bằng token người hỏi."""
         s = self.settings
         vector: list[float] | None = None
@@ -402,7 +444,7 @@ class Assistant:
             found = await self.retriever.search(
                 scope, q=vi.keyword_query(question), vector=vector, limit=s.ask_top_k, question=question,
                 filters=Filters(direction=body.direction, year=body.year, type_code=body.type_code,
-                                document_id=None if body.document_id is None else str(body.document_id)))
+                                document_id=doc_id))
         except HasuraAuthError as exc:
             raise AskError(401, "invalid_token", "Token không hợp lệ hoặc đã hết hạn",
                            headers={"WWW-Authenticate": "Bearer"}) from exc
@@ -418,32 +460,76 @@ class Assistant:
             warnings.append("embed_unavailable")
         return found
 
+    async def _named(self, scope: Any, text: str, request_id: str) -> str | None:
+        """Văn bản duy nhất người hỏi được đọc mang đúng số ký hiệu ``text`` nêu (``Retriever.named``). Không nêu số ký
+        hiệu, không văn bản nào hoặc nhiều văn bản khớp → None: tìm cả kho như thường. Lỗi tìm, lỗi CSDL cũng None —
+        bước tìm chính sau đó báo lỗi đúng mã; chỉ token hỏng thì dừng ở đây."""
+        try:
+            ids = await self.retriever.named(scope, text)
+        except HasuraAuthError as exc:
+            raise AskError(401, "invalid_token", "Token không hợp lệ hoặc đã hết hạn",
+                           headers={"WWW-Authenticate": "Bearer"}) from exc
+        except (HasuraError, SearchError) as exc:
+            _log("office.assist.search_failed", request_id, error=str(exc), step="named")
+            return None
+        return ids[0] if len(ids) == 1 else None
+
+    async def _leading(self, scope: Any, document_id: str, request_id: str) -> Retrieval:
+        """Các đoạn đầu của văn bản đang hỏi (``Retriever.leading``); lỗi như ``_search``."""
+        try:
+            return await self.retriever.leading(scope, document_id, self.settings.ask_top_k)
+        except HasuraAuthError as exc:
+            raise AskError(401, "invalid_token", "Token không hợp lệ hoặc đã hết hạn",
+                           headers={"WWW-Authenticate": "Bearer"}) from exc
+        except HasuraError as exc:
+            _log("office.assist.search_failed", request_id, error=str(exc), code=exc.code)
+            raise AskError(503, "database_unavailable", "CSDL chưa sẵn sàng") from exc
+        except SearchError as exc:
+            _log("office.assist.search_failed", request_id, error=str(exc))
+            raise AskError(503, "search_unavailable", "Dịch vụ tìm kiếm chưa sẵn sàng — thử lại sau") from exc
+
     async def _generate(self, question: str, passages: list[Passage], best: dict[str, tuple[int, int]],
                         deadline: float, request_id: str, *, intro: bool = False,
                         ) -> tuple[str | None, str | None, str | None, int]:
         """(câu trả lời đã kiểm, mô hình đã gọi, cảnh báo, số chỗ đã che trong chữ gửi mô hình). ``intro``: đường
         ``gioi_thieu`` — lời dặn nêu phạm vi trợ lý (``grounding.SYSTEM_INTRO``), kiểm bằng ``validate_intro``."""
-        if not self.ai.chat_available:
-            return None, None, "model_unavailable", 0
-        left = deadline - self._clock()
-        if left < MODEL_MIN_S:
-            return None, None, "model_timeout", 0
         # Một bộ che cho cả lượt: câu hỏi che trước để số trong câu hỏi nhận nhãn số 1. ``best`` vẫn tính trên chữ
         # gốc (câu trích nguyên văn), sources() đổi sang toạ độ bản che. Mô hình đọc và validate kiểm cùng một bản che
         masker = pii.Masker()
         asked = masker.mask(question).text
         srcs = grounding.sources(passages[:INTRO_SOURCES] if intro else passages, best,
                                  max_chars=self.settings.ask_context_chars, masker=masker)
+        system = grounding.SYSTEM_INTRO if intro else grounding.SYSTEM
+        check = grounding.validate_intro if intro else grounding.validate
+        return await self._write(asked, srcs, system, check, masker, deadline, request_id)
+
+    async def _phrase(self, question: str, note: str, deadline: float, request_id: str,
+                      ) -> tuple[str | None, str | None, str | None, int]:
+        """Mô hình diễn đạt lại ``note`` — kết quả máy chủ đã soạn (số đếm, việc gần hạn, không tìm thấy, ngoài phạm
+        vi, câu hỏi trước) — thành lời đáp cho câu hỏi; mọi con số phải có trong ``note`` hay câu hỏi."""
+        masker = pii.Masker()
+        asked = masker.mask(question).text
+        srcs = [grounding.Source(1, "", "", masker.mask(grounding.clean(note)).text)]
+        return await self._write(asked, srcs, grounding.SYSTEM_NOTE, grounding.validate_intro, masker, deadline,
+                                 request_id)
+
+    async def _write(self, asked: str, srcs: list[grounding.Source], system: str,
+                     check: Callable[[str, list[grounding.Source], str], grounding.Verdict], masker: pii.Masker,
+                     deadline: float, request_id: str) -> tuple[str | None, str | None, str | None, int]:
+        if not self.ai.chat_available:
+            return None, None, "model_unavailable", 0
+        left = deadline - self._clock()
+        if left < MODEL_MIN_S:
+            return None, None, "model_timeout", 0
         limit = self.settings.ask_model_timeout_s
         with self._holding():
-            system = grounding.SYSTEM_INTRO if intro else grounding.SYSTEM
             result = await self.ai.chat(grounding.messages(srcs, asked, system=system), format=grounding.FORMAT,
                                         options=grounding.OPTIONS,
                                         timeout_s=min(limit, left - SAVE_RESERVE_S))
         model = self.ai.chat_model
         if result.content is None:
             return None, model, result.warning or "model_unavailable", masker.total
-        verdict = (grounding.validate_intro if intro else grounding.validate)(result.content, srcs, asked)
+        verdict = check(result.content, srcs, asked)
         if verdict.text:
             if verdict.reason:      # trimmed: đã bỏ câu không căn cứ, chỉ ghi mã
                 _log("office.assist.model_trimmed", request_id, model=model, masked=masker.total)

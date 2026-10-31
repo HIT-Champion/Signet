@@ -30,7 +30,8 @@ from conftest import TENANT_A, FakeChunkIndex
 from svc_files import hasura as hasura_queries
 from svc_files.assist.chunks import eligible
 from svc_files.assist.index import ChunkIndexer
-from svc_files.assist.retrieve import KEYWORD_RATIO, DocHit, Filters, Passage, Retriever, exact_cues, semantic_ratio
+from svc_files.assist.retrieve import (KEYWORD_RATIO, DocHit, Filters, Passage, Retriever, exact_cues, semantic_ratio,
+                                      symbol_key, symbols)
 from svc_files.assist.scope import service_scope, user_scope
 from svc_files.hasura import HasuraAuthError, HasuraError
 from svc_files.search import SearchError
@@ -92,6 +93,52 @@ def test_stale_index_never_leaks_unreadable_or_restricted_documents(make_token, 
     assert got.candidates >= 3                                      # Meilisearch đã trả cả đoạn bị cấm
     assert hasura.ask_calls[-1]["by"] == "token" and hasura.ask_calls[-1]["sub"] == me
     assert set(hasura.ask_calls[-1]["ids"]) == {mine, revoked, sealed}
+
+
+def test_leading_reads_one_document_in_reading_order_after_the_post_check(make_token, hasura, index):
+    doc = hasura.add_document(TENANT_A, "Rà soát danh sách xét tốt nghiệp", assignments=[],
+                              updated_at="2026-10-21T08:00:00+00:00",
+                              files=[link(text(sentences("TRANGMOT", 2), sentences("TRANGHAI", 2)), file_id="f-lead")])
+    add(hasura, "Văn bản khác", sentences("KHAC", 2))
+    hidden = add(hasura, "Văn bản mật", sentences("MAT", 2), readers={"u-khac"})
+    sync(hasura, index)
+    got = run(retriever(index, hasura).leading(scope_of(make_token), doc, 10))
+    assert got.passages and {p.document_id for p in got.passages} == {doc}
+    pages = [p.page for p in got.passages]
+    assert pages == sorted(pages) and pages[0] == 1 and pages[-1] == 2
+    assert index.searches[-1]["q"] == "" and f'document_id = "{doc}"' in index.searches[-1]["filter"]
+    assert index.searches[-1]["filter"][0] == f'tenant_id = "{TENANT_A}"'
+    assert run(retriever(index, hasura).leading(scope_of(make_token), doc, 1)).passages == got.passages[:1]
+    blocked = run(retriever(index, hasura).leading(scope_of(make_token), hidden, 10))
+    assert blocked.passages == [] and blocked.candidates > 0          # Meilisearch trả, hậu kiểm chặn
+
+
+def test_named_finds_the_readable_document_with_the_symbol_the_question_names(make_token, hasura, index):
+    nd = add(hasura, "Quy định xử phạt vi phạm hành chính", sentences("XUPHAT", 2), symbol="168/2024/NĐ-CP")
+    add(hasura, "Văn bản khác", sentences("KHAC", 2), symbol="100/2019/NĐ-CP")
+    hidden = add(hasura, "Văn bản mật", sentences("MAT", 2), readers={"u-khac"}, symbol="77/QĐ-ĐHM")
+    sync(hasura, index)
+    r, scope = retriever(index, hasura), scope_of(make_token)
+    assert run(r.named(scope, "Nghị định 168/2024/NĐ-CP yêu cầu những gì?")) == [nd]
+    (bodies,) = index.multi_searches
+    assert bodies == [{"q": "168/2024/NĐ-CP", "filter": [f'tenant_id = "{TENANT_A}"', *scope.where],
+                       "attributesToSearchOn": ["symbol"], "matchingStrategy": "all", "distinct": "document_id",
+                       "limit": 10, "attributesToRetrieve": ["document_id", "symbol"]}]
+    assert run(r.named(scope, "Văn bản 77/QĐ-ĐHM nói gì?")) == []          # Meilisearch trả, hậu kiểm chặn
+    assert run(r.named(scope, "Hạn nộp hồ sơ 15/11/2026 là gì?")) == []
+    assert len(index.multi_searches) == 2                                   # câu không nêu số ký hiệu: không tìm
+    hasura.documents[nd]["symbol"] = "168/2025/NĐ-CP"                       # đổi số ký hiệu, chỉ mục chưa đồng bộ
+    assert run(r.named(scope, "Nghị định 168/2024/NĐ-CP yêu cầu những gì?")) == []
+
+
+@pytest.mark.parametrize(("question", "found"), [
+    ("Nghị định 168/2024/NĐ-CP yêu cầu gì?", ["168/2024/NĐ-CP"]),
+    ("So sánh 88/CTSV với 12/TB–ĐT", ["88/CTSV", "12/TB-ĐT"]),
+    ("Hạn nộp 15/11/2026, phòng 302", []),
+])
+def test_symbols_in_a_question(question, found):
+    assert symbols(question) == found
+    assert symbol_key("168/2024/NĐ-CP") == symbol_key("168 / 2024 / nd–cp") == "168/2024/nd-cp"
 
 
 def test_only_passages_of_documents_hasura_returns(make_token, hasura, index):

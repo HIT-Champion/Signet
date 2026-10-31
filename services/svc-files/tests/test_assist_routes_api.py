@@ -14,8 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""POST /api/documents/ask qua bộ định tuyến (#423): gioi_thieu, ngoai_pham_vi không tìm văn bản; gioi_thieu chỉ gọi mô
-hình ở lượt generate, ngoai_pham_vi không bao giờ;
+"""POST /api/documents/ask qua bộ định tuyến (#423): gioi_thieu, ngoai_pham_vi không tìm văn bản; cả hai chỉ gọi mô
+hình ở lượt generate;
 huong_dan trả lời từ hướng dẫn sử dụng; câu nối tiếp ghép với ``previous``; sổ kiểm toán, nhật ký ghi đường mà không
 có chữ câu hỏi. Dùng lại fixture ``asking`` của test_assist_api.py."""
 
@@ -27,6 +27,7 @@ import pathlib
 import pytest
 
 from assist_fakes import CHAT_MODEL, FakeOllama, good_answer, ollama
+from svc_files.assist import grounding
 from test_assist_api import D88, ask, asking, demo  # noqa: F401 (asking là fixture)
 
 GUIDES = str(pathlib.Path(__file__).resolve().parents[3] / "docs" / "huong-dan")
@@ -95,13 +96,26 @@ def test_out_of_scope_gets_a_fixed_answer_and_no_search(asking, question, lang_s
     fake = FakeOllama()
     env = asking(passages=demo(), ai=ollama(fake))
     fake.requests.clear()
-    body = routed(env, question, mode="generate")
+    body = routed(env, question)
     assert body["route"] == "ngoai_pham_vi" and body["status"] == "no_evidence" and body["sources"] == []
     assert body["answer"] == {"text": body["answer"]["text"], "source": "fixed", "model": None}
     assert body["answer"]["text"].startswith(lang_start) and body["extract"] is None
     assert env.retriever.calls == [] and fake.requests == []
     (event,) = env.hasura.agent_events
     assert event["diff"]["answer_source"] == "fixed" and event["diff"]["hits"] == 0
+
+
+def test_out_of_scope_in_generate_is_worded_by_the_model_without_search(asking):
+    said = "Câu này nằm ngoài phạm vi của tôi. Tôi giúp bạn tra nội dung văn bản và cách dùng Signet."
+    fake = FakeOllama(reply=json.dumps({"du_can_cu": True, "tra_loi": said}, ensure_ascii=False))
+    env = asking(passages=demo(), ai=ollama(fake))
+    body = routed(env, "Thời tiết Hà Nội hôm nay thế nào?", mode="generate")
+    assert (body["route"], body["status"], body["sources"]) == ("ngoai_pham_vi", "no_evidence", [])
+    assert body["answer"] == {"text": said, "source": "model", "model": CHAT_MODEL}
+    (call,) = fake.calls("/api/chat")
+    assert call["messages"][0]["content"] == grounding.SYSTEM_NOTE
+    assert "Câu này nằm ngoài phạm vi của tôi." in call["messages"][1]["content"]
+    assert env.retriever.calls == []
 
 
 def test_how_to_questions_answer_from_the_user_guide(asking):

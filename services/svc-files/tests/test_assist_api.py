@@ -208,6 +208,50 @@ def test_needs_a_token(asking):
     assert r.status_code == 401 and r.json()["detail"]["code"] == "missing_token"
 
 
+def test_a_summary_inside_one_document_reads_its_leading_passages(asking):
+    # "tóm tắt văn bản này" không khớp đoạn nào: mô hình vẫn có các đoạn đầu của văn bản làm căn cứ
+    summary = "Tóm tắt nội dung văn bản này"
+    env = asking(passages=demo())
+    env.retriever.no_match = True
+    body = ask(env, env.token(), question=summary, document_id=D88).json()
+    assert body["status"] != "no_evidence" and [s["document_id"] for s in body["sources"]] == [D88]
+    assert [c["document_id"] for c in env.retriever.leading_calls] == [D88]
+    env.retriever.no_match = False
+    ask(env, env.token(), question=summary, document_id=D88)        # xin tóm tắt: đoạn đầu, cả khi có đoạn khớp
+    ask(env, env.token(), document_id=D88)                          # câu hỏi thường có đoạn khớp: không
+    env.retriever.no_match = True
+    ask(env, env.token(), question=summary)                         # không hỏi trong một văn bản: không
+    assert len(env.retriever.leading_calls) == 2
+    # đoạn đầu cũng qua hậu kiểm: văn bản không được đọc thì vẫn không có căn cứ
+    hidden = asking(passages=demo(), readers={D88: {"u-khac"}})
+    hidden.retriever.no_match = True
+    got = ask(hidden, hidden.token(sub="u-giang-vien-ktpm", role="staff"), question=summary, document_id=D88).json()
+    assert got["status"] == "no_evidence" and got["sources"] == [] and "88/CTSV" not in json.dumps(got)
+
+
+def test_a_question_naming_one_document_by_symbol_is_asked_inside_it(asking):
+    # hỏi cả kho mà nêu đúng số ký hiệu: như hỏi trong văn bản đó — tìm lọc theo văn bản, không đoạn nào khớp thì đọc
+    # các đoạn đầu (01/11: hỏi riêng văn bản thì được, hỏi cả kho thì "không tìm thấy")
+    env = asking(passages=[*demo(), passage("Lịch thi học kỳ một.", symbol="12/TB-ĐT")])
+    env.retriever.no_match = True
+    body = ask(env, env.token(), question="Công văn 88/ctsv yêu cầu những gì?").json()
+    assert (body["route"], body["route_reason"]) == ("van_ban", "so-ky-hieu")
+    assert env.retriever.calls[-1]["filters"].document_id == D88
+    assert [c["document_id"] for c in env.retriever.leading_calls] == [D88]
+    assert body["status"] != "no_evidence" and [s["document_id"] for s in body["sources"]] == [D88]
+    # không nêu số ký hiệu, nêu hai văn bản, số ký hiệu không văn bản nào có, ngày: tìm cả kho như cũ
+    for question in ("Học bổng khuyến khích học tập?", "So sánh 88/CTSV và 12/TB-ĐT", "Văn bản 77/QĐ-XYZ nói gì?",
+                     "Văn bản ngày 15/11/2026 nói gì?"):
+        ask(env, env.token(), question=question)
+        assert env.retriever.calls[-1]["filters"].document_id is None, question
+    assert len(env.retriever.leading_calls) == 1
+    # văn bản người hỏi không được đọc không thành phạm vi
+    hidden = asking(passages=demo(), readers={D88: {"u-khac"}})
+    got = ask(hidden, hidden.token(sub="u-giang-vien-ktpm", role="staff"), question="88/CTSV yêu cầu gì?").json()
+    assert got["route_reason"] != "so-ky-hieu" and hidden.retriever.calls[-1]["filters"].document_id is None
+    assert got["sources"] == [] and "88/CTSV" not in json.dumps(got)
+
+
 @pytest.mark.parametrize("role", ["tenant_admin", "verifier", "agent"])
 def test_roles_without_documents_are_403_before_any_search(asking, role):
     env = asking(passages=demo())
@@ -227,7 +271,10 @@ def test_no_evidence_when_every_passage_is_forbidden_and_the_model_gets_nothing(
         assert body["status"] == "no_evidence" and body["sources"] == [] and body["answer"] is None
         assert body["extract"] is None and body["warnings"] == []
         assert "88/CTSV" not in r.text and "3,2" not in r.text
-    assert fake.calls("/api/chat") == []
+    # generate: mô hình chỉ đọc lời báo không tìm thấy của máy chủ, không một chữ nào của văn bản bị chặn
+    (call,) = fake.calls("/api/chat")
+    sent = call["messages"][1]["content"]
+    assert "88/CTSV" not in sent and "3,2" not in sent and "Tôi không tìm thấy văn bản nào" in sent
     assert [e["diff"]["status"] for e in env.hasura.agent_events] == ["no_evidence", "no_evidence"]
     assert all(e["diff"]["documents"] == "" for e in env.hasura.agent_events)
 

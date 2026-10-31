@@ -58,7 +58,6 @@ test('hỏi đáp: văn thư thấy câu trích nguyên văn và nguồn; giản
     await expect(turn.getByTestId('ask-sources')).toContainText('88/CTSV', { timeout: 1_000 })
   }).toPass({ timeout: 60_000, intervals: [3_000, 5_000] })
   await expect(turn.getByTestId('ask-sources')).toContainText('88/CTSV · tr. 1')
-  await expect(turn.getByTestId('ask-mode')).toContainText('Tìm theo từ khóa')
   await expect(clerk.getByTestId('ask-live')).toContainText(/Đã tìm thấy \d+ đoạn liên quan/)
   await shot(clerk, '33-hoi-dap-cau-trich')
 

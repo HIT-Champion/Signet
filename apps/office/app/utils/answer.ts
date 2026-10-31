@@ -90,10 +90,21 @@ export function cleanQuestion(s: string): string {
   return s.normalize('NFC').replace(/\s+/gu, ' ').replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/ {2,}/g, ' ').trim()
 }
 
-/** Kết quả lượt extract có đáng nhờ mô hình viết câu trả lời không: mô hình sẵn sàng, có đoạn trích làm căn cứ, và
- *  đường của câu hỏi có lượt viết (giới thiệu trợ lý, ngoài phạm vi, đường dữ liệu không bao giờ gọi mô hình). */
-export function needsGenerate(res: Pick<AskResult, 'status' | 'ai_available' | 'sources' | 'route'>): boolean {
-  return res.ai_available === true && res.status !== 'no_evidence' && res.sources.length > 0 && generates(res.route)
+/** Sau lượt extract, mô hình viết lời đáp cho mọi câu khi mô hình sẵn sàng: văn bản, hướng dẫn tổng hợp từ các đoạn
+ *  tìm được; giới thiệu từ tệp "Giới thiệu trợ lý"; đếm văn bản, việc của tôi, ngoài phạm vi, không tìm thấy, câu hỏi
+ *  trước thì diễn đạt lại kết quả máy chủ đã soạn. Mô hình không viết được thì giữ chữ của lượt extract. */
+export function needsGenerate(res: Pick<AskResult, 'ai_available'>): boolean {
+  return res.ai_available === true
+}
+
+/** Dòng trạng thái lúc mô hình viết, khớp việc đang làm: soạn từ đoạn văn bản, từ hướng dẫn sử dụng, từ dữ liệu
+ *  của người hỏi, hay trả lời thẳng (lời chào, ngoài phạm vi, không tìm thấy). Tham số ``n``: số đoạn tìm được. */
+export function writingKey(res: Pick<AskResult, 'route' | 'status'>): string {
+  if (res.status === 'no_evidence' || res.route === 'gioi_thieu' || res.route === 'ngoai_pham_vi') {
+    return 'assist.writing.reply'
+  }
+  if (res.route === 'viec_cua_toi' || res.route === 'dem_van_ban') return 'assist.writing.data'
+  return res.route === 'huong_dan' ? 'assist.writing.guide' : 'assist.writing.documents'
 }
 
 /** Ba khối hiện được: câu trả lời do mô hình viết (đã qua kiểm trích dẫn), câu trích nguyên văn, và câu trả lời thẳng
@@ -146,17 +157,10 @@ export const DATA_LINKS: readonly string[] = ['/', '/van-ban-den', '/van-ban-di'
 export const ROUTES: readonly AskRoute[] = ['van_ban', 'gioi_thieu', 'huong_dan', 'ngoai_pham_vi', 'viec_cua_toi',
   'dem_van_ban']
 
-/** Đường có tìm đoạn trong kho văn bản hay hướng dẫn sử dụng: hiện chip cách tìm. Giới thiệu trợ lý (lời chào, câu
- *  chưa rõ ý) hiện như một tin nhắn, không chip. Máy chủ chưa có bộ định tuyến (không có route) thì mọi câu là văn bản
- *  như trước. */
+/** Đường có tìm đoạn trong kho văn bản hay hướng dẫn sử dụng. Giới thiệu trợ lý (lời chào, câu chưa rõ ý) hiện như
+ *  một tin nhắn. Máy chủ chưa có bộ định tuyến (không có route) thì mọi câu là văn bản như trước. */
 export function searched(route: AskRoute | undefined): boolean {
   return route === undefined || route === 'van_ban' || route === 'huong_dan'
-}
-
-/** Đường có lượt mô hình viết câu trả lời: văn bản, hướng dẫn sử dụng và giới thiệu trợ lý (mô hình viết lời đáp từ
- *  tệp "Giới thiệu trợ lý"; không đạt thì giữ chữ soạn sẵn). */
-export function generates(route: AskRoute | undefined): boolean {
-  return route === undefined || route === 'van_ban' || route === 'huong_dan' || route === 'gioi_thieu'
 }
 
 /** Lời đáp của đường giới thiệu trợ lý hiện như tin nhắn: không nhãn "Câu trích nguyên văn", không danh sách nguồn. */

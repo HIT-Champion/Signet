@@ -52,9 +52,11 @@ INTENTS: dict[str, tuple[str, str]] = {
     "hoi_ve_tro_ly": ("gioi_thieu", "lam-duoc-gi"),
     "mo_hinh": ("gioi_thieu", "dung-mo-hinh"),
     "chua_ro": ("gioi_thieu", "luoi-an-toan"),
+    "hoi_cau_truoc": ("gioi_thieu", "cau-truoc"),
     "ngoai_pham_vi": ("ngoai_pham_vi", "ngoai-pham-vi"),
 }
 PREFIX = "llm:"
+RECALL = PREFIX + "cau-truoc"      # hỏi lại câu trước của chính người hỏi: answer.py trả lời từ ``previous``
 MAX_QUESTION = 500
 CACHE_SIZE = 512
 CACHE_TTL_S = 600.0
@@ -75,6 +77,7 @@ SYSTEM = (
     "- hoi_ve_tro_ly: hỏi trợ lý là ai, làm được gì, giúp được gì, nên hỏi thế nào;\n"
     "- mo_hinh: hỏi trợ lý dùng mô hình AI nào, giới hạn của trợ lý;\n"
     "- chua_ro: câu quá ngắn hoặc không rõ muốn hỏi gì;\n"
+    "- hoi_cau_truoc: hỏi lại chính cuộc trò chuyện (\"tôi vừa hỏi gì?\", \"câu trước tôi hỏi gì?\");\n"
     "- ngoai_pham_vi: không liên quan văn bản của trường hay phần mềm Signet (thời tiết, giải toán, nấu ăn, kiến thức "
     "chung, viết mã, tin tức).\n"
     "can_cau_truoc: true khi câu hỏi nhắc tới điều chưa nói rõ trong chính câu (\"nó\", \"văn bản đó\", \"điều này\", "
@@ -147,7 +150,8 @@ class IntentStep:
         asked = masker.mask(question).text
         result = await self.ai.chat(messages(asked, None), format=FORMAT, options=OPTIONS, timeout_s=end - now)
         got = parse(result.content, question, None, lang, masked=False)
-        if got is not None and got.needs_previous and previous and end - self._clock() > 0:
+        if (got is not None and got.needs_previous and got.intent != "hoi_cau_truoc" and previous
+                and end - self._clock() > 0):
             before = masker.mask(previous).text
             result = await self.ai.chat(messages(asked, before), format=FORMAT, options=OPTIONS,
                                         timeout_s=end - self._clock())

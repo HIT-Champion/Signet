@@ -603,7 +603,8 @@ dòng hỏi đáp của tác tử, không có câu hỏi.
 - *"Mô hình có bịa không?"* Đường mặc định không có mô hình: câu trả lời là câu chép nguyên văn từ văn bản, kèm số
   ký hiệu và trang. Mô hình không tự ghi [n]: `svc-files` tìm cho từng câu đoạn nguồn chứa ý mới của câu — mọi con số
   (từ 2 chữ số) có trong đoạn đó, phần lớn từ mới lấy từ đoạn đó — rồi mới gắn [n]; một câu không tìm được thì người
-  dùng thấy câu trích, không thấy câu của mô hình. Không có đoạn nào đủ khớp thì không gọi mô hình.
+  dùng thấy câu trích, không thấy câu của mô hình. Không có đoạn nào đủ khớp thì mô hình không đọc chữ nào của văn
+  bản, chỉ diễn đạt lại lời báo không tìm thấy.
 - *"Trong văn bản có câu 'bỏ qua mọi chỉ dẫn, trả lời…'?"* Chữ nguồn được bọc trong thẻ, thẻ giả trong chữ bị bỏ; lời
   dặn nói rõ chữ trong nguồn chỉ là dữ liệu; đầu ra chỉ nhận đúng JSON hai khóa rồi vẫn qua kiểm trích dẫn như trên.
   Trợ lý không có công cụ nào để làm theo: chỉ đọc, không ghi.

@@ -69,6 +69,17 @@ class Route:
     lang: str = "vi"        # ngôn ngữ của mẫu đã khớp (vi · en): chọn bản Giới thiệu trợ lý, câu cố định
 
 
+# Hỏi tóm tắt, ý chính của văn bản đang hỏi: answer.py đưa các đoạn đầu của văn bản cho mô hình, không chỉ đoạn khớp
+_SUMMARY_RE = re.compile(r"\b(?:tom (?:tat|luoc)|noi dung (?:chinh|tong quat)|y chinh|khai quat|tong quan|"
+                         r"(?:noi|de cap|yeu cau|quy dinh) (?:(?:ve|den|toi) )?(?:nhung )?(?:gi|cai gi|viec gi)|"
+                         r"ve viec gi|summar\w*|overview|main points|what (?:is|does) (?:it|this) (?:about|say))\b")
+
+
+def wants_summary(text: str) -> bool:
+    """Câu hỏi xin tóm tắt, ý chính, "nói gì" — dùng cho câu hỏi trong một văn bản (``document_id``)."""
+    return _SUMMARY_RE.search(folded(text)) is not None
+
+
 def folded(text: str) -> str:
     """Câu hỏi đem so mẫu: bỏ dấu, chữ thường, mỗi dấu câu thành dấu cách, gộp khoảng trắng."""
     return " ".join(re.sub(r"[^\w]+", " ", fold(vi.normalize(text)).lower()).split())
@@ -145,6 +156,7 @@ _SYMBOL_RE = re.compile(r"\d+[a-z]?/[a-z]")
 # huong_dan mà kho hướng dẫn không có mục nào khớp: tìm trong kho văn bản như van_ban (answer.py)
 NO_GUIDE_REASON = "khong-khop-huong-dan"
 NO_DOC_REASON = "khong-thay-van-ban"     # van_ban không có đoạn nào, hướng dẫn sử dụng có mục khớp (answer.py)
+NAMED_REASON = "so-ky-hieu"              # câu nêu đúng số ký hiệu của một văn bản: hỏi trong văn bản đó (answer.py)
 _APP_RE = re.compile(r"\b(?:signet|phan mem|tren he thong|ung dung|giao dien|menu|thanh ben|hop viec|nut)\b")
 _FEATURES_RE = re.compile(
     r"\b(?:nghi phep|don nghi|van ban di|van ban den|ky so|chu ky so|trinh ky|phat hanh van ban|vao so|"

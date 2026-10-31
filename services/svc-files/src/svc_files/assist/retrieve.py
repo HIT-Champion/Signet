@@ -65,6 +65,9 @@ from .vi import TOKEN_RE
 FIELDS = ["id", "document_id", "kind", "file_id", "file_role", "page", "seq", "text"]
 MORE_ROUNDS = 2            # thiếu đoạn mà Meilisearch còn kết quả: lấy thêm tối đa từng này lượt
 RELAX_MIN = 0.5            # tìm nới: đoạn phải có từ chiếm ≥ tỷ lệ này trọng số của câu hỏi
+LEADING_SCAN = 200         # số đoạn tối đa đọc của một văn bản khi lấy các đoạn đầu (``Retriever.leading``)
+ROLE_ORDER = {"main": 0, "attachment": 1, "issued": 2}
+NAMED_SCAN = 10            # số văn bản tối đa đọc khi tìm văn bản theo số ký hiệu câu hỏi nêu (``Retriever.named``)
 WORD = re.compile(r"\w+")
 
 # Tỷ trọng nghĩa tối đa khi câu hỏi cần đúng chữ. Meilisearch xếp chung hai danh sách theo điểm nhân trọng số: đoạn
@@ -106,6 +109,18 @@ def exact_cues(question: str) -> list[str]:
     if QUOTED.search(question):
         cues.append("quoted")
     return cues
+
+
+def symbols(question: str) -> list[str]:
+    """Các số ký hiệu câu hỏi nêu ("168/2024/NĐ-CP", "131/ĐT-ĐHM", "88/CTSV"): token ``vi.TOKEN_RE`` có chữ sau "/"
+    (``SYMBOL_TAIL``), theo thứ tự trong câu, không lặp. Ngày "15/11/2026" không phải số ký hiệu."""
+    return list(dict.fromkeys(t for t in TOKEN_RE.findall(DASHES.sub("-", question)) if SYMBOL_TAIL.search(t)))
+
+
+def symbol_key(symbol: str) -> str:
+    """Khóa so hai số ký hiệu: bỏ dấu, chữ thường, mọi gạch nối là "-", bỏ khoảng trắng — "168/2024/NĐ-CP",
+    "168/2024/nd-cp" và "168 / 2024 / NĐ–CP" cùng một khóa."""
+    return "".join(DASHES.sub("-", fold(symbol)).casefold().split())
 
 
 def semantic_ratio(question: str, base: float) -> float:
@@ -275,6 +290,51 @@ class Retriever:
         (passages, candidates, relaxed), semantic, error = await self._hybrid_or_keywords(
             scope, q, vector, filter_parts(filters), lambda body: self._passages(scope, body, limit), ratio)
         return Retrieval(passages, candidates, semantic, error, relaxed, ratio if semantic else None)
+
+    async def leading(self, scope: Scope, document_id: str, limit: int) -> Retrieval:
+        """Các đoạn đầu của một văn bản theo thứ tự đọc: trích yếu, rồi tệp chính, đính kèm, bản phát hành theo trang
+        và thứ tự đoạn. Dùng khi hỏi trong một văn bản ("tóm tắt văn bản này") mà không đoạn nào khớp câu hỏi. Cùng
+        lọc trước theo vai trò và hậu kiểm bằng token như ``search``."""
+        if scope.where == NOTHING or limit <= 0:
+            return Retrieval([], 0, False)
+        body = {"q": "", "filter": [f"tenant_id = {_quoted(str(scope.tenant_id))}", *scope.where,
+                                    f"document_id = {_quoted(document_id)}"],
+                "limit": LEADING_SCAN, "offset": 0, "attributesToRetrieve": FIELDS}
+        hits = await self.index.search(body)
+        if not hits:
+            return Retrieval([], 0, False)
+        row = (await self._readable(scope, [document_id])).get(document_id)
+        if row is None or not eligible(row):
+            return Retrieval([], len(hits), False)
+        hits.sort(key=lambda h: (h.get("kind") != "meta", ROLE_ORDER.get(h.get("file_role") or "", 3),
+                                 str(h.get("file_id") or ""), h.get("page") or 0, h.get("seq") or 0))
+        doc = source_doc(row)
+        return Retrieval([Passage(chunk_id=str(h["id"]), document_id=document_id, kind=h.get("kind") or "page",
+                                  file_id=h.get("file_id"), file_role=h.get("file_role"), page=h.get("page"),
+                                  text=h.get("text") or "", score=0.0, doc=doc) for h in hits[:limit]],
+                         len(hits), False)
+
+    async def named(self, scope: Scope, question: str) -> list[str]:
+        """Văn bản người hỏi được đọc mang đúng số ký hiệu câu hỏi nêu ("Nghị định 168/2024/NĐ-CP yêu cầu những
+        gì?"), theo thứ tự số ký hiệu trong câu. Tìm trên trường ``symbol`` của chỉ mục đoạn (mỗi văn bản một đoạn),
+        so lại bằng ``symbol_key`` cả với số ký hiệu mới nhất từ Hasura, hậu kiểm như ``search``. Câu không nêu số ký
+        hiệu nào thì không gọi Meilisearch."""
+        cues = symbols(question)
+        if scope.where == NOTHING or not cues:
+            return []
+        keys = {symbol_key(c) for c in cues}
+        where = [f"tenant_id = {_quoted(str(scope.tenant_id))}", *scope.where]
+        results = await self.index.multi_search(
+            [{"q": c, "filter": where, "attributesToSearchOn": ["symbol"], "matchingStrategy": "all",
+              "distinct": "document_id", "limit": NAMED_SCAN, "attributesToRetrieve": ["document_id", "symbol"]}
+             for c in cues])
+        ids = list(dict.fromkeys(str(h["document_id"]) for hits, _ in results for h in hits
+                                 if symbol_key(str(h.get("symbol") or "")) in keys))
+        if not ids:
+            return []
+        readable = await self._readable(scope, ids)
+        return [d for d in ids if (row := readable.get(d)) is not None and eligible(row)
+                and symbol_key(str(row.get("symbol") or "")) in keys]
 
     async def _passages(self, scope: Scope, body: dict[str, Any], limit: int) -> tuple[list[Passage], int, int]:
         """(đoạn đã hậu kiểm theo thứ tự xếp hạng, số đoạn Meilisearch đã trả, số đoạn nhờ tìm nới)."""

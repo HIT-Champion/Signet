@@ -17,6 +17,11 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 ### Đã sửa đổi
 - Trang đăng nhập: logo nổi bật hơn, bố cục mềm và cân đối hơn, vừa màn hình điện thoại và laptop (#480).
 - Trợ lý hỏi đáp: lúc chờ tìm và chờ soạn câu trả lời hiện logo Signet chuyển động thay vòng xoay (#499).
+- Trợ lý hỏi đáp: mọi câu trả lời do mô hình viết, kể cả đếm văn bản, việc của tôi, câu ngoài phạm vi, không tìm
+  thấy và "tôi vừa hỏi gì?"; bỏ các dòng phụ, dòng chờ nói đúng bước đang làm (#503).
+- Trợ lý hỏi đáp tóm tắt được văn bản đang hỏi ("Tóm tắt nội dung văn bản này") thay vì báo không tìm thấy (#503).
+- Trợ lý hỏi đáp: câu hỏi nêu đúng số ký hiệu một văn bản (Nghị định 168/2024/NĐ-CP) được hỏi trong văn bản đó,
+  hết báo "không tìm thấy" khi hỏi cả kho (#503).
 
 ### Đã sửa lỗi
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
