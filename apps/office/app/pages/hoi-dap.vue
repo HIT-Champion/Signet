@@ -330,7 +330,7 @@ async function generate(key: number, ctrl: AbortController) {
 // hiện câu trích rồi thay. Câu trích (chọn bằng thuật toán) chỉ là câu trả lời khi không có mô hình, mô hình quá hạn,
 // hỏng hay bị dừng; mô hình thấy các đoạn không trả lời câu hỏi (declined) thì nói không tìm thấy, đoạn tìm được để
 // gập. Lời giới thiệu trợ lý: hỏng hay dừng thì chữ soạn sẵn là câu trả lời, không kèm thông báo
-function writing(turn: Turn): boolean {
+function modelWriting(turn: Turn): boolean {
   return turn.gen === 'waiting' || turn.gen === 'running'
 }
 
@@ -620,7 +620,9 @@ onBeforeUnmount(() => {
                 </section>
 
                 <!-- mô hình đọc các đoạn tìm được, thấy không trả lời câu hỏi -->
-                <section v-if="!writing(turn) && declined(turn.result)" class="sg-answer" data-testid="ask-declined">
+                <section
+                  v-if="!modelWriting(turn) && declined(turn.result)" class="sg-answer" data-testid="ask-declined"
+                >
                   <p>{{ t('assist.declinedAnswer') }}</p>
                   <button
                     v-if="blocks(turn.result).extract" type="button"
@@ -634,7 +636,7 @@ onBeforeUnmount(() => {
 
                 <!-- câu trích nguyên văn: là câu trả lời khi không có mô hình, là khối phụ khi có -->
                 <section
-                  v-if="blocks(turn.result).extract && !writing(turn)
+                  v-if="blocks(turn.result).extract && !modelWriting(turn)
                     && ((!blocks(turn.result).model && !declined(turn.result)) || turn.showExtract)"
                   :id="`trich-${turn.key}`" class="sg-answer" :class="{ 'is-quote': blocks(turn.result).model }"
                   data-testid="ask-extract"
@@ -714,7 +716,7 @@ onBeforeUnmount(() => {
 
                 <!-- nguồn: mỗi nguồn một dòng gọn, "Chi tiết" mở đoạn trích -->
                 <section
-                  v-if="turn.result.sources.length && !isIntro(turn.result) && !writing(turn)
+                  v-if="turn.result.sources.length && !isIntro(turn.result) && !modelWriting(turn)
                     && (!declined(turn.result) || turn.showExtract)" class="sg-sources"
                   :aria-labelledby="`nguon-${turn.key}`"
                 >
