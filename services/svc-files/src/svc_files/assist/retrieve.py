@@ -67,6 +67,7 @@ MORE_ROUNDS = 2            # thiếu đoạn mà Meilisearch còn kết quả: l
 RELAX_MIN = 0.5            # tìm nới: đoạn phải có từ chiếm ≥ tỷ lệ này trọng số của câu hỏi
 LEADING_SCAN = 200         # số đoạn tối đa đọc của một văn bản khi lấy các đoạn đầu (``Retriever.leading``)
 ROLE_ORDER = {"main": 0, "attachment": 1, "issued": 2}
+NAMED_SCAN = 10            # số văn bản tối đa đọc khi tìm văn bản theo số ký hiệu câu hỏi nêu (``Retriever.named``)
 WORD = re.compile(r"\w+")
 
 # Tỷ trọng nghĩa tối đa khi câu hỏi cần đúng chữ. Meilisearch xếp chung hai danh sách theo điểm nhân trọng số: đoạn
@@ -108,6 +109,18 @@ def exact_cues(question: str) -> list[str]:
     if QUOTED.search(question):
         cues.append("quoted")
     return cues
+
+
+def symbols(question: str) -> list[str]:
+    """Các số ký hiệu câu hỏi nêu ("168/2024/NĐ-CP", "131/ĐT-ĐHM", "88/CTSV"): token ``vi.TOKEN_RE`` có chữ sau "/"
+    (``SYMBOL_TAIL``), theo thứ tự trong câu, không lặp. Ngày "15/11/2026" không phải số ký hiệu."""
+    return list(dict.fromkeys(t for t in TOKEN_RE.findall(DASHES.sub("-", question)) if SYMBOL_TAIL.search(t)))
+
+
+def symbol_key(symbol: str) -> str:
+    """Khóa so hai số ký hiệu: bỏ dấu, chữ thường, mọi gạch nối là "-", bỏ khoảng trắng — "168/2024/NĐ-CP",
+    "168/2024/nd-cp" và "168 / 2024 / NĐ–CP" cùng một khóa."""
+    return "".join(DASHES.sub("-", fold(symbol)).casefold().split())
 
 
 def semantic_ratio(question: str, base: float) -> float:
@@ -300,6 +313,28 @@ class Retriever:
                                   file_id=h.get("file_id"), file_role=h.get("file_role"), page=h.get("page"),
                                   text=h.get("text") or "", score=0.0, doc=doc) for h in hits[:limit]],
                          len(hits), False)
+
+    async def named(self, scope: Scope, question: str) -> list[str]:
+        """Văn bản người hỏi được đọc mang đúng số ký hiệu câu hỏi nêu ("Nghị định 168/2024/NĐ-CP yêu cầu những
+        gì?"), theo thứ tự số ký hiệu trong câu. Tìm trên trường ``symbol`` của chỉ mục đoạn (mỗi văn bản một đoạn),
+        so lại bằng ``symbol_key`` cả với số ký hiệu mới nhất từ Hasura, hậu kiểm như ``search``. Câu không nêu số ký
+        hiệu nào thì không gọi Meilisearch."""
+        cues = symbols(question)
+        if scope.where == NOTHING or not cues:
+            return []
+        keys = {symbol_key(c) for c in cues}
+        where = [f"tenant_id = {_quoted(str(scope.tenant_id))}", *scope.where]
+        results = await self.index.multi_search(
+            [{"q": c, "filter": where, "attributesToSearchOn": ["symbol"], "matchingStrategy": "all",
+              "distinct": "document_id", "limit": NAMED_SCAN, "attributesToRetrieve": ["document_id", "symbol"]}
+             for c in cues])
+        ids = list(dict.fromkeys(str(h["document_id"]) for hits, _ in results for h in hits
+                                 if symbol_key(str(h.get("symbol") or "")) in keys))
+        if not ids:
+            return []
+        readable = await self._readable(scope, ids)
+        return [d for d in ids if (row := readable.get(d)) is not None and eligible(row)
+                and symbol_key(str(row.get("symbol") or "")) in keys]
 
     async def _passages(self, scope: Scope, body: dict[str, Any], limit: int) -> tuple[list[Passage], int, int]:
         """(đoạn đã hậu kiểm theo thứ tự xếp hạng, số đoạn Meilisearch đã trả, số đoạn nhờ tìm nới)."""

@@ -312,7 +312,7 @@ Các việc của người quản trị trên bản cài đang chạy nằm ở 
 | [Thêm đơn vị](docs/van-hanh.md#thêm-đơn-vị-thuê-ước) (khoa, phòng, trường thành viên) | `python3 scripts/moc.py tenant create …` |
 | [Sao lưu và khôi phục](docs/van-hanh.md#sao-lưu-và-khôi-phục) mọi CSDL, tệp, két vào kho restic mã hóa | `make backup`, `make restore` |
 | [Két bí mật](docs/van-hanh.md#két-bí-mật) OpenBao: giới hạn, nâng cấp két cũ để ký số | `make demo-ket-bi-mat` |
-| [GitOps và tự phục hồi](docs/van-hanh.md#gitops-và-tự-phục-hồi): systemd timer; đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì chỉ áp commit đã ký | `make reconcile` |
+| [GitOps và tự phục hồi](docs/van-hanh.md#gitops-và-tự-phục-hồi): systemd timer hoặc cron, mỗi phút một lượt; theo nhánh `deploy` hoặc theo thẻ phát hành (`MOC_GITOPS_FOLLOW=release`), nâng có sao lưu và tự lùi (`MOC_GITOPS_MODE=nang-cap`); đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì chỉ áp bản đã ký | `make reconcile` |
 | [Giám sát](docs/van-hanh.md#giám-sát) cổng API bằng Prometheus + Grafana | đường hầm SSH tới cổng 3300 |
 | [Log tập trung](docs/van-hanh.md#log-tập-trung): Vector + Parseable, tra theo mã yêu cầu `X-Request-Id` | `make logs-up`, `make logs-tra ID=…` |
 | [Hội tụ IT/OT](docs/van-hanh.md#hội-tụ-itot): broker NGSI-LD, cảm biến | `make demo-it-ot` |

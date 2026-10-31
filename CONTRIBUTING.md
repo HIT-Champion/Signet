@@ -147,14 +147,15 @@ Trong Văn phòng điện tử:
   - hàm `hpdiText` của `app/utils/hpdi.ts`;
   - test so cặp `vi` và `en` ở `tests/answer.test.ts`.
 
-Trong Không gian cá nhân và Bảng tin (JavaScript thuần, mỗi ứng dụng một bảng riêng vì image dựng từ thư mục ứng dụng):
+Trong các ứng dụng JavaScript thuần (Không gian cá nhân, Bảng tin, Đơn nghỉ phép, Đổi, bù lịch giảng; mỗi ứng dụng
+một bảng riêng vì image dựng từ thư mục ứng dụng):
 
 - Câu nằm trong `public/i18n.js` của ứng dụng, đối tượng `MESSAGES` có hai bảng `vi`, `en` cùng khóa, cùng tham số
   `{x}`. Mã gọi `t('khoa')`. Chữ tĩnh của `index.html` để sẵn bản tiếng Việt và mang `data-i18n="khoa"` (chữ của phần
   tử) hoặc `data-i18n-<thuộc tính>="khoa"` (vd `data-i18n-aria-label`); `localize()` gán lại theo ngôn ngữ đã chọn.
 - Kiểm bằng `node --test tests/*.test.js` trong thư mục ứng dụng: `tests/i18n.test.js` bắt chữ tiếng Việt viết cứng
   trong `public/*.js`, chữ tĩnh của `index.html` không có khóa hay lệch bảng, khóa thiếu ở một trong hai bảng.
-  e2e `tests/e2e/tieng-anh.spec.ts` mở cả hai ứng dụng bằng tiếng Anh.
+  e2e `tests/e2e/tieng-anh.spec.ts` mở Không gian cá nhân và Bảng tin bằng tiếng Anh.
 
 Tài liệu tiếng Anh: `README.en.md` và hướng dẫn vận hành `docs/van-hanh.en.md` (#59).
 
