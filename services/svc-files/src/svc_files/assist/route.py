@@ -175,6 +175,10 @@ _COUNT: tuple[tuple[str, str, re.Pattern[str]], ...] = (                # chữ 
     ("dem-van-ban", "vi", re.compile(
         rf"\b(?:bao nhieu|so luong|tong so|tong cong|thong ke){_between([fold(w) for w in _NOT_BETWEEN])} "
         rf"(?:{data.NOUNS})\b|^so (?:luong )?(?:{data.NOUNS})\b")),
+    # cả câu hỏi là "có những văn bản nào" / "liệt kê văn bản": trả số văn bản và link danh sách, không tìm nội dung
+    ("liet-ke", "vi", re.compile(
+        rf"^(?:hien (?:tai|nay) )?(?:minh |toi )?(?:dang )?co (?:nhung|cac) (?:{data.NOUNS})(?: gi| nao)(?: vay)?$|"
+        rf"^(?:liet ke|danh sach)(?: (?:cac|tat ca|nhung|tat ca cac))? (?:{data.NOUNS})$")),
     ("how-many", "en", re.compile(
         r"\b(?:how many|number of|count)(?: \w+){0,2} (?:documents?|letters|decisions|notices|circulars)\b")),
 )
