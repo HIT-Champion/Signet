@@ -14,8 +14,8 @@
 Sản phẩm dự thi **Olympic Tin học Sinh viên Việt Nam 2026 — nội dung Phần mềm Nguồn mở (OLP PMNM 2026)**, chủ đề
 DX-OS Open-Core.
 
-**Dùng thử:** <https://signet.htechcs.com> (bản phát hành mới nhất, xem [Chạy thử](#chạy-thử)) · tự cài trên máy mình
-bằng bốn lệnh ở [Cài đặt từ mã nguồn](#cài-đặt-từ-mã-nguồn-building-from-source).
+**Dùng thử:** <https://signet.htechcs.com> (bản phát hành mới nhất kèm vài bản vá, xem [Chạy thử](#chạy-thử)) · tự cài trên
+máy mình bằng bốn lệnh ở [Cài đặt từ mã nguồn](#cài-đặt-từ-mã-nguồn-building-from-source).
 
 **Xem nhanh 5 phút, tìm tài liệu theo từng phần:** [`docs/README.md`](docs/README.md) · trang tài liệu
 <https://hit-champion.github.io/Signet/>.
@@ -272,8 +272,10 @@ python3 scripts/seed.py                 # dữ liệu mẫu, lần đầu
 
 **Bản online** <https://signet.htechcs.com> chạy bản phát hành mới nhất trên máy của đội, ra Internet qua Cloudflare
 Tunnel; `.github/workflows/ban-online.yml` kiểm hằng ngày bản đó đúng thẻ mới nhất. Tài khoản dùng thử gửi kèm hồ sơ
-dự thi; repo không công khai mật khẩu. Tính năng chưa phát hành (mục "Chưa phát hành" của
-[`CHANGELOG.md`](CHANGELOG.md)) có khi tự cài từ mã nguồn. Trợ lý hỏi đáp của bản online viết câu trả lời qua API
+dự thi; repo không công khai mật khẩu. Từ 01/11/2026, bản online chạy `v1.4.0` cộng các bản vá đã gộp vào
+`develop` nhưng chưa gắn thẻ: giao diện (#470, #481) và trợ lý hỏi đáp (#503, #504); `/api/status` vẫn báo `1.4.0`.
+Các tính năng chưa phát hành khác (mục "Chưa phát hành" của [`CHANGELOG.md`](CHANGELOG.md)) có khi tự cài từ mã
+nguồn. Trợ lý hỏi đáp của bản online viết câu trả lời qua API
 ngoài chuẩn OpenAI (`MOC_ASK_API=openai`, mô hình `gpt-6-luna-wd`, không phải mô hình nguồn mở): chỉ câu hỏi và các
 đoạn căn cứ đã che thông tin cá nhân rời máy. Bản tự cài mặc định dùng Ollama tại chỗ
 ([`DEPENDENCIES.md`](DEPENDENCIES.md)).

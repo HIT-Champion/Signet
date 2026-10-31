@@ -16,8 +16,8 @@ Built for the **Vietnam Student Olympiad in Informatics 2026 — Open Source Sof
 DX-OS Open-Core. Most project documentation is written in Vietnamese; this page is a translation of
 [README.md](README.md).
 
-**Try it:** <https://signet.htechcs.com> (latest release, see [Try it out](#try-it-out)) · or install it on your own
-machine with four commands from [Building from source](#building-from-source).
+**Try it:** <https://signet.htechcs.com> (latest release plus a few fixes, see [Try it out](#try-it-out)) · or install it on your
+own machine with four commands from [Building from source](#building-from-source).
 
 **Five-minute tour and documentation map (in Vietnamese):** [`docs/README.md`](docs/README.md) · documentation
 site <https://hit-champion.github.io/Signet/>.
@@ -283,8 +283,10 @@ python3 scripts/seed.py                 # sample data, first time only
 
 **Online:** <https://signet.htechcs.com> runs the latest release on the team's machine, reaching the Internet through
 Cloudflare Tunnel; `.github/workflows/ban-online.yml` checks daily that it runs the newest tag. Trial accounts are
-sent with the contest submission; the repository does not publish passwords. Unreleased features (the "Chưa phát hành"
-section of [`CHANGELOG.md`](CHANGELOG.md)) are available when you install from source. The online assistant writes
+sent with the contest submission; the repository does not publish passwords. Since 01/11/2026 the online site runs
+`v1.4.0` plus fixes merged into `develop` but not yet tagged: the interface (#470, #481) and the assistant (#503,
+#504); `/api/status` still reports `1.4.0`. Other unreleased features (the "Chưa phát hành" section of
+[`CHANGELOG.md`](CHANGELOG.md)) are available when you install from source. The online assistant writes
 its answers through an external OpenAI-compatible API (`MOC_ASK_API=openai`, model `gpt-6-luna-wd`, not an
 open-source model): only the question and the supporting passages, with personal data masked, leave the machine. Your
 own installation uses local Ollama by default ([`DEPENDENCIES.md`](DEPENDENCIES.md)).
