@@ -36,7 +36,7 @@ DATA = Path(__file__).parent / "data" / "assist_routes.jsonl"
 
 # số câu đúng tối thiểu của mỗi đường (đo trên develop lúc thêm bộ đo)
 FLOOR = {
-    "van_ban": 42,
+    "van_ban": 43,
     "gioi_thieu": 22,
     "huong_dan": 19,
     "ngoai_pham_vi": 19,
