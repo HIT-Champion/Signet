@@ -401,10 +401,11 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   applies the newest `vX.Y.Z` tag reachable from `main` instead of the branch head. Untagged commits on `main`, `-rc`
   tags and tags not yet on `main` are never applied. With `MOC_GITOPS_ALLOWED_SIGNERS` set, the tag's signature is
   checked (`git verify-tag`), because merge commits on `main` carry GitHub's OpenPGP signature: the tag must be signed
-  with an SSH key on the list (`git tag -s`). But `make release` (`scripts/release.sh`) currently tags with
-  `git tag -a`, unsigned, so with this variable set the reconciler accepts no release tagged by that command and the
-  old version keeps running (#492). Without it, anyone who can push a `v*` tag to GitHub can put a version on the
-  server: restrict that with a ruleset on tags.
+  with an SSH key on the list. `make release` (`scripts/release.sh`) signs the tag (`git tag -s`) when the release
+  manager has set a signing key as above (`gpg.format ssh`, `user.signingkey`); without one it still tags, unsigned,
+  and says so: the reconciler does not accept that tag and the old version keeps running (#492). Tags up to `v1.4.0`
+  were made before this step and are unsigned. Without it, anyone who can push a `v*` tag to GitHub can put a
+  version on the server: restrict that with a ruleset on tags.
 
 ```bash
 # production: every release on main upgrades the site, with a backup and automatic rollback (real data: not yet, #491)

@@ -327,7 +327,10 @@ gh pr create --base main --head develop --title "chore(release): v1.1.0" --body 
 
 # 3. Gắn thẻ trên main mới nhất, cây làm việc sạch:
 git switch main && git pull
-make release VERSION=1.1.0       # tạo thẻ v1.1.0 + gói .tar.gz + .sha256 trong dist/ để kiểm tra
+# Ký thẻ (máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS chỉ nhận thẻ ký SSH, van-hanh.md mục GitOps, #492) — một lần:
+#   git config --global gpg.format ssh && git config --global user.signingkey ~/.ssh/id_ed25519.pub
+make release VERSION=1.1.0       # tạo thẻ v1.1.0 (có khóa thì git tag -s, không thì báo thẻ không ký)
+#    + gói .tar.gz + .sha256 trong dist/ để kiểm tra
 #    rồi kiểm chính gói vừa đóng (scripts/kiem_goi.py, xem dưới): không đạt thì gỡ thẻ v1.1.0, xóa gói, in từng lỗi —
 #    sửa qua PR như thường rồi chạy lại
 

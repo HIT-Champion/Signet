@@ -18,7 +18,9 @@
 "## [X.Y.Z]" của CHANGELOG; khối mẫu trong chú thích HTML không tính; thiếu mục, hay mục chỉ có tiêu đề nhóm, thì
 lỗi chứ không ra ghi chú rỗng. Không phát hành lại: release.sh dừng trước khi gắn khi thẻ đã có trên origin hay ở máy,
 không hỏi được origin cũng dừng; máy không có sha256sum (macOS) thì dùng shasum -a 256, thiếu cả hai thì dừng trước khi
-gắn thẻ (#57); release.yml dừng khi thẻ đã có Release, kể cả nháp (chạy lệnh của bước với gh giả), và
+gắn thẻ (#57); có khóa ký (user.signingkey) thì thẻ ký và reconciler bật MOC_GITOPS_ALLOWED_SIGNERS nhận nó, ký
+lỗi thì dừng khi chưa có thẻ, không có khóa thì báo rõ thẻ không ký (#492); release.yml dừng khi thẻ đã có Release,
+kể cả nháp (chạy lệnh của bước với gh giả), và
 báo lỗi khi action không tải lên đủ bốn tệp (gói, SBOM, hai .sha256). Trang Release (scripts/release_body.py): dòng chỉ
 gói .tar.gz chính thức và SBOM, phần tóm tắt đầu mục, toàn bộ ghi chép gập trong <details>, dòng tiếp nối nối lại.
 Chạy: python3 -m unittest discover -s scripts/tests (make test)."""
@@ -35,6 +37,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPT = pathlib.Path(__file__).resolve().parent.parent / "release-notes.sh"
 RELEASE = SCRIPT.parent / "release.sh"
@@ -42,6 +45,9 @@ BODY = SCRIPT.parent / "release_body.py"
 spec = importlib.util.spec_from_file_location("release_body", BODY)
 release_body = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(release_body)
+spec = importlib.util.spec_from_file_location("reconcile_phat_hanh", SCRIPT.parent / "reconcile.py")
+reconcile = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(reconcile)
 WORKFLOW = SCRIPT.parent.parent / ".github" / "workflows" / "release.yml"
 PACKAGE_FILES = ["scripts/kiem_goi.py", "scripts/license-header.sh", "VERSION", ".gitattributes", "LICENSE", "NOTICE",
                  "LICENSES/Apache-2.0.txt", "LICENSES/LicenseRef-Logos.txt", "LICENSES/LicenseRef-VN-SHTT-Dieu-15.txt",
@@ -236,6 +242,49 @@ class NoReReleaseTest(unittest.TestCase):
         package = self.repo / "dist" / "signet-0.2.0.tar.gz"
         digest = hashlib.sha256(package.read_bytes()).hexdigest()
         self.assertEqual((self.repo / "dist" / "signet-0.2.0.tar.gz.sha256").read_text(), f"{digest}  {package.name}\n")
+
+    def test_unsigned_tag_is_reported(self) -> None:
+        # người phát hành chưa có khóa ký: vẫn phát hành, nhưng báo rõ máy chủ kiểm chữ ký sẽ không tự nâng (#492)
+        proc = self.release()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("thẻ v0.2.0 KHÔNG KÝ", proc.stderr)
+        self.assertNotIn("SIGNATURE", self.git("cat-file", "tag", "v0.2.0"))
+
+    @unittest.skipUnless(shutil.which("ssh-keygen"), "cần ssh-keygen")
+    def test_ssh_key_signs_the_tag_and_gitops_accepts_it(self) -> None:
+        keys = {}
+        for name in ("phat-hanh", "la"):
+            keys[name] = self.repo.parent / name
+            subprocess.run(["ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-C", name, "-f", str(keys[name])],
+                           check=True)
+        self.git("config", "gpg.format", "ssh")
+        self.git("config", "user.signingkey", f"{keys['phat-hanh']}.pub")
+        proc = self.release()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("KHÔNG KÝ", proc.stderr)
+        self.assertIn("-----BEGIN SSH SIGNATURE-----", self.git("cat-file", "tag", "v0.2.0"))
+        # đúng phép kiểm của reconciler khi MOC_GITOPS_FOLLOW=release và đặt MOC_GITOPS_ALLOWED_SIGNERS: nhận thẻ ký
+        # bằng khóa trong danh sách, từ chối khi danh sách chỉ có khóa khác
+        git = ["git", "-C", str(self.repo)]
+        signers = self.repo.parent / "allowed_signers"
+        with mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}):
+            for name, accepted in (("phat-hanh", True), ("la", False)):
+                with self.subTest(signer=name):
+                    kind, key = (keys[name].parent / f"{name}.pub").read_text().split()[:2]
+                    signers.write_text(f'{name} namespaces="git" {kind} {key}\n', encoding="utf-8")
+                    if accepted:
+                        reconcile.verify_signature(git, "v0.2.0", str(signers), tag=True)
+                    else:
+                        with self.assertRaises(reconcile.ReconcileError):
+                            reconcile.verify_signature(git, "v0.2.0", str(signers), tag=True)
+
+    def test_signing_error_stops_before_tagging(self) -> None:
+        # chương trình ký lỗi (khóa hỏng, ssh-agent không có khóa…): không để lại thẻ không ký thay cho thẻ ký
+        self.git("config", "gpg.format", "ssh")
+        self.git("config", "gpg.ssh.program", "false")
+        self.git("config", "user.signingkey", str(self.repo.parent / "khoa.pub"))
+        self.assert_nothing_made(self.release(), "không ký được thẻ v0.2.0")
+        self.assertEqual(self.git("tag", "-l"), "")
 
     def test_no_hashing_tool_stops_before_tagging(self) -> None:
         proc = self.release(path=self.path_without("sha256sum", "shasum"))
