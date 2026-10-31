@@ -119,8 +119,9 @@ class AskOut(BaseModel):
                     "người hỏi được xem. Trừ van_ban, huong_dan, các đường không gọi mô hình, cả khi mode=generate")
     route_reason: str = Field(description="Mã lý do, máy đọc: `llm:<mã>` (mô hình chọn đường), `kw:<mẫu>` "
                                           "(mẫu đã khớp, khi không có bước ý định), `mac-dinh`, "
-                                          "`khong-khop-huong-dan` hoặc `luoi-an-toan` (câu ngắn không rõ ý, không "
-                                          "có đoạn nào: trả lời bằng lời giới thiệu)",
+                                          "`khong-khop-huong-dan`, `khong-thay-van-ban` (kho văn bản không có đoạn "
+                                          "nào, trả lời theo hướng dẫn sử dụng) hoặc `luoi-an-toan` (câu ngắn không "
+                                          "rõ ý, không có đoạn nào: trả lời bằng lời giới thiệu)",
                               examples=["kw:lam-duoc-gi"])
     rewritten: str | None = Field(description="Câu nối tiếp đã ghép với `previous` thành câu độc lập — câu đem đi tìm. "
                                               "null khi không phải câu nối tiếp")

@@ -17,8 +17,11 @@
 """Bước ý định bằng mô hình (LLM intent) của trợ lý hỏi đáp: mô hình đọc câu hỏi (và câu trước, nếu có) rồi chọn
 đường trả lời, trước khi tìm văn bản.
 
-- Đầu ra JSON ``{"y_dinh": <một trong INTENTS>, "cau_hoi": "..."}``; ``cau_hoi`` là câu hỏi viết lại thành câu độc lập
-  khi là câu nối tiếp ("còn điều 5 thì sao?"), chỉ dùng khi có câu trước và không có chỗ nào bị che (pii).
+- Đầu ra JSON ``{"y_dinh": <một trong INTENTS>, "can_cau_truoc": bool, "cau_hoi": "..."}``. Lượt đầu mô hình chỉ đọc
+  câu hỏi: câu trước gửi kèm thì mô hình nhỏ hay kéo câu mới về chủ đề cũ ("Nộp đơn nghỉ phép ở đâu?" sau một câu về
+  công văn thành câu hỏi văn bản). Mô hình nói câu hỏi cần câu trước mới hiểu ("còn điều 5 thì sao?") và có câu
+  trước thì mới gọi lượt hai, kèm câu trước; ``cau_hoi`` của lượt hai là câu viết lại thành câu độc lập, chỉ dùng khi
+  không có chỗ nào bị che (pii).
 - Mô hình không trả lời câu hỏi ở bước này; chữ của câu hỏi nằm trong thẻ ``<cau_hoi>``, ``<cau_truoc>``.
 - Mô hình không sẵn sàng, quá hạn, trả sai dạng → None: answer.py dùng bộ định tuyến luật (route.py) như trước.
 - Kết quả giữ trong bộ nhớ theo (người hỏi, câu hỏi, câu trước) ``CACHE_TTL_S`` giây: giao diện gọi hai lượt (extract
@@ -74,14 +77,16 @@ SYSTEM = (
     "- chua_ro: câu quá ngắn hoặc không rõ muốn hỏi gì;\n"
     "- ngoai_pham_vi: không liên quan văn bản của trường hay phần mềm Signet (thời tiết, giải toán, nấu ăn, kiến thức "
     "chung, viết mã, tin tức).\n"
-    "cau_hoi: nếu có <cau_truoc> và câu hỏi là câu nối tiếp (\"nó\", \"văn bản đó\", \"còn ... thì sao\"), viết lại "
-    "thành một câu đầy đủ; nếu không, chép nguyên câu hỏi. Chỉ trả JSON "
-    '{"y_dinh": "...", "cau_hoi": "..."}. /no_think'
+    "can_cau_truoc: true khi câu hỏi nhắc tới điều chưa nói rõ trong chính câu (\"nó\", \"văn bản đó\", \"điều này\", "
+    "\"còn ... thì sao\") nên cần câu hỏi trước mới hiểu; false khi câu tự đủ nghĩa.\n"
+    "cau_hoi: nếu có <cau_truoc>, viết lại câu hỏi thành một câu đầy đủ theo câu trước; nếu không, chép nguyên câu "
+    'hỏi. Chỉ trả JSON {"y_dinh": "...", "can_cau_truoc": true hoặc false, "cau_hoi": "..."}. /no_think'
 )
 FORMAT: dict[str, Any] = {
     "type": "object",
-    "properties": {"y_dinh": {"type": "string", "enum": list(INTENTS)}, "cau_hoi": {"type": "string"}},
-    "required": ["y_dinh", "cau_hoi"],
+    "properties": {"y_dinh": {"type": "string", "enum": list(INTENTS)}, "can_cau_truoc": {"type": "boolean"},
+                   "cau_hoi": {"type": "string"}},
+    "required": ["y_dinh", "can_cau_truoc", "cau_hoi"],
 }
 OPTIONS: dict[str, Any] = {"temperature": 0.0, "num_ctx": 2048, "num_predict": 160, "seed": 7}
 
@@ -91,6 +96,7 @@ class Understood:
     route: Route
     rewritten: str | None       # câu nối tiếp đã viết lại thành câu độc lập; None: dùng nguyên câu hỏi
     intent: str
+    needs_previous: bool = False    # mô hình nói câu hỏi cần câu trước mới hiểu
 
 
 def messages(question: str, previous: str | None) -> list[dict[str, str]]:
@@ -114,7 +120,7 @@ def parse(content: str | None, question: str, previous: str | None, lang: str, *
     rewritten = None
     if previous and not masked and text and len(text) <= MAX_QUESTION and text.casefold() != question.casefold():
         rewritten = text
-    return Understood(Route(name, PREFIX + reason, lang), rewritten, got["y_dinh"])
+    return Understood(Route(name, PREFIX + reason, lang), rewritten, got["y_dinh"], got.get("can_cau_truoc") is True)
 
 
 class IntentStep:
@@ -136,12 +142,17 @@ class IntentStep:
             return hit[1]
         if not self.ai.chat_available or timeout_s <= 0:
             return None
+        end = now + min(self.timeout_s, timeout_s)
         masker = pii.Masker()
         asked = masker.mask(question).text
-        before = masker.mask(previous).text if previous else None
-        result = await self.ai.chat(messages(asked, before), format=FORMAT, options=OPTIONS,
-                                    timeout_s=min(self.timeout_s, timeout_s))
-        got = parse(result.content, question, previous, lang, masked=masker.total > 0)
+        result = await self.ai.chat(messages(asked, None), format=FORMAT, options=OPTIONS, timeout_s=end - now)
+        got = parse(result.content, question, None, lang, masked=False)
+        if got is not None and got.needs_previous and previous and end - self._clock() > 0:
+            before = masker.mask(previous).text
+            result = await self.ai.chat(messages(asked, before), format=FORMAT, options=OPTIONS,
+                                        timeout_s=end - self._clock())
+            second = parse(result.content, question, previous, lang, masked=masker.total > 0)
+            got = second if second is not None else got
         if got is not None:
             self._cache[key] = (now, got)
             while len(self._cache) > CACHE_SIZE:

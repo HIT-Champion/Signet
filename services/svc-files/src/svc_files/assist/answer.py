@@ -257,10 +257,17 @@ class Assistant:
         counted: data.Answer | None = None          # câu có số của đường dữ liệu
         if chosen.name == "van_ban":
             found = await self._search(body, asked, scope, deadline, warnings, request_id)
-            caught = None if found.passages else route.fallback(
-                asked, chosen, scoped=body.document_id is not None,
-                filtered=any(f is not None for f in (body.direction, body.year, body.type_code)))
-            if caught is not None:
+            filtered = any(f is not None for f in (body.direction, body.year, body.type_code))
+            # kho văn bản không có đoạn nào: thử hướng dẫn sử dụng trước khi nói không tìm thấy ("Nộp đơn nghỉ phép ở
+            # đâu?" bị chọn nhầm là câu hỏi văn bản vẫn có câu trả lời)
+            guided = ([] if found.passages or filtered or body.document_id is not None
+                      else self.guides.search(asked, s.ask_top_k))
+            caught = None if found.passages or guided else route.fallback(
+                asked, chosen, scoped=body.document_id is not None, filtered=filtered)
+            if guided:
+                chosen = route.Route("huong_dan", route.NO_DOC_REASON, chosen.lang)
+                found = Retrieval(guided, candidates=len(guided), semantic=found.semantic)
+            elif caught is not None:
                 # lưới an toàn: câu ngắn, không chỉ văn bản, không có đoạn nào → lời giới thiệu thay "không tìm thấy"
                 chosen = caught
                 intro = self.guides.intro(chosen.reason, chosen.lang)
