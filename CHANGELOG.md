@@ -23,6 +23,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trợ lý hỏi đáp tóm tắt được văn bản đang hỏi ("Tóm tắt nội dung văn bản này") thay vì báo không tìm thấy (#503).
 - Trợ lý hỏi đáp: câu hỏi nêu đúng số ký hiệu một văn bản (Nghị định 168/2024/NĐ-CP) được hỏi trong văn bản đó,
   hết báo "không tìm thấy" khi hỏi cả kho (#503).
+- Đổi, bù lịch giảng: màu, phông như Văn phòng điện tử; form hai cột trên màn rộng; thẻ đề nghị có tiêu đề, ý kiến
+  các cấp tách khối riêng (#505).
 
 ### Đã sửa lỗi
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).

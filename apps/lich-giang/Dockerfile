@@ -16,12 +16,19 @@
 
 # Dựng: moc app install apps/lich-giang/app.yaml dựng image này (docker build),
 # thẻ moc/app-lich-giang:<phiên bản>-<băm>.
-# Bước 1: bản dựng sẵn cho trình duyệt của oidc-client-ts từ npm theo package-lock.json (không chép vào repo — PoF #5),
-# cùng image Node, cùng phiên bản thư viện với apps/bang-tin, apps/ca-nhan.
+# Bước 1: bản dựng sẵn cho trình duyệt của oidc-client-ts và phông Be Vietnam Pro từ npm theo package-lock.json (không
+# chép vào repo — PoF #5), cùng image Node, cùng phiên bản thư viện với apps/bang-tin, apps/ca-nhan.
 FROM node:24.20.0-slim@sha256:ba849c60be29959425b8734d57b8b4b7d56f98edd9504c9af091d5281095a71e AS build
 WORKDIR /src
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund --ignore-scripts
+# Phông như apps/ca-nhan: bốn độ đậm (400, 500, 600, 700), CSS của gói nối thành be-vietnam-pro.css, tệp woff2, woff ở
+# files/, giấy phép SIL OFL-1.1 thành OFL.txt. Phục vụ ở /lich-giang/fonts/be-vietnam-pro/
+RUN set -eu; p=node_modules/@fontsource/be-vietnam-pro; mkdir -p fonts/files; cp "$p/LICENSE" fonts/OFL.txt; \
+    for w in 400 500 600 700; do \
+      { cat "$p/$w.css"; echo; } >> fonts/be-vietnam-pro.css; \
+      cp "$p"/files/be-vietnam-pro-*-"$w"-normal.woff* fonts/files/; \
+    done
 
 # Bước 2: Python thư viện chuẩn (cùng image ghim digest với apps/bang-tin), không cài gói nào, không root. Chỉ trang
 # tĩnh: quy trình và form (workflow/, forms/) lõi đọc từ thư mục ứng dụng lúc cài, không nằm trong image.
@@ -31,6 +38,7 @@ WORKDIR /app
 COPY server.py ./
 COPY public/ ./public/
 COPY --from=build /src/node_modules/oidc-client-ts/dist/browser/oidc-client-ts.min.js ./public/lib/
+COPY --from=build /src/fonts/ ./public/fonts/be-vietnam-pro/
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 USER 10001:10001
 EXPOSE 8080
