@@ -349,10 +349,11 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
 - **Có bản phát hành là tự nâng** (`MOC_GITOPS_FOLLOW=release`, đặt `MOC_GITOPS_BRANCH=main`): reconciler áp thẻ
   `vX.Y.Z` mới nhất có trên `main` thay cho đầu nhánh. Commit trên `main` chưa gắn thẻ, bản thử `-rc`, thẻ chưa vào
   `main` đều không tự lên. Đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì kiểm chữ ký của thẻ (`git verify-tag`), vì commit gộp
-  trên `main` do GitHub ký OpenPGP: thẻ phải ký bằng khóa SSH trong danh sách (`git tag -s`). Nhưng hiện `make
-  release` (`scripts/release.sh`) gắn thẻ bằng `git tag -a`, không ký, nên đặt biến này thì reconciler không nhận bản
-  phát hành nào gắn bằng lệnh đó, bản cũ chạy tiếp (#492). Không đặt thì ai đẩy được thẻ `v*` lên GitHub là đưa được
-  bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
+  trên `main` do GitHub ký OpenPGP: thẻ phải ký bằng khóa SSH trong danh sách. `make release`
+  (`scripts/release.sh`) ký thẻ (`git tag -s`) khi người phát hành đặt khóa ký như trên (`gpg.format ssh`,
+  `user.signingkey`), không đặt thì vẫn gắn thẻ không ký và báo rõ: reconciler không nhận thẻ đó, bản cũ chạy tiếp
+  (#492). Thẻ đến `v1.4.0` gắn trước khi có bước này nên không ký. Không đặt thì ai đẩy được thẻ `v*` lên GitHub là
+  đưa được bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
 
 ```bash
 # bản thật: mỗi bản phát hành trên main tự nâng, có sao lưu, lỗi thì tự lùi

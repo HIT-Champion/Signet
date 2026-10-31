@@ -85,10 +85,27 @@ if git rev-parse -q --verify "refs/tags/$TAG" > /dev/null; then
   exit 1
 fi
 
-mkdir -p "$DIST"
+# Ký thẻ khi người phát hành có khóa ký (#492): máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS chỉ tự nâng lên thẻ ký SSH bằng
+# khóa trong danh sách (docs/van-hanh.md mục GitOps). Có user.signingkey hoặc tag.gpgSign=true thì git tag -s; ký lỗi
+# thì dừng khi chưa có thẻ, chưa có gói. Không có khóa thì vẫn gắn thẻ không ký và báo rõ
+if [ -n "$(git config user.signingkey || true)" ] || [ "$(git config --type=bool tag.gpgSign || true)" = true ]; then
+  echo "==> Gắn thẻ phiên bản $TAG, có ký ($(git config gpg.format || echo openpgp))"
+  # chương trình ký trượt thì git vẫn có thể gắn thẻ không chữ ký và thoát 0 (gặp với gpg.format=ssh): kiểm chính thẻ
+  if ! git tag -s "$TAG" -m "Signet $VERSION" || [[ "$(git cat-file tag "$TAG")" != *"-----BEGIN "* ]]; then
+    git tag -d "$TAG" > /dev/null 2>&1 || true
+    echo "Lỗi: không ký được thẻ $TAG (xem lỗi của git ở trên: user.signingkey, gpg.format) — chưa gắn thẻ, chưa có" \
+         "gói. Sửa khóa rồi chạy lại." >&2
+    exit 1
+  fi
+else
+  echo "==> Gắn thẻ phiên bản $TAG"
+  git tag -a "$TAG" -m "Signet $VERSION"
+  echo "Cảnh báo: thẻ $TAG KHÔNG KÝ (chưa đặt user.signingkey): máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS sẽ không tự" \
+       "nâng lên bản này. Ký bằng khóa SSH: git config gpg.format ssh && git config user.signingkey" \
+       "~/.ssh/id_ed25519.pub, gỡ thẻ (git tag -d $TAG), xóa $DIST/signet-$VERSION.* rồi chạy lại." >&2
+fi
 
-echo "==> Gắn thẻ phiên bản $TAG"
-git tag -a "$TAG" -m "Signet $VERSION"
+mkdir -p "$DIST"
 
 echo "==> Sinh gói nguồn $DIST/signet-$VERSION.tar.gz"
 git archive --format=tar.gz \

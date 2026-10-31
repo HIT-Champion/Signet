@@ -30,6 +30,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Nâng cấp máy có dữ liệu thật không còn tự lùi vì smoke cần tài khoản mẫu: bỏ smoke khi tắt client `moc-cli`, chọn
   tay bằng `MOC_NANG_CAP_SMOKE` (#491).
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
+- `make release` ký thẻ phát hành khi người phát hành có khóa ký, ký lỗi thì dừng, không có khóa thì báo rõ thẻ
+  không ký (#492).
 - Trợ lý hỏi đáp nhận ra câu chào, câu hỏi "giúp gì cho tôi" và trả lời giới thiệu cho câu ngắn không rõ ý thay
   vì "không tìm thấy văn bản"; lời chào do mô hình viết trong phạm vi trợ lý, hiện như tin nhắn; trang Hỏi đáp chờ
   câu trả lời mô hình tổng hợp thay vì hiện câu trích trước, mô hình thấy các đoạn tìm được không trả lời câu hỏi thì
