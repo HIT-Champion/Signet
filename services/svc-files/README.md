@@ -358,11 +358,15 @@ chủ không lưu hội thoại: câu nối tiếp gửi kèm câu hỏi lượt
 **Bộ định tuyến** (`route.py`, `guide.py`, #423). Trước khi tìm, mỗi câu hỏi đi qua các mẫu tất định so trên chữ bỏ
 dấu, có cả tiếng Anh; mỗi mẫu có mã lý do (`route_reason`, vd `kw:lam-duoc-gi`, `kw:o-dau`, `kw:thoi-tiet`; mặc định
 `mac-dinh`). Không mô hình nào chọn đường. Câu có từ chỉ văn bản ("văn bản", "quyết định", "học bổng", "Điều 5"…) luôn
-về `van_ban`; không khớp mẫu nào cũng về `van_ban`, nên tệ nhất là như trước khi có bộ định tuyến.
+về `van_ban`; không khớp mẫu nào cũng về `van_ban`, nên tệ nhất là như trước khi có bộ định tuyến. Lưới an toàn
+(`route.fallback`): câu về `van_ban` theo mặc định mà không ra đoạn nào, ngắn (≤ 8 term), không có từ chỉ văn bản,
+không có số, không lọc, không hỏi trong một văn bản thì trả mục "Chưa rõ câu hỏi" của tệp Giới thiệu trợ lý (mã
+`luoi-an-toan`) thay cho "không tìm thấy": câu gõ sai như "bạn có thể giups gì cho tôi" không còn nhận câu trả lời
+của một lượt tìm văn bản thất bại.
 
 | `route` | Nhận ra bằng | Trả lời | Tìm trong kho · gọi mô hình |
 |---|---|---|---|
-| `gioi_thieu` | "làm được gì", "bạn là ai", "dùng mô hình nào", "xin chào", "cảm ơn", "what can you do"… | Câu đầu của mục ứng với mã lý do trong tệp Giới thiệu trợ lý (`assist/gioi_thieu/vi.md`, `en.md` khi câu hỏi tiếng Anh), các mục khác của tệp làm nguồn phụ; `answer.source: extract` | không · không, kể cả `mode: generate` |
+| `gioi_thieu` | "làm được gì", "bạn là ai", "dùng mô hình nào", "xin chào", "cảm ơn", "what can you do"… | Câu đầu của mục ứng với mã lý do trong tệp Giới thiệu trợ lý (`assist/gioi_thieu/vi.md`, `en.md` khi câu hỏi tiếng Anh), các mục khác của tệp làm nguồn phụ; `answer.source: extract`; lượt `generate`: mô hình viết lời đáp từ các mục đó, lời dặn nêu phạm vi trợ lý (`grounding.SYSTEM_INTRO`), không đạt thì giữ câu trích, không cảnh báo | không · có ở `mode: generate` |
 | `huong_dan` | "ở đâu", "làm thế nào để", "hướng dẫn cách"… kèm tên chức năng (nghỉ phép, văn bản đi, ký số, mật khẩu…), không có số ký hiệu, "số N" | Như `van_ban` nhưng nguồn là các mục của hướng dẫn sử dụng (`docs/huong-dan/*.md`, thư mục `MOC_ASK_GUIDE_DIR`); không mục nào khớp thì tìm văn bản như `van_ban` (mã lý do `khong-khop-huong-dan`) | không · như `van_ban` (bộ kiểm căn cứ y nguyên) |
 | `ngoai_pham_vi` | thời tiết, giá cả, thể thao, viết hộ, lập trình… | Câu cố định nói trợ lý làm được gì, `answer.source: fixed`, `status: no_evidence`, `sources: []` | không · không |
 | `viec_cua_toi` (#441) | việc của chính người hỏi: "việc (nào) của tôi", "tôi có bao nhiêu việc", "tôi được giao", "hộp việc … quá hạn", "my tasks"; ngôi thứ nhất so trên chữ có dấu ("tối", "tới" không phải "tôi"); không có từ chỉ văn bản | Action `myTasks` bằng token người hỏi (như Hộp việc): số việc, quá hạn, đến hạn hôm nay, đến hạn trong 2 ngày (như Lịch hạn, giờ Việt Nam), ba việc gần hạn nhất kèm số ký hiệu văn bản người hỏi đọc được; `answer.source: data`, `data`, `link: /` | không · không |
@@ -475,7 +479,9 @@ người hỏi không được đọc.
   `[n]`: 0/19 câu qua cách kiểm cũ): bỏ mọi `[n]` mô hình ghi, rồi với từng câu chọn đoạn chứa mọi số từ 2 chữ số của
   câu (`3.2` khớp `3,2`, `200 000` khớp `200.000`, `15/11` khớp `15/11/2026`; số trong câu hỏi cũng được) và ≥ 60 % từ
   mới của câu (từ không có trong câu hỏi), nhiều từ mới nhất thì được trích; `[n]` đặt trước dấu câu cuối. Một câu
-  không đoạn nào đạt là loại cả câu trả lời. Không đạt thì người dùng vẫn thấy câu trích, kèm `model_rejected`. Giao diện hiện câu trả lời dạng chữ thuần.
+  có số mà không đoạn nào có đủ số đó là loại cả câu trả lời; câu không đoạn nào phủ đủ từ mới thì bỏ riêng câu đó,
+  còn ít nhất một câu có căn cứ thì vẫn đạt. Không đạt thì người dùng vẫn thấy câu trích, kèm `model_rejected`. Giao
+  diện hiện câu trả lời dạng chữ thuần.
 - **Hạn và lượt.** Hạn tổng `MOC_ASK_DEADLINE_S` (50 giây, dưới 60 giây của APISIX); nhúng câu hỏi ≤ 5 giây (lỗi thì
   tìm từ khóa, `embed_unavailable`); gọi mô hình ≤ `MOC_ASK_MODEL_TIMEOUT_S`. Một lượt `generate` một lúc
   (`MOC_ASK_CONCURRENCY`), chờ quá `MOC_ASK_QUEUE_S` thì `503 busy` kèm `Retry-After: 10`; `extract` không phải chờ.
@@ -1314,6 +1320,8 @@ Két chưa sẵn sàng thì thử lại tới 60 giây; két từ chối (`400`/
 | `MOC_ASK_DEADLINE_S` | `50` | Hạn tổng một lượt hỏi, tối đa 55 (dưới 60 giây của APISIX) |
 | `MOC_ASK_MODEL` | rỗng = `MOC_AI_MODEL` (với `MOC_ASK_API=openai`: bắt buộc) | Mô hình viết câu trả lời, vd `qwen3:4b`. Khác `MOC_AI_MODEL` (kèm mô hình nhúng) là ba mô hình tranh hai chỗ của Ollama (`OLLAMA_MAX_LOADED_MODELS=2` trong compose): nạp đi nạp lại, dễ quá giờ — svc-files ghi `config.warning` lúc khởi động; muốn mô hình khác thì để trống biến này và đổi `MOC_AI_MODEL` |
 | `MOC_ASK_MODEL_TIMEOUT_S` | `40` | Hạn gọi mô hình viết câu trả lời (`model_timeout`) |
+| `MOC_ASK_INTENT` | `true` | Bước ý định: mô hình chọn đường trả lời và viết lại câu nối tiếp trước khi tìm (`assist/intent.py`, mã lý do `llm:<mã>`); `false`, không có mô hình, lỗi hay quá hạn thì dùng bộ định tuyến luật |
+| `MOC_ASK_INTENT_TIMEOUT_S` | `12` | Hạn gọi mô hình ở bước ý định; quá hạn thì dùng bộ định tuyến luật |
 | `MOC_ASK_API` | `ollama` | Nơi viết câu trả lời: `ollama` (tại chỗ) hoặc `openai` — máy chủ chuẩn OpenAI ở `MOC_ASK_API_URL`, tên mô hình ở `MOC_ASK_MODEL`, bắt buộc (#430). URL `http://` thì ghi `config.warning`. Chỉ bước viết đi ra ngoài (đã che thông tin cá nhân, bộ kiểm căn cứ giữ nguyên); nhúng vẫn ở Ollama. Xem `docs/van-hanh.md` mục Trợ lý hỏi đáp qua API ngoài |
 | `MOC_ASK_API_URL` | rỗng | Gốc API, vd `https://máy-chủ/v1` (bắt buộc khi `MOC_ASK_API=openai`); dò `GET …/models`, gọi `POST …/chat/completions` |
 | `MOC_ASK_API_KEY` | rỗng | Khóa API (tùy chọn) — bí mật trong két (`platform/openbao/start.sh`), không đặt trong biến môi trường của container; chỉ đi trong tiêu đề `Authorization` |

@@ -50,6 +50,7 @@ ENV = {
     "MOC_IMPORT_INTERVAL_S": "0",     # vòng nền nạp lô tắt (không tạo thư mục spool)
     "MOC_ARCHIVE_INTERVAL_S": "0", "MOC_FILES_MAX_MB": "1", "MOC_AI_URL": "",
     "MOC_AI_EMBED_DIMS": str(DIMS),
+    "MOC_ASK_INTENT": "false",        # bộ luật chọn đường; bước ý định bằng mô hình test riêng (test_assist_intent.py)
 }
 DIFF_KEYS = {"user_id", "ask_id", "mode", "status", "answer_source", "hits", "cited", "documents", "semantic",
              "model", "embed_model", "duration_ms", "warnings", "route", "route_reason", "followup", "model_where"}

@@ -27,8 +27,8 @@ import type { AskResult, AskSource } from '../app/composables/useApi.ts'
 const {
   ASK_ROLES, DATA_GROUP, DATA_LINKS, DATA_ROUTES, MASK_RE, MAX_PREVIOUS, MAX_QUESTION, ROUTES, SCOPE_PARAM,
   SUGGEST_GROUPS,
-  askAbout, blocks, canAskAbout, canView, citeLabel, cleanQuestion, fallbackSuggestions, hasMask, inAssistant,
-  needsGenerate, pageUrl, previousFor, scopeOf, searched, segments, sourceAnchor, tidy,
+  askAbout, blocks, canAskAbout, canView, citeLabel, cleanQuestion, declined, fallbackSuggestions, hasMask, inAssistant,
+  isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched, segments, sourceAnchor, tidy,
 } = await import('../app/utils/answer.ts')
 
 type Messages = { [key: string]: string | Messages }
@@ -168,6 +168,14 @@ test('khối hiện: câu trả lời của mô hình và câu trích; mô hình
     { model: null, extract: null, direct: null })
 })
 
+test('mô hình thấy các đoạn tìm được không trả lời câu hỏi: nói "không tìm thấy", không lấy câu trích', () => {
+  const model = { text: 'Điểm trung bình từ 3,2 trở lên [1].', source: 'model' as const, model: 'qwen3:1.7b' }
+  assert.equal(declined({ answer: SAMPLE.answer, extract: SAMPLE.extract, warnings: ['model_declined'] }), true)
+  assert.equal(declined({ answer: SAMPLE.answer, extract: SAMPLE.extract, warnings: ['model_timeout'] }), false)
+  assert.equal(declined({ answer: SAMPLE.answer, extract: SAMPLE.extract, warnings: [] }), false)
+  assert.equal(declined({ answer: model, extract: SAMPLE.extract, warnings: ['model_declined'] }), false)
+})
+
 test('nhãn che thông tin cá nhân (F4.4): nhận đúng nhãn, không nhầm với dấu trích dẫn', () => {
   for (const s of ['Số liên hệ là [SĐT-1].', '[CCCD]', 'gửi [EMAIL-12]', '[STK-999]', 'CMND [CMND-3] cấp năm 2010']) {
     assert.equal(hasMask(s), true, s)
@@ -238,17 +246,21 @@ test('liên kết của đường dữ liệu: chỉ các trang danh sách đã 
   assert.ok(tVi('assist.openList') && tEn('assist.openList'))
 })
 
-test('chỉ văn bản và hướng dẫn mới nhờ mô hình viết; giới thiệu, ngoài phạm vi, đường dữ liệu thì không', () => {
+test('văn bản, hướng dẫn và giới thiệu nhờ mô hình viết; ngoài phạm vi, đường dữ liệu thì không', () => {
   const ready = { ...SAMPLE, ai_available: true }
   assert.equal(needsGenerate({ ...ready, route: undefined }), true)
-  for (const route of ['van_ban', 'huong_dan'] as const) {
+  for (const route of ['van_ban', 'huong_dan', 'gioi_thieu'] as const) {
     assert.equal(needsGenerate({ ...ready, route }), true, route)
   }
-  for (const route of ['gioi_thieu', 'ngoai_pham_vi', 'viec_cua_toi', 'dem_van_ban'] as const) {
+  for (const route of ['ngoai_pham_vi', 'viec_cua_toi', 'dem_van_ban'] as const) {
     assert.equal(needsGenerate({ ...ready, route }), false, route)
   }
-  // giới thiệu vẫn là đường tìm đoạn (có nguồn guide, có chip tìm), chỉ không có lượt viết
-  assert.equal(searched('gioi_thieu'), true)
+  // giới thiệu hiện như tin nhắn: không chip cách tìm, câu trích thành chữ thường
+  assert.equal(searched('gioi_thieu'), false)
+  assert.equal(isIntro({ route: 'gioi_thieu' }), true)
+  assert.equal(isIntro({ route: 'van_ban' }), false)
+  assert.equal(plainIntro('“Tôi là trợ lý. Tôi giúp bạn.” [1]'), 'Tôi là trợ lý. Tôi giúp bạn.')
+  assert.equal(plainIntro('Chào bạn!'), 'Chào bạn!')
 })
 
 test('câu trả lời thẳng (fixed, data) là khối riêng, không phải câu trích hay câu của mô hình', () => {

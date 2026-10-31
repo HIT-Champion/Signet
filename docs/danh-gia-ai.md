@@ -307,7 +307,8 @@ Danh sách đủ ở README svc-files.
 - *Không có căn cứ thì không gọi mô hình:* `no_evidence`, câu trả lời y hệt dù văn bản không tồn tại hay người hỏi
   không được đọc (`assist/answer.py`).
 - *Kiểm trích dẫn và con số trước khi trả:* máy chủ bỏ mọi `[n]` mô hình ghi, rồi gán cho từng câu đoạn chứa **mọi** số
-  từ 2 chữ số của câu và ≥ 60 % từ mới của câu; một câu không có căn cứ là loại cả câu trả lời, người dùng vẫn có câu
+  từ 2 chữ số của câu và ≥ 60 % từ mới của câu; câu có số không có trong nguồn là loại cả câu trả lời, câu thiếu căn
+  cứ khác thì bỏ riêng câu đó (không còn câu nào có căn cứ thì loại), người dùng vẫn có câu
   trích (`assist/grounding.py`; test `tests/test_assist_grounding.py`). Câu trích ở chế độ `extract` là nguyên văn lớp
   chữ PDF (`assist/extract.py`).
 - *Chống chèn lệnh:* chữ nguồn và câu hỏi trong thẻ `<nguon>`, `<cau_hoi>`; thẻ trùng tên bị bỏ, mọi `<` `>` còn lại
