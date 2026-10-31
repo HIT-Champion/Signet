@@ -617,7 +617,8 @@ onBeforeUnmount(() => {
 
                 <!-- câu trích nguyên văn: là câu trả lời khi không có mô hình, là khối phụ khi có -->
                 <section
-                  v-if="blocks(turn.result).extract && (!blocks(turn.result).model || turn.showExtract) && !introWriting(turn)"
+                  v-if="blocks(turn.result).extract && (!blocks(turn.result).model || turn.showExtract)
+                    && !introWriting(turn)"
                   :id="`trich-${turn.key}`" class="sg-answer" :class="{ 'is-quote': blocks(turn.result).model }"
                   data-testid="ask-extract"
                 >
