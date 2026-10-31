@@ -11,7 +11,8 @@ Văn bản đi gửi đơn vị khác trong hệ thống thì bản phát hành 
 Văn thư tải văn bản đến lên thì tác tử `moc-doc-reader` đọc tệp (lớp chữ PDF hoặc OCR) và gợi ý thông tin tiếp nhận.
 Người dùng hỏi bằng lời thì trợ lý `moc-assistant` tìm đoạn liên quan trong các văn bản **chính họ được đọc** và trả
 lời bằng câu trích nguyên văn kèm số ký hiệu, số trang; mô hình chạy tại chỗ viết câu trả lời ngắn nếu có (F4.2),
-hoặc máy chủ chuẩn OpenAI khi đơn vị chọn `MOC_ASK_API=openai` (#430).
+hoặc máy chủ chuẩn OpenAI khi đơn vị chọn `MOC_ASK_API=openai` (#430); nhúng cũng chuyển được sang máy chủ
+chuẩn OpenAI bằng `MOC_EMBED_API=openai`.
 
 Thuộc lõi Tầng 1 — F1.5 (dữ liệu phi cấu trúc), F1.6 (trạm kiểm dịch), F1.7 và F2.7 (tìm kiếm, cả nội dung PDF),
 F2.4 (dựng PDF văn bản đi), F2.8 (sổ đăng ký in được), F2.13 (cổng xác thực), F3.12 (liên thông), F4.1 (đọc văn
@@ -414,6 +415,9 @@ liệu mỗi đoạn, cùng máy Meilisearch với tìm kiếm F2.7.
   nhường. Meilisearch không vào mạng `ai`. Chưa có véc-tơ thì đoạn vẫn tìm được bằng từ khóa; không có mô hình (CI) thì
   chỉ tìm từ khóa. Đổi `MOC_AI_EMBED_MODEL` là bỏ embedder cũ và nhúng lại từ đầu. Câu hỏi đưa đi nhúng mang tiền tố
   chỉ dẫn mà Qwen3-Embedding cần (`Instruct: …\nQuery: …`); đoạn văn bản thì không.
+  `MOC_EMBED_API=openai`: gọi `POST {MOC_EMBED_API_URL}/embeddings` thay Ollama (cùng lô, cùng cách nhường, cùng bộ
+  che, cùng cách xử lý lỗi; 401/403/404 thì chờ lượt dò sau); embedder đặt theo `<mô hình>@<số chiều>`
+  (`emb_text_embedding_3_small_1024`) nên đổi số chiều cũng nhúng lại từ đầu.
 - **Khi nhúng lỗi.** Cấu hình tìm từ khóa và cấu hình embedder áp thành hai tác vụ: embedder bị Meilisearch từ chối thì
   ghi `index_failed` (`stage: embedder`), thử lại mỗi 60 giây, còn đồng bộ và xóa đoạn vẫn chạy (`semantic: false`).
   Lô nhúng lỗi vì quá giờ, mất kết nối, Ollama bận hay mất mô hình thì để lượt sau. Lỗi khác (HTTP 500, véc-tơ NaN…)
@@ -1330,6 +1334,11 @@ Két chưa sẵn sàng thì thử lại tới 60 giây; két từ chối (`400`/
 | `MOC_ASK_CONCURRENCY` · `MOC_ASK_QUEUE_S` | `1` · `20` | Số lượt `generate` cùng lúc · chờ lượt quá thì `503 busy` |
 | `MOC_AI_EMBED_MODEL` | `qwen3-embedding:0.6b` | Mô hình nhúng trong Ollama (`bge-m3` thay được); đặt rỗng: không nhúng, chỉ tìm từ khóa |
 | `MOC_AI_EMBED_DIMS` · `MOC_AI_EMBED_BATCH` | `1024` · `8` | Số chiều véc-tơ, phải đúng của mô hình (sai thì tắt tìm theo nghĩa, ghi lỗi `embed_dims_mismatch`) · số đoạn mỗi lô nhúng nền |
+| `MOC_EMBED_API` | `ollama` | Nơi nhúng (tìm theo nghĩa): `ollama` (tại chỗ, `MOC_AI_EMBED_MODEL`) hoặc `openai` — máy chủ chuẩn OpenAI ở `MOC_EMBED_API_URL` (cả Azure AI Foundry), tên mô hình ở `MOC_EMBED_API_MODEL`, bắt buộc. Mọi chỗ nhúng (vòng nền, câu hỏi, trích yếu F4.3) đi cùng một nơi; đoạn và câu hỏi đã che thông tin cá nhân. URL `http://` thì ghi `config.warning` |
+| `MOC_EMBED_API_URL` | rỗng | Gốc API, vd `https://tên.openai.azure.com/openai/v1` (bắt buộc khi `MOC_EMBED_API=openai`); dò `GET …/models` rồi nhúng thử câu mẫu, gọi `POST …/embeddings` |
+| `MOC_EMBED_API_MODEL` | rỗng | Tên mô hình (Azure: tên deployment), vd `text-embedding-3-small`; không lấy `MOC_AI_EMBED_MODEL` |
+| `MOC_EMBED_API_DIMS` | rỗng | Số chiều xin máy chủ trả (tham số `dimensions`) và lưu trong Meilisearch; rỗng: không gửi, số chiều là `MOC_AI_EMBED_DIMS`. Máy chủ trả khác số chiều thì tắt tìm theo nghĩa (`embed_dims_mismatch`). Tên embedder là `emb_<mô hình>_<số chiều>`: đổi mô hình hay số chiều thì bỏ embedder cũ, nhúng lại cả chỉ mục |
+| `MOC_EMBED_API_KEY` | rỗng | Khóa API (tùy chọn) — bí mật trong két như `MOC_ASK_API_KEY`, không đặt trong biến môi trường của container, không vào nhật ký hay `/api/status`; chỉ đi trong tiêu đề `Authorization` |
 | `MOC_ASSISTANT_ID` | `moc-assistant` | Danh tính trợ lý trong sổ kiểm toán (`X-Hasura-User-Id` của vai trò agent) |
 | `MOC_VERSION` | `dev` | Phiên bản hiện ở trang trạng thái; compose truyền cùng thẻ image. Chỉ nhận `[0-9A-Za-z._+-]`, tối đa 64 ký tự, lạ thì hiện `dev` |
 | `MOC_GATEWAY_STATUS_URL` | `http://apisix:7085/status/ready` | Điểm sẵn sàng của APISIX; rỗng: Cổng API `off` |
