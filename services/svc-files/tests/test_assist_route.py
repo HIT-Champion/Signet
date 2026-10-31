@@ -59,6 +59,8 @@ def routed(question: str, *, scoped: bool = False) -> tuple[str, str, str]:
     ("Hướng dẫn cách vào sổ văn bản đến", "huong_dan", "kw:huong-dan-cach"),
     ("Văn bản đến ở đâu?", "huong_dan", "kw:o-dau"),
     # "Hướng dẫn" là loại văn bản (HD); câu nhắc số ký hiệu, "số N" là câu về văn bản dù có "ở đâu"
+    ("A là gì?", "van_ban", "mac-dinh"),                                            # "a" là tên, không gọi anh
+    ("E là gì?", "van_ban", "mac-dinh"),
     ("Hướng dẫn số 12/HD-ĐHM về nghỉ phép quy định gì?", "van_ban", "mac-dinh"),
     ("Hướng dẫn nghỉ phép năm 2026 của trường", "van_ban", "mac-dinh"),
     ("Quyết định giao việc số 45/QĐ-ĐHM ở đâu?", "van_ban", "mac-dinh"),

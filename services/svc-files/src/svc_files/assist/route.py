@@ -81,7 +81,8 @@ DOC_WORDS_RE = re.compile(
     r"giay moi|to trinh|so ky hieu|hoc bong|hoc phi|hoc phan|sinh vien|giang vien|dieu \d+|khoan \d+)\b")
 
 # Ngôi thứ hai: người hỏi gọi trợ lý
-_YOU = r"(?:ban|em|e|a|tro ly(?: nay| ao| hoi dap| ai)?|signet|he thong nay|may)"     # e, a: em, anh viết tắt
+_YOU_FULL = r"(?:ban|em|tro ly(?: nay| ao| hoi dap| ai)?|signet|he thong nay|may)"
+_YOU = rf"(?:{_YOU_FULL}|e|a)"     # e, a: em, anh viết tắt
 
 _INTRO: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("xin-chao", "vi", re.compile(rf"^(?:xin chao|chao)(?: {_YOU})?(?: a| nhe| oi)?$")),
@@ -99,7 +100,8 @@ _INTRO: tuple[tuple[str, str, re.Pattern[str]], ...] = (
     ("can-giup", "vi", re.compile(
         r"^(?:toi |minh |em )?(?:can|muon) (?:duoc )?(?:giup do|ho tro|tro giup|giup)$|"
         r"^giup (?:toi|minh|em)(?: voi)?$")),
-    ("la-ai", "vi", re.compile(rf"^{_YOU} (?:la ai|ten (?:la )?gi|la gi)$")),
+    # "A là gì?" hỏi về một thứ tên A, không phải về trợ lý: "là gì" chỉ nhận cách gọi đầy đủ
+    ("la-ai", "vi", re.compile(rf"^{_YOU} (?:la ai|ten (?:la )?gi)$|^{_YOU_FULL} la gi$")),
     ("dung-mo-hinh", "vi", re.compile(
         rf"^{_YOU} (?:dung|chay(?: bang)?|la) (?:mo hinh|model|llm|ai|tri tue nhan tao)(?: nao| gi)?(?: vay)?$|"
         rf"^(?:mo hinh|model)(?: ai)? (?:cua )?{_YOU}(?: la)? (?:gi|nao)$")),
