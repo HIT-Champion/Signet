@@ -105,6 +105,8 @@ export default {
             trang('apps/ca-nhan/README', 'app-ca-nhan'),
             trang('apps/bang-tin/README', 'app-bang-tin'),
             trang('apps/nghi-phep/README', 'app-nghi-phep'),
+            trang('apps/lich-giang/README', 'app-lich-giang'),
+            trang('apps/tai-lieu-api/README', 'app-tai-lieu-api'),
           ],
         },
         trang('CONTRIBUTING', 'Hướng dẫn đóng góp'),
@@ -115,5 +117,6 @@ export default {
     },
     trang('CHANGELOG', 'Lịch sử thay đổi'),
     trang('README.en', 'English overview'),
+    trang('docs/van-hanh.en', 'Operations (English)'),
   ],
 };
