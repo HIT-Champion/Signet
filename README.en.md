@@ -323,7 +323,7 @@ Administrator tasks on a running installation are described in [`docs/van-hanh.e
 | [Adding a unit](docs/van-hanh.en.md#adding-a-unit-tenant) (faculty, office, member school) | `python3 scripts/moc.py tenant create …` |
 | [Backup and restore](docs/van-hanh.en.md#backup-and-restore) of every database, file and the vault into an encrypted restic repository | `make backup`, `make restore` |
 | [Secrets vault](docs/van-hanh.en.md#secrets-vault) OpenBao: limits, upgrading an old vault for digital signatures | `make demo-ket-bi-mat` |
-| [GitOps and self-healing](docs/van-hanh.en.md#gitops-and-self-healing): systemd timer; with `MOC_GITOPS_ALLOWED_SIGNERS` set, applies signed commits only | `make reconcile` |
+| [GitOps and self-healing](docs/van-hanh.en.md#gitops-and-self-healing): systemd timer or cron, one round a minute; follows the `deploy` branch or release tags (`MOC_GITOPS_FOLLOW=release`), upgrades with a backup and rolls back on failure (`MOC_GITOPS_MODE=nang-cap`); with `MOC_GITOPS_ALLOWED_SIGNERS` set, applies signed versions only | `make reconcile` |
 | [Monitoring](docs/van-hanh.en.md#monitoring) of the API gateway with Prometheus + Grafana | SSH tunnel to port 3300 |
 | [Centralised logs](docs/van-hanh.en.md#centralised-logs): Vector + Parseable, searched by request id `X-Request-Id` | `make logs-up`, `make logs-tra ID=…` |
 | [IT/OT convergence](docs/van-hanh.en.md#itot-convergence): NGSI-LD broker, sensors | `make demo-it-ot` |

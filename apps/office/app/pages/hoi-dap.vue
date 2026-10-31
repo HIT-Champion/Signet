@@ -508,14 +508,7 @@ onBeforeUnmount(() => {
             <!-- đang tìm: chỗ của câu trả lời giữ sẵn bằng vài vạch xám -->
             <div v-if="turn.phase === 'searching'" class="sg-turn-wait">
               <p>
-                <svg
-                  class="h-4 w-4 text-brand-700 motion-safe:animate-spin" viewBox="0 0 24 24" fill="none"
-                  aria-hidden="true"
-                >
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                </svg>
-                {{ t('assist.searching') }}
+                <WaitMark motion="trace">{{ t('assist.searching') }}</WaitMark>
               </p>
               <div class="sg-turn-skeleton" aria-hidden="true"><span /><span /><span /></div>
             </div>
@@ -660,17 +653,11 @@ onBeforeUnmount(() => {
                   v-if="turn.gen === 'waiting' || turn.gen === 'running'" data-testid="ask-generating"
                   class="sg-turn-writing"
                 >
-                  <svg
-                    class="h-4 w-4 text-brand-700 motion-safe:animate-spin" viewBox="0 0 24 24" fill="none"
-                    aria-hidden="true"
-                  >
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
-                  </svg>
-                  <span class="font-medium">
+                  <!-- dấu ấn một lần khi khối hiện ra (đã tìm thấy đoạn), rồi thở tới khi có câu trả lời -->
+                  <WaitMark motion="breathe" stamp class="font-medium">
                     {{ turn.gen === 'waiting' ? t('assist.waiting')
                       : t(isIntro(turn.result) ? 'assist.introWriting' : 'assist.generating') }}
-                  </span>
+                  </WaitMark>
                   <span v-if="turn.gen === 'running'" class="text-stone-500 tabular-nums">
                     {{ t('assist.elapsed', { s: elapsed(turn) }) }}
                   </span>

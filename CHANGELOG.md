@@ -16,6 +16,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 
 ### Đã sửa đổi
 - Trang đăng nhập: logo nổi bật hơn, bố cục mềm và cân đối hơn, vừa màn hình điện thoại và laptop (#480).
+- Trợ lý hỏi đáp: lúc chờ tìm và chờ soạn câu trả lời hiện logo Signet chuyển động thay vòng xoay (#499).
 
 ### Đã sửa lỗi
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
