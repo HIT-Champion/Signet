@@ -14,8 +14,8 @@
 Sản phẩm dự thi **Olympic Tin học Sinh viên Việt Nam 2026 — nội dung Phần mềm Nguồn mở (OLP PMNM 2026)**, chủ đề
 DX-OS Open-Core.
 
-**Dùng thử:** <https://signet.htechcs.com> (bản phát hành mới nhất kèm vài bản vá, xem [Chạy thử](#chạy-thử)) · tự cài trên
-máy mình bằng bốn lệnh ở [Cài đặt từ mã nguồn](#cài-đặt-từ-mã-nguồn-building-from-source).
+**Dùng thử:** <https://signet.htechcs.com> (bản phát hành mới nhất kèm vài bản vá, xem [Chạy thử](#chạy-thử)) ·
+tự cài trên máy mình bằng bốn lệnh ở [Cài đặt từ mã nguồn](#cài-đặt-từ-mã-nguồn-building-from-source).
 
 **Xem nhanh 5 phút, tìm tài liệu theo từng phần:** [`docs/README.md`](docs/README.md) · trang tài liệu
 <https://hit-champion.github.io/Signet/>.

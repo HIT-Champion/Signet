@@ -16,8 +16,8 @@ Built for the **Vietnam Student Olympiad in Informatics 2026 — Open Source Sof
 DX-OS Open-Core. Most project documentation is written in Vietnamese; this page is a translation of
 [README.md](README.md).
 
-**Try it:** <https://signet.htechcs.com> (latest release plus a few fixes, see [Try it out](#try-it-out)) · or install it on your
-own machine with four commands from [Building from source](#building-from-source).
+**Try it:** <https://signet.htechcs.com> (latest release plus a few fixes, see [Try it out](#try-it-out)) ·
+or install it on your own machine with four commands from [Building from source](#building-from-source).
 
 **Five-minute tour and documentation map (in Vietnamese):** [`docs/README.md`](docs/README.md) · documentation
 site <https://hit-champion.github.io/Signet/>.
