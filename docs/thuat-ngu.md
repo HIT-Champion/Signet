@@ -85,7 +85,7 @@ ghi của từng vai trò: [`api/thao-tac-theo-vai-tro.md`](api/thao-tac-theo-va
 | Ký số | Bản phát hành được ký PAdES bằng khóa trong két, theo một CA nội bộ. Chỉ để minh họa, không có giá trị pháp lý (F4.5) | [`architecture.md`](architecture.md) QĐ-007 |
 | Phả hệ | Ghi nguồn gốc theo chuẩn OpenLineage: gói lưu trữ truy về bảng nghiệp vụ và tệp gốc, biểu đồ ở trang Điều hành truy về khung nhìn và bảng nguồn; xem ở trang `/pha-he` (F3.9) | [`muc-hoan-thien.md`](muc-hoan-thien.md) F3.9 |
 | Dashboard điều hành | Trang số liệu cho lãnh đạo: văn bản theo trạng thái, văn bản khẩn chưa xong, văn bản quá hạn; phần văn bản đã nộp lưu do DuckDB đếm trên gói Parquet (F3.11) | [`muc-hoan-thien.md`](muc-hoan-thien.md) F3.11 |
-| GitOps, reconciler | `scripts/reconcile.py`, do systemd timer gọi mỗi 60 giây: đưa hệ thống về đúng khai báo trong git: khởi động lại container hỏng, dựng lại container bị mất (F3.3) | [`van-hanh.md`](van-hanh.md), mục GitOps và tự phục hồi |
+| GitOps, reconciler | `scripts/reconcile.py`, do systemd timer (máy không có systemd: cron) gọi mỗi 60 giây: đưa hệ thống về đúng khai báo trong git: khởi động lại container hỏng, dựng lại container bị mất (F3.3) | [`van-hanh.md`](van-hanh.md), mục GitOps và tự phục hồi |
 | Sao lưu | restic sao lưu CSDL, tệp và két; `make backup`, `make restore` (F3.4) | [`van-hanh.md`](van-hanh.md), mục Sao lưu và khôi phục |
 | Trang trạng thái | Trang công khai `/trang-thai`, không cần đăng nhập: từng thành phần của lõi đang chạy hay gián đoạn | [`van-hanh.md`](van-hanh.md), mục Trang trạng thái hệ thống |
 | Tự chẩn đoán | Trang `/tu-chan-doan` cho lãnh đạo: 12 câu theo bốn không gian H-P-D-I, radar, không gian nên làm trước (F4.7) | [`tu-chan-doan.md`](tu-chan-doan.md) |
