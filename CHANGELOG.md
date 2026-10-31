@@ -27,6 +27,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   các cấp tách khối riêng (#505).
 
 ### Đã sửa lỗi
+- `make release` ký thẻ phát hành khi người phát hành có khóa ký, ký lỗi thì dừng, không có khóa thì báo rõ thẻ
+  không ký (#492).
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
 - Trợ lý hỏi đáp nhận ra câu chào, câu hỏi "giúp gì cho tôi" và trả lời giới thiệu cho câu ngắn không rõ ý thay
   vì "không tìm thấy văn bản"; lời chào do mô hình viết trong phạm vi trợ lý, hiện như tin nhắn; trang Hỏi đáp chờ
