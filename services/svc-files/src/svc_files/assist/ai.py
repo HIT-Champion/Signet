@@ -34,6 +34,13 @@ theo từ khóa, trả câu trích nguyên văn.
   ``GET /models``; nhúng vẫn ở Ollama (``SplitAi`` ghép hai bên). Che ở lối ra như với Ollama; bộ kiểm căn cứ ở
   answer.py không đổi. Khóa chỉ đi trong tiêu đề ``Authorization``, không vào nhật ký. ``chat_where`` (``local`` /
   ``external``) cho sổ kiểm toán biết mô hình chạy ở đâu.
+- **Nhúng qua API ngoài** (``MOC_EMBED_API=openai``, mặc định tắt): ``OpenAiEmbed`` gọi
+  ``POST {MOC_EMBED_API_URL}/embeddings`` (``{model, input, dimensions?}``; Azure AI Foundry ``…/openai/v1`` nhận
+  khóa trong ``Authorization`` như OpenAI), dò như ``OpenAiChat`` rồi nhúng thử câu mẫu để biết sớm khóa, tên mô
+  hình và số chiều. Mọi chỗ nhúng (vòng nền index.py, câu hỏi answer.py, trích yếu similar.py) đi qua client do
+  ``make_ai`` chọn. ``embed_model`` là ``"<mô hình>@<số chiều>"``: embedder Meilisearch và dấu ``embed_model`` của
+  đoạn đặt theo nó, nên đổi mô hình, số chiều hay chuyển từ Ollama sang là đường nhúng lại sẵn có (bỏ embedder cũ,
+  nhúng lại mọi đoạn); số chiều trả về khác cấu hình thì tắt nhúng như Ollama.
 - **Che thông tin cá nhân ở lối ra** (F4.4, pii.py): không byte chữ nào tới Ollama mà chưa qua bộ che. ``embed`` che
   từng chuỗi (đoạn văn bản, câu hỏi, trích yếu F4.3 đều chỉ ra mô hình qua đây); ``chat`` che nội dung mọi message.
   Bản che idempotent: answer.py đã che câu hỏi và nguồn bằng nhãn đánh số ``[SĐT-1]`` thì ở đây không còn gì để che —
@@ -58,14 +65,15 @@ from .meili import embedder_name  # tên embedder theo mô hình — luồng B �
 if TYPE_CHECKING:
     from ..config import Settings
 
-__all__ = ["TRANSIENT", "AiClient", "ChatResult", "NullAi", "OllamaAi", "OpenAiChat", "SplitAi", "embedder_name",
-           "make_ai", "query_text"]
+__all__ = ["TRANSIENT", "AiClient", "ChatResult", "NullAi", "OllamaAi", "OpenAiChat", "OpenAiEmbed", "SplitAi",
+           "embedder_name", "make_ai", "query_text"]
 
 log = logging.getLogger("svc_files")
 
 KEEP_ALIVE = "30m"
 PROBE_INTERVAL_S = 60.0
 PRELOAD_TIMEOUT_S = 120.0       # nạp mô hình từ đĩa trên CPU
+PROBE_EMBED_TIMEOUT_S = 30.0    # nhúng thử câu mẫu khi API nhúng ngoài vừa sẵn sàng
 EMBED_OPTIONS: dict[str, Any] = {"num_ctx": 2048}
 CHAT_PRELOAD_OPTIONS: dict[str, Any] = {"num_ctx": 4096}     # như grounding.OPTIONS, docread/summarize.OPTIONS
 QUERY_PREFIX = ("Instruct: Given a question about Vietnamese administrative documents, retrieve passages that "
@@ -419,16 +427,166 @@ class OpenAiChat:
         return ChatResult(content, None) if isinstance(content, str) else ChatResult(None, "model_rejected")
 
 
-class SplitAi:
-    """Nhúng ở Ollama tại chỗ (hoặc không nhúng), sinh qua API ngoài."""
+def _rows(data: object) -> list[object] | None:
+    """Véc-tơ từ thân trả về của ``/embeddings`` chuẩn OpenAI (``data[].embedding``), xếp theo ``index`` nếu có."""
+    items = data.get("data") if isinstance(data, dict) else None
+    if not isinstance(items, list) or not all(isinstance(i, dict) for i in items):
+        return None
+    if all(isinstance(i.get("index"), int) for i in items):
+        items = sorted(items, key=lambda i: i["index"])
+    return [i.get("embedding") for i in items]
 
+
+class OpenAiEmbed:
+    """Nhúng qua máy chủ nói chuẩn OpenAI (Azure AI Foundry, vLLM, llama.cpp…). Chỉ có ``embed``; không sinh."""
+
+    chat_model: str | None = None
     chat_where = "external"
+    chat_available = False
 
-    def __init__(self, embedder: AiClient, writer: OpenAiChat) -> None:
+    def __init__(self, url: str, model: str, key: str = "", transport: httpx2.AsyncBaseTransport | None = None, *,
+                 dims: int = 1024, send_dims: bool = False, interval_s: float = PROBE_INTERVAL_S) -> None:
+        self.model = model or None
+        self.dims = dims
+        self.send_dims = send_dims          # gửi ``dimensions``: chỉ khi MOC_EMBED_API_DIMS có đặt
+        # tên embedder và dấu của đoạn mang số chiều: đổi số chiều mà giữ tên mô hình vẫn là nhúng lại cả chỉ mục
+        self.embed_model = f"{self.model}@{dims}" if self.model else None
+        self.interval_s = interval_s
+        self.embed_error: str | None = None
+        self._ready: bool | None = None
+        self._dims: int | None = None       # số chiều véc-tơ đầu tiên máy chủ trả; None: chưa thấy véc-tơ nào
+        headers = {"Authorization": f"Bearer {key}"} if key else {}
+        self._http = httpx2.AsyncClient(base_url=url, timeout=10.0, transport=transport, headers=headers)
+
+    @property
+    def embed_available(self) -> bool:
+        return self.model is not None and bool(self._ready) and self._dims in (None, self.dims)
+
+    async def aclose(self) -> None:
+        await self._http.aclose()
+
+    def _set(self, ok: bool, reason: str | None = None) -> None:
+        if ok != self._ready:
+            log.info(json.dumps({"event": "office.assist.ai_ready" if ok else "office.assist.ai_unavailable",
+                                 "kind": "embed", "model": self.model, "where": "external",
+                                 **({"reason": reason} if reason else {})}, ensure_ascii=False))
+        self._ready = ok
+
+    async def _post(self, inputs: list[str], timeout_s: float) -> tuple[str | None, list[object] | None]:
+        """Gọi ``/embeddings``: (lý do lỗi hoặc None, véc-tơ thô — None nếu thân trả về sai dạng)."""
+        body: dict[str, Any] = {"model": self.model, "input": inputs}
+        if self.send_dims:
+            body["dimensions"] = self.dims
+        timeout_s = max(timeout_s, 0.1)
+        try:
+            r = await asyncio.wait_for(self._http.post("/embeddings", json=body, timeout=timeout_s), timeout_s)
+        except (TimeoutError, httpx2.TimeoutException):
+            return "timeout", None
+        except httpx2.HTTPError:
+            return "unavailable", None
+        if r.status_code != 200:
+            return f"http {r.status_code}", None
+        try:
+            return None, _rows(r.json())
+        except ValueError:
+            return None, None
+
+    async def probe(self) -> None:
+        """``GET /models`` trả 200 là máy chủ còn đó. Lần đầu (hoặc sau khi mất): nhúng thử câu mẫu trước khi báo sẵn
+        sàng — khóa sai, sai tên mô hình (401/403/404) thì chưa sẵn sàng; sai số chiều thì biết ngay lúc khởi động."""
+        if self.model is None:
+            return
+        try:
+            r = await self._http.get("/models", timeout=5.0)
+        except httpx2.HTTPError:
+            self._set(False, "unreachable")
+            return
+        if r.status_code != 200:
+            self._set(False, f"http {r.status_code}")
+            return
+        if not self._ready:
+            reason, rows = await self._post(["Mộc"], PROBE_EMBED_TIMEOUT_S)
+            if reason in ("http 401", "http 403", "http 404"):
+                self._set(False, reason)
+                return
+            if reason is None and rows is not None:
+                self._check_dims(rows)
+        self._set(True)
+
+    def _check_dims(self, rows: list[object] | None) -> bool:
+        """Véc-tơ đầu tiên máy chủ trả có đúng số chiều cấu hình không (kiểm một lần). Khác là sai cấu hình, không do
+        nội dung: tắt nhúng tới khi sửa biến rồi khởi động lại — chỉ tìm theo từ khóa, ``/readyz`` báo
+        ``semantic: false``."""
+        if self._dims is None:
+            first = rows[0] if isinstance(rows, list) and rows else None
+            if (not isinstance(first, list) or not first
+                    or not all(isinstance(x, int | float) and not isinstance(x, bool) for x in first)):
+                return True                 # sai dạng: _vectors loại, lần sau kiểm lại
+            self._dims = len(first)
+            if self._dims != self.dims:
+                log.error(json.dumps({
+                    "event": "office.assist.embed_dims_mismatch", "model": self.model, "where": "external",
+                    "dims": self._dims, "expected": self.dims,
+                    "message": "Số chiều véc-tơ của API nhúng khác cấu hình: tắt tìm theo nghĩa — đặt "
+                               "MOC_EMBED_API_DIMS (hoặc MOC_AI_EMBED_DIMS khi không gửi số chiều) đúng số chiều "
+                               "của mô hình rồi khởi động lại svc-files",
+                }, ensure_ascii=False))
+        return self._dims == self.dims
+
+    async def run(self) -> None:
+        while True:
+            try:
+                await self.probe()
+            except Exception as exc:  # noqa: BLE001 — vòng nền không được chết
+                log.warning(json.dumps({"event": "office.assist.ai_probe_failed", "error": str(exc)},
+                                       ensure_ascii=False))
+            await asyncio.sleep(self.interval_s)
+
+    async def embed(self, texts: Sequence[str], *, query: bool, timeout_s: float) -> list[list[float]] | None:
+        """Như ``OllamaAi.embed``: véc-tơ của từng chuỗi, đúng thứ tự; None khi lỗi — lý do ở ``embed_error``."""
+        if not texts:
+            return None
+        if not self.embed_available:
+            self.embed_error = "model_unavailable"
+            return None
+        inputs = [pii.mask_text(query_text(self.model, t) if query else t) for t in texts]
+        reason, rows = await self._post(inputs, timeout_s)
+        if reason in ("http 401", "http 403", "http 404"):     # khóa sai, hết quyền, sai tên mô hình: dò lại sau
+            self._set(False, reason)
+        if reason is not None:
+            return self._embed_failed(reason, len(texts))
+        if not self._check_dims(rows):
+            return self._embed_failed("dims_mismatch", len(texts))
+        vectors = _vectors({"embeddings": rows}, len(texts), self.dims)
+        if vectors is None:
+            return self._embed_failed("bad_output", len(texts))
+        self.embed_error = None
+        return vectors
+
+    def _embed_failed(self, reason: str, count: int) -> None:
+        self.embed_error = reason
+        log.warning(json.dumps({"event": "office.assist.embed_failed", "model": self.model, "where": "external",
+                                "reason": reason, "inputs": count}, ensure_ascii=False))
+        return None
+
+    async def chat(self, messages: list[dict[str, str]], *, format: dict[str, Any], options: dict[str, Any],
+                   timeout_s: float) -> ChatResult:
+        return ChatResult(None, "model_unavailable")
+
+
+class SplitAi:
+    """Nhúng ở một nơi, sinh ở nơi khác: nhúng ở Ollama tại chỗ (hoặc không nhúng) và sinh qua API ngoài, hoặc nhúng
+    qua API ngoài (``OpenAiEmbed``) và sinh ở Ollama / API ngoài / không sinh."""
+
+    def __init__(self, embedder: AiClient, writer: AiClient) -> None:
         self.embedder = embedder
         self.writer = writer
         self.chat_model = writer.chat_model
         self.embed_model = embedder.embed_model
+
+    @property
+    def chat_where(self) -> str:
+        return self.writer.chat_where
 
     @property
     def embed_error(self) -> str | None:
@@ -458,6 +616,13 @@ class SplitAi:
 
 
 def make_ai(settings: Settings) -> AiClient:
+    if settings.embed_api == "openai":
+        api = OpenAiEmbed(settings.embed_api_url, settings.embed_api_model, settings.embed_api_key,
+                          dims=settings.embed_dims, send_dims=bool(settings.embed_api_dims))
+        writer: AiClient = (OpenAiChat(settings.ask_api_url, settings.ask_model, settings.ask_api_key)
+                            if settings.ask_api == "openai"
+                            else OllamaAi(settings.ai_url, settings.ask_model, None) if settings.ai_url else NullAi())
+        return SplitAi(api, writer)
     if settings.ask_api == "openai":
         embedder: AiClient = (OllamaAi(settings.ai_url, None, settings.ai_embed_model, dims=settings.ai_embed_dims)
                               if settings.ai_url and settings.ai_embed_model else NullAi())

@@ -387,7 +387,7 @@ def create_app(
     # Hỏi đáp trên kho văn bản (F4.2): chỉ mục đoạn riêng trên cùng Meilisearch, mô hình nhúng / sinh tùy chọn
     ai = ai or make_ai(settings)
     chunk_index = ChunkIndex(settings.meili_url, settings.meili_api_key, settings.ask_index)
-    chunk_indexer = chunk_indexer or ChunkIndexer(chunk_index, hasura, ai, dims=settings.ai_embed_dims,
+    chunk_indexer = chunk_indexer or ChunkIndexer(chunk_index, hasura, ai, dims=settings.embed_dims,
                                                   batch=settings.ai_embed_batch,
                                                   interval_s=settings.ask_sync_interval_s)
     assistant = assistant or Assistant(

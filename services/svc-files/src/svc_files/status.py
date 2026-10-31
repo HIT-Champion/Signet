@@ -300,10 +300,15 @@ def default_board(settings: Settings, *, scanner: Any, store: Any, hasura: Any, 
                   transport: httpx2.AsyncBaseTransport | None = None) -> StatusBoard:
     """Bảng trạng thái nối với các client sẵn có của svc-files; ``transport`` thay mạng thật trong test."""
     http = httpx2.AsyncClient(timeout=settings.status_timeout_s, transport=transport, follow_redirects=False)
-    # API ngoài (#430) viết câu trả lời được cả khi không có Ollama (khi đó không nhúng, chỉ tìm từ khóa)
-    ai_on = (bool(settings.ai_url) or settings.ask_api == "openai") and settings.ask_enabled
-    ai_software = ("Ollama" if settings.ask_api == "ollama"
-                   else "Ollama, API ngoài" if settings.ai_url else "API ngoài")
+    # API ngoài (#430) viết câu trả lời được cả khi không có Ollama (khi đó không nhúng, chỉ tìm từ khóa); nhúng qua
+    # API ngoài (MOC_EMBED_API=openai) cũng vậy. Không bao giờ có URL hay khóa của API ở đây
+    external = settings.ask_api == "openai" or settings.embed_api == "openai"
+    ai_on = (bool(settings.ai_url) or external) and settings.ask_enabled
+    if settings.embed_api == "openai":
+        ai_software = "Ollama, API ngoài" if settings.ask_api == "ollama" and settings.ai_url else "API ngoài"
+    else:
+        ai_software = ("Ollama" if settings.ask_api == "ollama"
+                       else "Ollama, API ngoài" if settings.ai_url else "API ngoài")
 
     async def storage() -> str:
         return "ok" if await asyncio.to_thread(store.ping) else "down"

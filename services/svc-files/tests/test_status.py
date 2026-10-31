@@ -388,6 +388,31 @@ def test_api_status_external_answer_api(parts, verifier):
     run(board.aclose())
 
 
+def test_api_status_external_embedding_api(parts, verifier):
+    """Nhúng qua API ngoài (MOC_EMBED_API=openai): tìm theo nghĩa bật được cả khi không có Ollama; trang trạng thái
+    không lộ URL hay khóa của API."""
+    env = {"MOC_ASK_ENABLED": "true", "MOC_ASK_SYNC_INTERVAL_S": "5", "MOC_EMBED_API": "openai",
+           "MOC_EMBED_API_URL": "https://nhung.example/openai/v1", "MOC_EMBED_API_MODEL": "text-embedding-3-small",
+           "MOC_EMBED_API_KEY": "khoa-gia"}
+    parts["ai"] = StubAi(chat_available=False, embed_available=True)
+    with status_client(status_settings(**env), parts, verifier) as c:
+        r = c.get("/api/status")
+    body = r.json()
+    ai = next(x for x in body["components"] if x["id"] == "tro-ly-ai")
+    assert ai["status"] == "degraded" and ai["software"] == "API ngoài"
+    assert body["ai"] == {"enabled": False, "model": None, "semantic": True}
+    assert "nhung.example" not in r.text and "khoa-gia" not in r.text
+    for extra, software in (({"MOC_AI_URL": "http://ollama:11434"}, "Ollama, API ngoài"),
+                            ({"MOC_AI_URL": "http://ollama:11434", "MOC_ASK_API": "openai",
+                              "MOC_ASK_API_URL": "https://viet.example/v1", "MOC_ASK_MODEL": "mo-hinh-ngoai"},
+                             "API ngoài")):
+        board = default_board(status_settings(**env, **extra), scanner=parts["scanner"], store=parts["store"],
+                              hasura=parts["hasura"], meili=parts["meili"], vault=parts["vault"], ai=parts["ai"],
+                              transport=httpx2.MockTransport(parts["net"]))
+        assert next(x for x in run(board.report())["components"] if x["id"] == "tro-ly-ai")["software"] == software
+        run(board.aclose())
+
+
 def test_api_status_no_vault_or_workflow_url_is_off(parts, verifier):
     parts["vault"] = None
     board = default_board(status_settings(MOC_WORKFLOW_URL=""), scanner=parts["scanner"], store=parts["store"],
