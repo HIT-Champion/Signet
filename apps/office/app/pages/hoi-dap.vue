@@ -22,8 +22,8 @@ import { ApiError } from '~/composables/useApi'
 import type { AskBody, AskResult, AskSource } from '~/composables/useApi'
 import {
   ASK_ROLES, MAX_QUESTION, SCOPE_PARAM, SUGGEST_GROUPS, blocks, canView, citeLabel, cleanQuestion, fallbackSuggestions,
-  declined, hasMask, inAssistant, isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched,
-  sourceAnchor, tidy,
+  declined, hasMask, inAssistant, isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, sourceAnchor,
+  tidy, writingKey,
 } from '~/utils/answer'
 
 // Hỏi đáp trên kho văn bản (F4.2). Trợ lý moc-assistant (svc-files) chỉ tìm trong các văn bản người hỏi được xem,
@@ -178,9 +178,6 @@ function body(turn: Turn, mode: 'extract' | 'generate'): AskBody {
   }
 }
 
-// Dòng "Đã hiểu là câu hỏi về: …" của một lượt: chỉ khi svc-files có bộ định tuyến (trả route); mã lý do để ở title
-const understood = (res: AskResult) =>
-  (res.route && !isIntro(res) ? t('assist.understood', { route: t(`assist.route.${res.route}`) }) : '')
 const outOfScope = (res: AskResult) => res.route === 'ngoai_pham_vi'
 
 function onKey(e: KeyboardEvent) {
@@ -261,21 +258,15 @@ async function search(key: number) {
   if (!cur) return
   cur.result = res
   cur.phase = 'shown'
-  if (res.status === 'no_evidence') {
-    say(outOfScope(res) ? t('assist.outOfScope') : t('assist.noEvidence'))
+  // mô hình sẵn sàng thì mọi câu trả lời đều do mô hình viết: lượt extract chỉ là căn cứ và chữ dự phòng
+  if (needsGenerate(res)) {
+    say(t('assist.live.generating'))
+    queueGenerate(key)
     return
   }
-  if (blocks(res).direct) {
-    say(t('assist.live.answered'))
-    return
-  }
-  const found = t('assist.live.found', { n: res.sources.length })
-  if (!needsGenerate(res)) {
-    say(found)
-    return
-  }
-  say(`${found} ${t('assist.live.generating')}`)
-  queueGenerate(key)
+  if (res.status === 'no_evidence') say(outOfScope(res) ? t('assist.outOfScope') : t('assist.noEvidence'))
+  else if (blocks(res).direct) say(t('assist.live.answered'))
+  else say(t('assist.live.found', { n: res.sources.length }))
 }
 
 function queueGenerate(key: number) {
@@ -483,28 +474,8 @@ onBeforeUnmount(() => {
           <div class="sg-turn-a">
             <p class="sg-turn-by">
               <b>{{ t('assist.answerBy') }}</b>
-              <template v-if="turn.result">
-                <span
-                  v-if="searched(turn.result.route)" class="chip bg-stone-100 text-stone-700" data-testid="ask-mode"
-                >
-                  {{ turn.result.semantic ? t('assist.semantic') : t('assist.keyword') }}
-                </span>
-                <span class="tabular-nums">{{ took(turn.result) }}</span>
-              </template>
+              <span v-if="turn.result" class="tabular-nums">{{ took(turn.result) }}</span>
             </p>
-            <!-- bộ định tuyến: trợ lý đã hiểu câu hỏi là loại nào, câu nối tiếp đã ghép với câu trước thành câu gì -->
-            <p
-              v-if="turn.result && understood(turn.result)" class="sg-turn-route" data-testid="ask-route"
-              :data-route="turn.result.route"
-              :title="turn.result.route_reason
-                ? t('assist.routeReason', { code: turn.result.route_reason }) : undefined"
-            >
-              <span>{{ understood(turn.result) }}</span>
-              <span v-if="turn.result.rewritten" data-testid="ask-rewritten">
-                {{ t('assist.rewritten', { text: turn.result.rewritten }) }}
-              </span>
-            </p>
-
             <!-- đang tìm: chỗ của câu trả lời giữ sẵn bằng vài vạch xám -->
             <div v-if="turn.phase === 'searching'" class="sg-turn-wait">
               <p>
@@ -531,12 +502,29 @@ onBeforeUnmount(() => {
               </button>
             </div>
 
+            <!-- mô hình đang viết lời đáp: chỉ dòng trạng thái, không hiện chữ của lượt extract rồi thay -->
+            <div v-else-if="turn.result && modelWriting(turn)" data-testid="ask-generating" class="sg-turn-writing">
+              <!-- dấu ấn một lần khi khối hiện ra, rồi thở tới khi có câu trả lời -->
+              <WaitMark motion="breathe" stamp class="font-medium">
+                {{ turn.gen === 'waiting' ? t('assist.waiting')
+                  : t(writingKey(turn.result), { n: turn.result.sources.length }) }}
+              </WaitMark>
+              <span v-if="turn.gen === 'running'" class="text-stone-500 tabular-nums">
+                {{ t('assist.elapsed', { s: elapsed(turn) }) }}
+              </span>
+              <button type="button" class="btn-secondary ml-auto !px-2.5 !py-1 !text-xs" @click="stop(turn.key)">
+                {{ t('assist.stop') }}
+              </button>
+            </div>
+
             <template v-else-if="turn.result">
               <!-- không có căn cứ: câu giống hệt nhau dù văn bản không tồn tại hay người hỏi không được xem. Câu hỏi
                    ngoài phạm vi (thời tiết, tin tức…): nói thẳng như vậy. Cả hai nói trợ lý trả lời được gì, kèm
                    gợi ý -->
               <div v-if="turn.result.status === 'no_evidence'" class="sg-turn-none" data-testid="ask-none">
-                <p>{{ outOfScope(turn.result) ? t('assist.outOfScope') : t('assist.noEvidence') }}</p>
+                <!-- lời mô hình viết từ lời báo của máy chủ; mô hình không viết được thì câu soạn sẵn -->
+                <p v-if="blocks(turn.result).model">{{ blocks(turn.result).model!.text }}</p>
+                <p v-else>{{ outOfScope(turn.result) ? t('assist.outOfScope') : t('assist.noEvidence') }}</p>
                 <NuxtLink
                   v-if="!outOfScope(turn.result)"
                   :to="{ path: '/tim-kiem', query: { q: turn.question.slice(0, 200) } }"
@@ -545,10 +533,12 @@ onBeforeUnmount(() => {
                   {{ t('assist.openSearch') }}
                 </NuxtLink>
                 <div class="sg-turn-can" data-testid="ask-can">
-                  <p>{{ t('assist.can.title') }}</p>
-                  <ul>
-                    <li v-for="group in SUGGEST_GROUPS" :key="group.route">{{ t(`assist.can.${group.route}`) }}</li>
-                  </ul>
+                  <template v-if="!blocks(turn.result).model">
+                    <p>{{ t('assist.can.title') }}</p>
+                    <ul>
+                      <li v-for="group in SUGGEST_GROUPS" :key="group.route">{{ t(`assist.can.${group.route}`) }}</li>
+                    </ul>
+                  </template>
                   <p>{{ t('assist.suggestTitle') }}</p>
                   <ul class="sg-turn-chips">
                     <li v-for="key in fallbackSuggestions(turn.result.route)" :key="key">
@@ -564,9 +554,6 @@ onBeforeUnmount(() => {
                 <AnswerText
                   :text="blocks(turn.result).direct!.text" :sources="turn.result.sources" :ask="turn.result.ask_id"
                 />
-                <p v-if="blocks(turn.result).direct!.source === 'data'" class="sg-answer-note">
-                  {{ t('assist.dataNote') }}
-                </p>
                 <NuxtLink
                   v-if="turn.result.link" :to="turn.result.link" data-testid="ask-data-link"
                   class="mt-2 inline-block font-medium text-brand-700 underline underline-offset-2"
@@ -589,18 +576,12 @@ onBeforeUnmount(() => {
                   <AnswerText
                     :text="blocks(turn.result).model!.text" :sources="turn.result.sources" :ask="turn.result.ask_id"
                   />
-                  <p v-if="!isIntro(turn.result)" class="sg-answer-note">
-                    <svg
-                      class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-                      stroke-width="2" aria-hidden="true"
-                    >
-                      <path
-                        stroke-linecap="round" stroke-linejoin="round"
-                        d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4L12 3z"
-                      />
-                    </svg>
-                    {{ t('assist.modelNote') }}
-                  </p>
+                  <NuxtLink
+                    v-if="turn.result.link" :to="turn.result.link" data-testid="ask-data-link"
+                    class="mt-2 inline-block font-medium text-brand-700 underline underline-offset-2"
+                  >
+                    {{ t(turn.result.route === 'viec_cua_toi' ? 'assist.openInbox' : 'assist.openList') }}
+                  </NuxtLink>
                   <!-- F4.4: chữ gửi mô hình đã che, mô hình viết nhãn [SĐT-1] thay cho số -->
                   <p v-if="hasMask(blocks(turn.result).model!.text)" class="sg-answer-note" data-testid="ask-masked">
                     {{ t('assist.maskedNote') }}
@@ -648,28 +629,8 @@ onBeforeUnmount(() => {
                   />
                 </section>
 
-                <!-- đang viết câu trả lời -->
                 <div
-                  v-if="turn.gen === 'waiting' || turn.gen === 'running'" data-testid="ask-generating"
-                  class="sg-turn-writing"
-                >
-                  <!-- dấu ấn một lần khi khối hiện ra (đã tìm thấy đoạn), rồi thở tới khi có câu trả lời -->
-                  <WaitMark motion="breathe" stamp class="font-medium">
-                    {{ turn.gen === 'waiting' ? t('assist.waiting')
-                      : t(isIntro(turn.result) ? 'assist.introWriting' : 'assist.generating') }}
-                  </WaitMark>
-                  <span v-if="turn.gen === 'running'" class="text-stone-500 tabular-nums">
-                    {{ t('assist.elapsed', { s: elapsed(turn) }) }}
-                  </span>
-                  <button type="button" class="btn-secondary ml-auto !px-2.5 !py-1 !text-xs" @click="stop(turn.key)">
-                    {{ t('assist.stop') }}
-                  </button>
-                  <span v-if="!isIntro(turn.result)" class="basis-full text-[13px] text-stone-500">
-                    {{ t('assist.generatingHint') }}
-                  </span>
-                </div>
-                <div
-                  v-else-if="(turn.gen === 'stopped' || turn.gen === 'failed') && !isIntro(turn.result)"
+                  v-if="(turn.gen === 'stopped' || turn.gen === 'failed') && !isIntro(turn.result)"
                   data-testid="ask-generate-note"
                   class="mt-4 flex flex-wrap items-center gap-3 text-sm text-amber-900"
                 >

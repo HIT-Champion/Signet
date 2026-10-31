@@ -29,6 +29,7 @@ const {
   SUGGEST_GROUPS,
   askAbout, blocks, canAskAbout, canView, citeLabel, cleanQuestion, declined, fallbackSuggestions, hasMask, inAssistant,
   isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched, segments, sourceAnchor, tidy,
+  writingKey,
 } = await import('../app/utils/answer.ts')
 
 type Messages = { [key: string]: string | Messages }
@@ -144,12 +145,12 @@ test('câu hỏi gửi đi: một dòng, NFC, không ký tự điều khiển ha
   assert.equal(MAX_QUESTION, 500)
 })
 
-test('tự nhờ mô hình viết câu trả lời chỉ khi mô hình sẵn sàng và có đoạn trích', () => {
+test('mô hình sẵn sàng thì mọi câu đều nhờ mô hình viết lời đáp, kể cả khi không có đoạn trích', () => {
   assert.equal(needsGenerate({ ...SAMPLE, ai_available: true }), true)
   assert.equal(needsGenerate({ ...SAMPLE, ai_available: true, status: 'passages_only' }), true)
   assert.equal(needsGenerate(SAMPLE), false)
-  assert.equal(needsGenerate({ ...SAMPLE, ai_available: true, status: 'no_evidence', sources: [] }), false)
-  assert.equal(needsGenerate({ ...SAMPLE, ai_available: true, sources: [] }), false)
+  assert.equal(needsGenerate({ ...SAMPLE, ai_available: true, status: 'no_evidence', sources: [] }), true)
+  assert.equal(needsGenerate({ ...SAMPLE, ai_available: true, sources: [] }), true)
 })
 
 test('khối hiện: câu trả lời của mô hình và câu trích; mô hình không đạt thì chỉ còn câu trích', () => {
@@ -246,16 +247,24 @@ test('liên kết của đường dữ liệu: chỉ các trang danh sách đã 
   assert.ok(tVi('assist.openList') && tEn('assist.openList'))
 })
 
-test('văn bản, hướng dẫn và giới thiệu nhờ mô hình viết; ngoài phạm vi, đường dữ liệu thì không', () => {
+test('mọi đường nhờ mô hình viết; dòng trạng thái lúc viết khớp việc đang làm', () => {
   const ready = { ...SAMPLE, ai_available: true }
   assert.equal(needsGenerate({ ...ready, route: undefined }), true)
-  for (const route of ['van_ban', 'huong_dan', 'gioi_thieu'] as const) {
-    assert.equal(needsGenerate({ ...ready, route }), true, route)
+  for (const route of ROUTES) assert.equal(needsGenerate({ ...ready, route }), true, route)
+  const writing = (route: AskResult['route'], status: AskResult['status'] = 'answered') => writingKey({ route, status })
+  assert.equal(writing('van_ban'), 'assist.writing.documents')
+  assert.equal(writing(undefined), 'assist.writing.documents')
+  assert.equal(writing('huong_dan'), 'assist.writing.guide')
+  assert.equal(writing('viec_cua_toi'), 'assist.writing.data')
+  assert.equal(writing('dem_van_ban'), 'assist.writing.data')
+  assert.equal(writing('gioi_thieu'), 'assist.writing.reply')
+  assert.equal(writing('ngoai_pham_vi', 'no_evidence'), 'assist.writing.reply')
+  assert.equal(writing('van_ban', 'no_evidence'), 'assist.writing.reply')
+  for (const key of ['documents', 'guide', 'data', 'reply']) {
+    assert.ok(tVi(`assist.writing.${key}`, { n: 2 }) && tEn(`assist.writing.${key}`, { n: 2 }), key)
   }
-  for (const route of ['ngoai_pham_vi', 'viec_cua_toi', 'dem_van_ban'] as const) {
-    assert.equal(needsGenerate({ ...ready, route }), false, route)
-  }
-  // giới thiệu hiện như tin nhắn: không chip cách tìm, câu trích thành chữ thường
+  assert.equal(tVi('assist.writing.documents', { n: 3 }), 'Đang soạn câu trả lời từ 3 đoạn văn bản tìm được…')
+  // giới thiệu hiện như tin nhắn, câu trích thành chữ thường
   assert.equal(searched('gioi_thieu'), false)
   assert.equal(isIntro({ route: 'gioi_thieu' }), true)
   assert.equal(isIntro({ route: 'van_ban' }), false)
@@ -306,7 +315,6 @@ test('gợi ý theo loại câu: mọi câu, tên nhóm, dòng "trả lời đư
     assert.ok(tVi(`assist.can.${group.route}`) && tEn(`assist.can.${group.route}`))
   }
   for (const route of ROUTES) assert.ok(tVi(`assist.route.${route}`) && tEn(`assist.route.${route}`), route)
-  assert.equal(tVi('assist.understood', { route: tVi('assist.route.gioi_thieu') }), 'Đã hiểu là câu hỏi về: trợ lý')
   // ba câu văn bản cũ vẫn là nhóm đầu tiên
   assert.deepEqual(SUGGEST_GROUPS[0], {
     route: 'van_ban', keys: ['assist.suggest.credits', 'assist.suggest.examDeadline', 'assist.suggest.language'],
