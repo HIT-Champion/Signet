@@ -351,8 +351,8 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   trên `main` do GitHub ký OpenPGP: thẻ phải ký bằng khóa SSH trong danh sách. `make release`
   (`scripts/release.sh`) ký thẻ (`git tag -s`) khi người phát hành đặt khóa ký như trên (`gpg.format ssh`,
   `user.signingkey`), không đặt thì vẫn gắn thẻ không ký và báo rõ: reconciler không nhận thẻ đó, bản cũ chạy tiếp
-  (#492). Thẻ đến `v1.4.0` gắn trước khi có bước này nên không ký. Không đặt thì ai đẩy được thẻ `v*` lên GitHub là đưa được
-  bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
+  (#492). Thẻ đến `v1.4.0` gắn trước khi có bước này nên không ký. Không đặt thì ai đẩy được thẻ `v*` lên GitHub là
+  đưa được bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
 
 ```bash
 # bản thật: mỗi bản phát hành trên main tự nâng, có sao lưu, lỗi thì tự lùi (máy dữ liệu thật: chưa được, #491)
