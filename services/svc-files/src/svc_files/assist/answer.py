@@ -64,7 +64,6 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import math
 import time
 import uuid
 from collections.abc import Callable
@@ -91,7 +90,6 @@ log = logging.getLogger("svc_files")
 MAX_QUESTION = 500          # ký tự sau chuẩn hóa
 EMBED_TIMEOUT_S = 5.0       # nhúng câu hỏi; quá thì tìm theo từ khóa
 MODEL_MIN_S = 5.0           # còn ít hơn thế trong hạn tổng thì không hỏi mô hình
-INTRO_MODEL_TIMEOUT_S = 6.0     # lời đáp gioi_thieu: quá hạn thì giữ câu trích của tệp Giới thiệu, không cảnh báo
 INTRO_SOURCES = 2               # số mục giới thiệu gửi mô hình: mục chính và một mục kèm, lời dặn ngắn để viết nhanh
 SAVE_RESERVE_S = 3.0        # để dành cho bước ghi sổ cuối yêu cầu
 HOLD_S = 5.0                # lời gọi Ollama xong thì vòng nhúng nền còn nhường thêm chừng này giây (_holding)
@@ -409,7 +407,7 @@ class Assistant:
         asked = masker.mask(question).text
         srcs = grounding.sources(passages[:INTRO_SOURCES] if intro else passages, best,
                                  max_chars=self.settings.ask_context_chars, masker=masker)
-        limit = min(self.settings.ask_model_timeout_s, INTRO_MODEL_TIMEOUT_S if intro else math.inf)
+        limit = self.settings.ask_model_timeout_s
         with self._holding():
             system = grounding.SYSTEM_INTRO if intro else grounding.SYSTEM
             result = await self.ai.chat(grounding.messages(srcs, asked, system=system), format=grounding.FORMAT,

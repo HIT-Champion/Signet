@@ -485,6 +485,7 @@
     "yearValue": "Year {year}",
     "searching": "Searching the documents…",
     "generating": "Writing an answer from the passages (may take up to 40 seconds)",
+    "introWriting": "The assistant is replying…",
     "elapsed": "{s} s",
     "generatingHint": "The verbatim quote above is ready to use — press Stop or Esc if you do not want to wait.",
     "waiting": "Waiting for the previous answer to finish…",

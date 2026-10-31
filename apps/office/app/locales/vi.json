@@ -485,6 +485,7 @@
     "yearValue": "Năm {year}",
     "searching": "Đang tìm trong kho văn bản…",
     "generating": "Đang soạn câu trả lời từ các đoạn trích (có thể mất đến 40 giây)",
+    "introWriting": "Trợ lý đang trả lời…",
     "elapsed": "{s} giây",
     "generatingHint": "Câu trích nguyên văn bên trên dùng được ngay — bấm Dừng hoặc nhấn Esc nếu không cần chờ.",
     "waiting": "Đang chờ câu trả lời trước soạn xong…",

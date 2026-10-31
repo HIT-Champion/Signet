@@ -324,6 +324,12 @@ async function generate(key: number, ctrl: AbortController) {
   }
 }
 
+// lời giới thiệu trợ lý do mô hình viết: lúc đang viết chỉ hiện "Trợ lý đang trả lời…", không hiện chữ soạn sẵn rồi
+// thay; mô hình không đạt, bị dừng hay hỏng thì chữ soạn sẵn là câu trả lời, không kèm thông báo
+function introWriting(turn: Turn): boolean {
+  return !!turn.result && isIntro(turn.result) && (turn.gen === 'waiting' || turn.gen === 'running')
+}
+
 function stop(key: number) {
   const turn = find(key)
   if (turn?.gen === 'waiting') {
@@ -600,7 +606,7 @@ onBeforeUnmount(() => {
                     {{ t('assist.maskedNote') }}
                   </p>
                   <button
-                    v-if="blocks(turn.result).extract" type="button"
+                    v-if="blocks(turn.result).extract && !isIntro(turn.result)" type="button"
                     class="mt-2 min-h-6 text-[13px] font-medium text-brand-700 underline underline-offset-2"
                     :aria-expanded="turn.showExtract" :aria-controls="`trich-${turn.key}`"
                     @click="turn.showExtract = !turn.showExtract"
@@ -611,7 +617,7 @@ onBeforeUnmount(() => {
 
                 <!-- câu trích nguyên văn: là câu trả lời khi không có mô hình, là khối phụ khi có -->
                 <section
-                  v-if="blocks(turn.result).extract && (!blocks(turn.result).model || turn.showExtract)"
+                  v-if="blocks(turn.result).extract && (!blocks(turn.result).model || turn.showExtract) && !introWriting(turn)"
                   :id="`trich-${turn.key}`" class="sg-answer" :class="{ 'is-quote': blocks(turn.result).model }"
                   data-testid="ask-extract"
                 >
@@ -639,7 +645,8 @@ onBeforeUnmount(() => {
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
                   <span class="font-medium">
-                    {{ turn.gen === 'waiting' ? t('assist.waiting') : t('assist.generating') }}
+                    {{ turn.gen === 'waiting' ? t('assist.waiting')
+                      : t(isIntro(turn.result) ? 'assist.introWriting' : 'assist.generating') }}
                   </span>
                   <span v-if="turn.gen === 'running'" class="text-stone-500 tabular-nums">
                     {{ t('assist.elapsed', { s: elapsed(turn) }) }}
@@ -647,10 +654,13 @@ onBeforeUnmount(() => {
                   <button type="button" class="btn-secondary ml-auto !px-2.5 !py-1 !text-xs" @click="stop(turn.key)">
                     {{ t('assist.stop') }}
                   </button>
-                  <span class="basis-full text-[13px] text-stone-500">{{ t('assist.generatingHint') }}</span>
+                  <span v-if="!isIntro(turn.result)" class="basis-full text-[13px] text-stone-500">
+                    {{ t('assist.generatingHint') }}
+                  </span>
                 </div>
                 <div
-                  v-else-if="turn.gen === 'stopped' || turn.gen === 'failed'" data-testid="ask-generate-note"
+                  v-else-if="(turn.gen === 'stopped' || turn.gen === 'failed') && !isIntro(turn.result)"
+                  data-testid="ask-generate-note"
                   class="mt-4 flex flex-wrap items-center gap-3 text-sm text-amber-900"
                 >
                   <span>
