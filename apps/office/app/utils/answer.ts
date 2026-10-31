@@ -137,7 +137,7 @@ export function tidy(res: AskResult): AskResult {
     : []
   const warnings = Array.isArray(res.warnings) ? [...new Set(res.warnings.filter((w) => typeof w === 'string'))] : []
   const out: AskResult = { ...res, sources, warnings, answer: res.answer ?? null, extract: res.extract ?? null }
-  // bộ định tuyến: máy chủ cũ không trả route thì để trống (trang không hiện dòng "Đã hiểu là"); giá trị lạ coi như
+  // bộ định tuyến: máy chủ cũ không trả route thì để trống (dòng chờ nói chung chung); giá trị lạ coi như
   // van_ban, đúng hợp đồng API
   if (res.route === undefined || res.route === null) delete out.route
   else out.route = ROUTES.includes(res.route) ? res.route : 'van_ban'

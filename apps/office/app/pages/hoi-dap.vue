@@ -36,7 +36,7 @@ import {
 // vẫn còn đó. Trang giữ tối đa 10 lượt; các cuộc trò chuyện lưu trong trình duyệt này theo tài khoản
 // (utils/chatHistory.ts), không lưu ở máy chủ, đăng xuất là xóa. Câu hỏi mới gửi kèm câu hỏi của
 // lượt ngay trước cùng phạm vi (previous) để svc-files hiểu câu nối tiếp ("Còn khoa Kinh tế thì sao?"); bộ định tuyến
-// của svc-files trả đường đã chọn (route) và câu đã ghép (rewritten), trang hiện thành dòng "Đã hiểu là câu hỏi về: …".
+// của svc-files trả đường đã chọn (route), trang dùng nó để nói đúng bước đang chờ (utils/answer.ts, writingKey).
 // Mở từ nút "Hỏi về văn bản này" (?van_ban=<id>) thì chỉ hỏi trong văn bản đó; nhãn nguồn mở tệp đúng trang được trích.
 // Bố cục như một cuộc trò chuyện: một cột giữa vùng làm việc, câu hỏi cũ ở trên, mới ở dưới, khung soạn câu hỏi dính
 // đáy màn hình (main.css, mục "Hỏi đáp").
