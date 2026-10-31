@@ -341,10 +341,11 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   kiểm bị mất. Commit lỗi không thử lại, đợi commit mới. Đầu ra lần nâng, lùi gần nhất ở `moc-nang-cap.log` trong thư
   mục `.git` của bản sao. Phiên bản ghi vào bản cài (`/api/status`) là thẻ cùng cây với commit `deploy vX.Y.Z`, không
   phải `X.Y.Z-1-g…`. Lượt đầu tiên mà bản đang chạy đúng thẻ ở đầu `deploy` (cây trùng) thì chỉ ghi nhận, không dừng
-  trang để cài lại. Nên bật cùng `MOC_GITOPS_ALLOWED_SIGNERS`. Hạn chế (#491): phần kiểm luôn chạy smoke, mà smoke
-  đăng nhập bằng tài khoản mẫu qua client `moc-cli` (và ghi dữ liệu thử). Máy có dữ liệu thật (không chạy `seed.py`,
-  `MOC_CLI_CLIENT_ENABLED=false`, `trien-khai.md` mục 3) thì mọi lần nâng trượt kiểm rồi tự lùi: hiện chế độ này chỉ
-  dùng được trên máy có dữ liệu mẫu như bản online.
+  trang để cài lại. Nên bật cùng `MOC_GITOPS_ALLOWED_SIGNERS`. Smoke đăng nhập bằng tài khoản mẫu qua client `moc-cli`
+  và ghi dữ liệu thử, nên phần kiểm chỉ chạy smoke khi bản cài bật client này (`MOC_CLI_CLIENT_ENABLED=true`, máy
+  demo). Máy có dữ liệu thật (`MOC_CLI_CLIENT_ENABLED=false`, `trien-khai.md` mục 3) bỏ smoke, các mục chỉ đọc còn lại
+  vẫn quyết định nâng đạt hay lùi (#491). Đặt `MOC_NANG_CAP_SMOKE=khong` trong `.env` để máy demo cũng không ghi dữ liệu
+  thử mỗi lần nâng, `co` để luôn chạy.
 - **Có bản phát hành là tự nâng** (`MOC_GITOPS_FOLLOW=release`, đặt `MOC_GITOPS_BRANCH=main`): reconciler áp thẻ
   `vX.Y.Z` mới nhất có trên `main` thay cho đầu nhánh. Commit trên `main` chưa gắn thẻ, bản thử `-rc`, thẻ chưa vào
   `main` đều không tự lên. Đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì kiểm chữ ký của thẻ (`git verify-tag`), vì commit gộp
@@ -354,7 +355,7 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
 
 ```bash
-# bản thật: mỗi bản phát hành trên main tự nâng, có sao lưu, lỗi thì tự lùi (máy dữ liệu thật: chưa được, #491)
+# bản thật: mỗi bản phát hành trên main tự nâng, có sao lưu, lỗi thì tự lùi
 sudo install -d -o moc -g moc /opt/moc-src      # như trên: moc không tạo được thư mục trong /opt
 git clone -b main https://github.com/HIT-Champion/Signet.git /opt/moc-src
 printf '%s\n' MOC_GITOPS_DIR=/opt/moc-src MOC_GITOPS_BRANCH=main MOC_GITOPS_FOLLOW=release \

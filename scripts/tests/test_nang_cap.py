@@ -16,9 +16,10 @@
 
 """Kịch bản nâng cấp (scripts/nang_cap.sh) ở những phần chạy được không cần Docker: từ chối trước khi đụng vào bản
 cài (không phải bản cài, mã nguồn cũ không rõ phiên bản, lượt sao lưu không có, thiếu RAM, reconciler đang chạy —
-docker không được gọi lần nào); phần kiểm chạy hết các mục và chỉ thử lại smoke một lần khi trượt đúng ở bước hỏi
-đáp; nang kéo image dựng sẵn còn thiếu trước khi dừng trang; ket lỗi sau khi tạo token root thì trả openbao.hcl về
-như cũ và chỉ cách thu hồi token. Lệnh docker, curl, free, systemctl là bản giả ghi lại lời gọi; đường nâng, nâng
+docker không được gọi lần nào, MOC_NANG_CAP_SMOKE sai); phần kiểm chạy hết các mục và chỉ thử lại smoke một lần khi
+trượt đúng ở bước hỏi đáp, bỏ smoke trên bản cài tắt client moc-cli hay khi MOC_NANG_CAP_SMOKE=khong (#491); nang
+kéo image dựng sẵn còn thiếu trước khi dừng trang; ket lỗi sau khi tạo token root thì trả openbao.hcl về như cũ và chỉ
+cách thu hồi token. Lệnh docker, curl, free, systemctl là bản giả ghi lại lời gọi; đường nâng, nâng
 két, lùi thật chạy ở
 .github/workflows/nang-cap.yml. Workflow chỉ gọi lệnh con có thật, bộ lọc tệp của nó bắt đúng đường nâng cấp.
 Chạy: python3 -m unittest discover -s scripts/tests (make test)."""
@@ -133,7 +134,8 @@ class Sandbox:
         (self.dest / "scripts" / "moc.py").write_text(MOC_PY)
         (self.dest / "scripts" / "smoke.py").write_text(SMOKE_PY)
         (self.dest / "scripts" / "moc_env.py").write_text('PUBLIC_URL = "http://moc.invalid"\n')
-        (self.dest / ".env").write_text("MOC_VERSION=1.2.0\nCOMPOSE_PROFILES=core,app,tunnel\n")
+        (self.dest / ".env").write_text(
+            "MOC_VERSION=1.2.0\nCOMPOSE_PROFILES=core,app,tunnel\nMOC_CLI_CLIENT_ENABLED=true\n")
         (self.dest / "platform" / "openbao").mkdir(parents=True)
         (self.dest / "platform" / "openbao" / "openbao.hcl").write_text('listener "tcp" {}\n')
         self.old = tmp / "signet-1.1.0"
@@ -200,6 +202,10 @@ class BeforeTouchingTest(unittest.TestCase):
                             FAKE_TIMER="on")
         self.refused(proc, "moc-reconcile.timer đang chạy")
 
+    def test_unknown_smoke_setting_is_refused(self) -> None:
+        self.refused(self.box.run("kiem", str(self.box.dest), MOC_NANG_CAP_SMOKE="tat"),
+                     "MOC_NANG_CAP_SMOKE=tat: chỉ nhận co, khong hoặc để trống")
+
     def test_upgrade_needs_the_running_installation(self) -> None:
         # nang sao lưu bằng chính bản đang chạy: không có container nào của bản cài thì dừng trước khi dựng hay cài
         fake = self.box.bin / "docker"
@@ -247,6 +253,36 @@ class ChecksTest(unittest.TestCase):
         self.assertEqual(proc.returncode, 1)
         self.assertEqual(self.smoke_runs(), 1)
         self.assertNotIn("THỬ LẠI", proc.stdout)
+
+    def test_smoke_is_skipped_without_sample_accounts(self) -> None:
+        # máy có dữ liệu thật tắt client moc-cli (hay không đặt: compose mặc định false): smoke không đăng nhập được,
+        # không được chạy; các mục chỉ đọc vẫn chạy và kiểm vẫn đạt
+        env = self.box.dest / ".env"
+        for line in ("MOC_CLI_CLIENT_ENABLED=false\n", ""):
+            with self.subTest(line=line):
+                env.write_text("MOC_VERSION=1.2.0\n" + line)
+                proc = self.box.run("kiem", str(self.box.dest))
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertIn("-> bỏ qua: smoke cần tài khoản mẫu", proc.stdout)
+                self.assertIn("sổ kiểm toán khớp", proc.stdout)
+                self.assertIn("Mọi mục kiểm đều đạt.", proc.stdout)
+                self.assertEqual(self.smoke_runs(), 0)
+
+    def test_smoke_setting_overrides_the_client_flag(self) -> None:
+        # máy demo không muốn văn bản thử sau mỗi lần nâng: khong; bật smoke tay trên máy tắt client: co.
+        # Môi trường thắng .env của bản cài
+        env = self.box.dest / ".env"
+        cases = [("MOC_CLI_CLIENT_ENABLED=true\nMOC_NANG_CAP_SMOKE=khong\n", {}, 0),
+                 ("MOC_CLI_CLIENT_ENABLED=true\n", {"MOC_NANG_CAP_SMOKE": "khong"}, 0),
+                 ("MOC_CLI_CLIENT_ENABLED=false\nMOC_NANG_CAP_SMOKE=co\n", {}, 1),
+                 ("MOC_NANG_CAP_SMOKE=khong\n", {"MOC_NANG_CAP_SMOKE": "co"}, 1)]
+        for text, extra, runs in cases:
+            with self.subTest(env=text, extra=extra):
+                self.box.log.with_name("smoke-runs").unlink(missing_ok=True)
+                env.write_text("MOC_VERSION=1.2.0\n" + text)
+                proc = self.box.run("kiem", str(self.box.dest), **extra)
+                self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+                self.assertEqual(self.smoke_runs(), runs)
 
     def test_every_check_runs_and_failures_are_listed(self) -> None:
         # trang trạng thái báo phiên bản khác bản đã cài, một dịch vụ chưa khỏe: vẫn chạy sổ kiểm toán và smoke
