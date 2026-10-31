@@ -14,9 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-"""Trợ lý hỏi đáp viết câu trả lời qua API ngoài chuẩn OpenAI (#430) ở phần điều phối: mặc định tắt (ollama), khóa
-MOC_ASK_API_KEY đi qua két (bí mật tùy chọn của svc-files trong platform/openbao/start.sh), không nằm trong biến môi
-trường của container svc-files. Kiểm chữ và chạy hàm shell bằng sh (không có PyYAML, không cần Docker).
+"""Trợ lý hỏi đáp viết câu trả lời (#430) và nhúng qua API ngoài chuẩn OpenAI ở phần điều phối: mặc định tắt
+(ollama), khóa MOC_ASK_API_KEY, MOC_EMBED_API_KEY đi qua két (bí mật tùy chọn của svc-files trong
+platform/openbao/start.sh), không nằm trong biến môi trường của container svc-files. Kiểm chữ và chạy hàm shell
+bằng sh (không có PyYAML, không cần Docker).
 Chạy: python3 -m unittest discover -s scripts/tests (make test)."""
 
 from __future__ import annotations
@@ -54,6 +55,18 @@ class ComposeTest(unittest.TestCase):
         self.assertEqual(values, {"MOC_ASK_API": "ollama", "MOC_ASK_API_URL": "", "MOC_ASK_API_KEY": ""})
         self.assertIn("rời máy chủ", text)       # cảnh báo: văn bản đã che vẫn đi ra ngoài
 
+    def test_embedding_api_off_by_default_and_key_only_through_the_vault(self) -> None:
+        """MOC_EMBED_API=openai: nhúng qua API ngoài, khóa MOC_EMBED_API_KEY đi qua két như MOC_ASK_API_KEY."""
+        block = "\n".join(x for x in service_block("svc-files").splitlines() if not x.lstrip().startswith("#"))
+        for name, default in (("MOC_EMBED_API", "ollama"), ("MOC_EMBED_API_URL", ""), ("MOC_EMBED_API_MODEL", ""),
+                              ("MOC_EMBED_API_DIMS", "")):
+            self.assertIn(f"{name}: ${{{name}:-{default}}}", block)
+        self.assertNotIn("MOC_EMBED_API_KEY", block)
+        self.assertIn("MOC_EMBED_API_KEY: ${MOC_EMBED_API_KEY:-}", service_block("openbao"))
+        values = dict(re.findall(r"^(MOC_EMBED_API[A-Z_]*)=(.*)$", ENV_EXAMPLE.read_text(encoding="utf-8"), re.M))
+        self.assertEqual(values, {"MOC_EMBED_API": "ollama", "MOC_EMBED_API_URL": "", "MOC_EMBED_API_MODEL": "",
+                                  "MOC_EMBED_API_DIMS": "", "MOC_EMBED_API_KEY": ""})
+
 
 @unittest.skipUnless(shutil.which("sh"), "cần sh")
 class VaultSecretTest(unittest.TestCase):
@@ -80,6 +93,11 @@ class VaultSecretTest(unittest.TestCase):
         proc = self.secrets({**REQUIRED, "MOC_ASK_API_KEY": 'th"u\\1'})
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(json.loads(proc.stdout), {**STORED, "MOC_ASK_API_KEY": 'th"u\\1'})
+
+    def test_embedding_key_stored_when_set(self) -> None:
+        proc = self.secrets({**REQUIRED, "MOC_EMBED_API_KEY": "kg"})
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(json.loads(proc.stdout), {**STORED, "MOC_EMBED_API_KEY": "kg"})
 
 
 if __name__ == "__main__":
