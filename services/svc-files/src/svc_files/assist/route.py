@@ -16,8 +16,10 @@
 
 """Bộ định tuyến tất định của trợ lý hỏi đáp (F4.2, #423): chọn đường trả lời trước khi tìm văn bản.
 
-Mô hình không chọn đường: thêm một lượt gọi vài giây trên CPU trước mọi câu, sai khó đoán, khó test. Ở đây là mẫu chữ
-so trên câu hỏi đã bỏ dấu, viết thường; mỗi mẫu một mã lý do (``kw:<mẫu>``) trả về cho người hỏi và ghi sổ kiểm toán.
+Đường chính do mô hình chọn (intent.py, ``llm:<mã>``); bộ luật này là dự phòng khi tắt bước ý định
+(``MOC_ASK_INTENT=false``), không có mô hình, mô hình lỗi hay quá hạn, và chọn đường cho câu hỏi trong một văn bản.
+Mẫu chữ so trên câu hỏi đã bỏ dấu, viết thường; mỗi mẫu một mã lý do (``kw:<mẫu>``) trả về cho người hỏi và ghi sổ
+kiểm toán.
 Không khớp mẫu nào thì về ``van_ban``, tìm trong kho như trước: tệ nhất là hành vi cũ.
 
 - ``gioi_thieu``: câu về chính trợ lý (làm được gì, là ai, dùng mô hình nào), câu chào, cảm ơn → tệp Giới thiệu trợ lý.

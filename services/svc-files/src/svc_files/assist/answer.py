@@ -78,6 +78,7 @@ from ..search import SearchError
 from . import data, extract, grounding, guide, route, vi
 from .ai import AiClient
 from .guide import GuideStore
+from .intent import IntentStep
 from .retrieve import Filters, Passage, Retrieval, Retriever
 from .scope import user_scope
 from .store import AnswerLog
@@ -174,6 +175,7 @@ class Assistant:
         self.answers = AnswerLog(hasura, settings.assistant_id)
         self.slots = asyncio.Semaphore(settings.ask_concurrency)
         self._clock = clock
+        self.intent = IntentStep(ai, timeout_s=settings.ask_intent_timeout_s, clock=clock)
 
     def _ms(self, start: float) -> int:
         return max(int((self._clock() - start) * 1000), 0)
@@ -206,9 +208,13 @@ class Assistant:
             raise AskError(400, "invalid_question", "Câu hỏi trống, dài quá 500 ký tự, có ký tự điều khiển hoặc chưa "
                                                     "có từ nào để tìm — hãy hỏi cụ thể hơn")
         scoped = body.document_id is not None
-        chosen = route.route(question, scoped=scoped)
+        chosen = route.route(question, scoped=scoped)     # bộ luật: dự phòng khi không có bước ý định
         rewritten = None
-        if chosen.name in ("van_ban", "huong_dan"):
+        understood = None if scoped else await self._understand(principal, question, body.previous, chosen.lang,
+                                                                 start, request_id)
+        if understood is not None:
+            chosen, rewritten = understood.route, understood.rewritten
+        elif chosen.name in ("van_ban", "huong_dan"):
             rewritten = route.follow_up(question, _previous(body.previous))
             if rewritten is not None and chosen.name == "van_ban":
                 chosen = route.route(rewritten, scoped=scoped)
@@ -226,6 +232,20 @@ class Assistant:
             return await self._answer(principal, body, question, rewritten, chosen, scope, request_id, start)
         finally:
             self.slots.release()
+
+    async def _understand(self, principal: Principal, question: str, previous: str | None, lang: str, start: float,
+                          request_id: str) -> Any:
+        """Bước ý định bằng mô hình (intent.py); tắt, không có mô hình, lỗi, quá hạn → None (dùng bộ luật). Câu hỏi
+        trong một văn bản (``document_id``) không qua bước này: luôn là ``van_ban``."""
+        if not self.settings.ask_intent or not self.ai.chat_available:
+            return None
+        left = start + self.settings.ask_deadline_s - self._clock() - MODEL_MIN_S
+        with self._holding():
+            got = await self.intent.understand(str(principal.user_id), question, _previous(previous), lang,
+                                               timeout_s=left)
+        _log("office.assist.intent", request_id, intent=got.intent if got else None,
+             duration_ms=self._ms(start), fallback=got is None)
+        return got
 
     async def _answer(self, principal: Principal, body: AskBody, question: str, rewritten: str | None,
                       chosen: route.Route, scope: Any, request_id: str, start: float) -> dict[str, Any]:

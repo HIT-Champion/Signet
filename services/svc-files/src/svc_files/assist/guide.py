@@ -174,7 +174,7 @@ class GuideStore:
 
     def intro(self, reason: str, lang: str) -> list[Passage]:
         """Mục giới thiệu trả lời mã lý do ``reason`` (đứng đầu), kèm các mục chung làm nguồn phụ."""
-        main = INTRO_SECTIONS.get(reason.removeprefix("kw:"), INTRO_DEFAULT)
+        main = INTRO_SECTIONS.get(reason.split(":", 1)[-1], INTRO_DEFAULT)     # kw:<mẫu> · llm:<mã>
         order = [main, *(a for a in INTRO_ORDER if a != main)]
         found = [self.intros.get((lang, a)) or self.intros.get(("vi", a)) for a in order]
         return [passage(s, 1.0) for s in found if s is not None]

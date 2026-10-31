@@ -1320,6 +1320,8 @@ Két chưa sẵn sàng thì thử lại tới 60 giây; két từ chối (`400`/
 | `MOC_ASK_DEADLINE_S` | `50` | Hạn tổng một lượt hỏi, tối đa 55 (dưới 60 giây của APISIX) |
 | `MOC_ASK_MODEL` | rỗng = `MOC_AI_MODEL` (với `MOC_ASK_API=openai`: bắt buộc) | Mô hình viết câu trả lời, vd `qwen3:4b`. Khác `MOC_AI_MODEL` (kèm mô hình nhúng) là ba mô hình tranh hai chỗ của Ollama (`OLLAMA_MAX_LOADED_MODELS=2` trong compose): nạp đi nạp lại, dễ quá giờ — svc-files ghi `config.warning` lúc khởi động; muốn mô hình khác thì để trống biến này và đổi `MOC_AI_MODEL` |
 | `MOC_ASK_MODEL_TIMEOUT_S` | `40` | Hạn gọi mô hình viết câu trả lời (`model_timeout`) |
+| `MOC_ASK_INTENT` | `true` | Bước ý định: mô hình chọn đường trả lời và viết lại câu nối tiếp trước khi tìm (`assist/intent.py`, mã lý do `llm:<mã>`); `false`, không có mô hình, lỗi hay quá hạn thì dùng bộ định tuyến luật |
+| `MOC_ASK_INTENT_TIMEOUT_S` | `12` | Hạn gọi mô hình ở bước ý định; quá hạn thì dùng bộ định tuyến luật |
 | `MOC_ASK_API` | `ollama` | Nơi viết câu trả lời: `ollama` (tại chỗ) hoặc `openai` — máy chủ chuẩn OpenAI ở `MOC_ASK_API_URL`, tên mô hình ở `MOC_ASK_MODEL`, bắt buộc (#430). URL `http://` thì ghi `config.warning`. Chỉ bước viết đi ra ngoài (đã che thông tin cá nhân, bộ kiểm căn cứ giữ nguyên); nhúng vẫn ở Ollama. Xem `docs/van-hanh.md` mục Trợ lý hỏi đáp qua API ngoài |
 | `MOC_ASK_API_URL` | rỗng | Gốc API, vd `https://máy-chủ/v1` (bắt buộc khi `MOC_ASK_API=openai`); dò `GET …/models`, gọi `POST …/chat/completions` |
 | `MOC_ASK_API_KEY` | rỗng | Khóa API (tùy chọn) — bí mật trong két (`platform/openbao/start.sh`), không đặt trong biến môi trường của container; chỉ đi trong tiêu đề `Authorization` |
