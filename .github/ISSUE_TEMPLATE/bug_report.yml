@@ -69,7 +69,7 @@ body:
     attributes:
       label: Phiên bản Signet
       description: "Kết quả của lệnh: git describe --tags --always"
-      placeholder: v0.1.0
+      placeholder: v1.4.0
     validations:
       required: true
 

@@ -16,10 +16,11 @@ Built for the **Vietnam Student Olympiad in Informatics 2026 — Open Source Sof
 DX-OS Open-Core. Most project documentation is written in Vietnamese; this page is a translation of
 [README.md](README.md).
 
-**Try it:** <https://signet.htechcs.com> (latest release, see [Try it out](#try-it-out)) · or install it on your own
-machine with four commands from [Building from source](#building-from-source).
+**Try it:** <https://signet.htechcs.com> (latest release plus a few fixes, see [Try it out](#try-it-out)) ·
+or install it on your own machine with four commands from [Building from source](#building-from-source).
 
-**Five-minute tour and documentation map (in Vietnamese):** [`docs/README.md`](docs/README.md).
+**Five-minute tour and documentation map (in Vietnamese):** [`docs/README.md`](docs/README.md) · documentation
+site <https://hit-champion.github.io/Signet/>.
 
 **Quick links:** [Introduction](#introduction) · [Architecture](#architecture) · [Features](#features) ·
 [Four principles](#evidence-for-the-four-design-principles) · [Technology](#technology-and-licenses) ·
@@ -281,9 +282,15 @@ python3 scripts/seed.py                 # sample data, first time only
 ## Try it out
 
 **Online:** <https://signet.htechcs.com> runs the latest release on the team's machine, reaching the Internet through
-Cloudflare Tunnel; `.github/workflows/ban-online.yml` checks daily that it runs the newest tag. Trial accounts are
-sent with the contest submission; the repository does not publish passwords. Unreleased features (the "Chưa phát hành"
-section of [`CHANGELOG.md`](CHANGELOG.md)) are available when you install from source.
+Cloudflare Tunnel; `.github/workflows/ban-online.yml` checks daily that it runs the newest tag. Trial accounts are sent
+with the contest submission; the repository does not publish passwords. Since the evening of 31/10/2026 the online site
+runs `v1.4.0` plus fixes merged into `develop` but not yet tagged: the interface (#470, #481, #495, #500) and the
+assistant (#496, #503, #504); `/api/status` still reports `1.4.0`. The teaching schedule change app (#483) is added with
+`moc app install`. Other unreleased features (the "Chưa phát hành" section of [`CHANGELOG.md`](CHANGELOG.md)) are
+available when you install from source. The online assistant writes its answers through an external OpenAI-compatible
+API (`MOC_ASK_API=openai`, model `gpt-6-luna-wd`, not an open-source model): only the question and the supporting
+passages, with personal data masked, leave the machine. Your own installation uses local Ollama by default
+([`DEPENDENCIES.md`](DEPENDENCIES.md)).
 
 **Your own installation:** the shared password of the sample accounts is the value of `MOC_DEMO_PASSWORD` in `.env`.
 Clerks, faculty leaders, team and division heads, and unit administrators must use two-factor authentication: after

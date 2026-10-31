@@ -26,8 +26,8 @@ Hành vi không được chấp nhận:
 
 ## Thực thi
 
-Hành vi vi phạm có thể được báo cáo tới nhóm duy trì dự án qua issue riêng tư hoặc email liên hệ
-ghi trong README. Mọi khiếu nại sẽ được xem xét và phản hồi. Nhóm duy trì có trách nhiệm bảo mật
+Hành vi vi phạm có thể được báo cáo tới nhóm duy trì dự án qua email của thành viên ghi ở mục
+"Đóng góp và liên hệ" của README. Mọi khiếu nại sẽ được xem xét và phản hồi. Nhóm duy trì có trách nhiệm bảo mật
 danh tính người báo cáo.
 
 Nhóm duy trì có quyền xóa, sửa hoặc từ chối bình luận, commit, mã nguồn, issue và các đóng góp

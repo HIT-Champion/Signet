@@ -469,7 +469,8 @@ demo của đội, hoặc là lựa chọn của đơn vị cài đặt:
 - **API viết câu trả lời chuẩn OpenAI (#430):** tắt mặc định. Giao thức mở, đích có thể là máy chủ nguồn mở của đơn vị
   (vLLM Apache-2.0, llama.cpp MIT); gửi tới dịch vụ đám mây là quyết định của đơn vị, và chỉ câu hỏi cùng các đoạn căn
   cứ đã che thông tin cá nhân rời máy ([`docs/van-hanh.md`](docs/van-hanh.md), mục Trợ lý hỏi đáp qua API ngoài).
-  Khi bật, tên, phiên bản và giấy phép của mô hình phía đích do đơn vị chọn và tự chịu trách nhiệm; bản dự thi giữ
-  mặc định, dùng Ollama tại chỗ.
+  Khi bật, tên, phiên bản và giấy phép của mô hình phía đích do đơn vị chọn và tự chịu trách nhiệm. Gói phát hành và
+  bản tự cài giữ mặc định, dùng Ollama tại chỗ; bản online của đội bật API này (`MOC_ASK_API=openai`, mô hình
+  `gpt-6-luna-wd`, không phải mô hình nguồn mở), xem mục Chạy thử của [`README.md`](README.md).
 - **Nơi tải về:** image từ Docker Hub, Quay.io; trọng số mô hình từ thư viện của Ollama, nguồn gốc là Hugging Face (mục
   Trí tuệ nhân tạo).
