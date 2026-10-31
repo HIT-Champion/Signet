@@ -25,12 +25,16 @@ import {
   declined, hasMask, inAssistant, isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, sourceAnchor,
   tidy, writingKey,
 } from '~/utils/answer'
+import {
+  type Chat, type SavedTurn, dropChat, historyKey, newChatId, putChat, readChats, titleOf,
+} from '~/utils/chatHistory'
 
 // Hỏi đáp trên kho văn bản (F4.2). Trợ lý moc-assistant (svc-files) chỉ tìm trong các văn bản người hỏi được xem,
 // văn bản hạn chế không bao giờ vào chỉ mục. Hai pha cho mỗi câu hỏi: extract trả ngay câu trích nguyên văn kèm
 // nguồn "số ký hiệu · tr. n" (< 1 giây, không cần mô hình); nếu mô hình sẵn sàng (ai_available) thì tự gọi generate
 // với cùng ask_id — mô hình viết câu trả lời có trích dẫn [n] trong 15–40 giây, bấm Dừng hoặc Esc thì thôi, câu trích
-// vẫn còn đó. Danh sách chỉ giữ trong bộ nhớ trang (tối đa 10), không lưu ở đâu cả. Câu hỏi mới gửi kèm câu hỏi của
+// vẫn còn đó. Trang giữ tối đa 10 lượt; các cuộc trò chuyện lưu trong trình duyệt này theo tài khoản
+// (utils/chatHistory.ts), không lưu ở máy chủ, đăng xuất là xóa. Câu hỏi mới gửi kèm câu hỏi của
 // lượt ngay trước cùng phạm vi (previous) để svc-files hiểu câu nối tiếp ("Còn khoa Kinh tế thì sao?"); bộ định tuyến
 // của svc-files trả đường đã chọn (route) và câu đã ghép (rewritten), trang hiện thành dòng "Đã hiểu là câu hỏi về: …".
 // Mở từ nút "Hỏi về văn bản này" (?van_ban=<id>) thì chỉ hỏi trong văn bản đó; nhãn nguồn mở tệp đúng trang được trích.
@@ -130,6 +134,7 @@ const announce = ref('')                                   // vùng aria-live: �
 const now = ref(Date.now())
 
 const searching = computed(() => turns.value.some((x) => x.phase === 'searching'))
+const busy = computed(() => searching.value || turns.value.some((x) => x.gen === 'waiting' || x.gen === 'running'))
 const ready = computed(() => allowed.value && !searching.value && cleanQuestion(text.value).length > 0)
 const find = (key: number) => turns.value.find((x) => x.key === key)
 
@@ -400,6 +405,100 @@ function metaLine(s: AskSource): string {
 const took = (res: AskResult) => t('assist.took', { s: fmtNumber(Math.round(Number(res.duration_ms) / 100) / 10) })
 const stateOf = (turn: Turn) => (turn.phase === 'shown' ? turn.result?.status ?? 'error' : turn.phase)
 
+// Lịch sử trò chuyện (utils/chatHistory.ts): lưu trong trình duyệt này theo tài khoản, mỗi khi một lượt xong (tìm xong
+// không cần viết, viết xong, dừng, lỗi viết). Tải lại trang trong cùng thẻ thì mở lại cuộc đang dở (mã cuộc giữ ở
+// sessionStorage); thẻ mới bắt đầu cuộc mới, các cuộc cũ ở nút "Lịch sử trò chuyện"
+const CURRENT_CHAT = 'sg-hoi-dap-cuoc'
+const chats = ref<Chat[]>([])
+const chatId = ref(newChatId())
+const chatKey = computed(() => (claims.value ? historyKey(claims.value.tenantId, claims.value.userId) : null))
+let savedSig = ''       // các lượt đã lưu của cuộc đang mở: mở lại một cuộc cũ không làm nó thành mới nhất
+
+function historyStore(): Storage | null {
+  try { return window.localStorage } catch { return null }
+}
+function rememberChat(id: string | null) {
+  try {
+    if (id) sessionStorage.setItem(CURRENT_CHAT, id)
+    else sessionStorage.removeItem(CURRENT_CHAT)
+  } catch { /* trình duyệt chặn lưu trữ */ }
+}
+const signature = (saved: SavedTurn[]) => saved.map((s) => `${s.result.ask_id}:${s.result.answer?.source ?? ''}`).join()
+
+function persist() {
+  const store = historyStore()
+  const key = chatKey.value
+  const saved: SavedTurn[] = turns.value
+    .filter((x) => x.phase === 'shown' && x.result && x.gen !== 'waiting' && x.gen !== 'running')
+    .map((x) => ({ question: x.question, direction: x.direction, year: x.year, document: x.document,
+      ...(x.previous ? { previous: x.previous } : {}), result: x.result! }))
+  const sig = signature(saved)
+  if (!store || !key || !saved.length || sig === savedSig) return
+  savedSig = sig
+  chats.value = putChat(store, key, { id: chatId.value, title: titleOf(saved[0]!.question), updated: Date.now(),
+    turns: saved })
+  rememberChat(chatId.value)
+}
+watch(() => turns.value.map((x) => `${x.key}:${x.phase}:${x.gen}`).join(), persist)
+
+function leaveChat() {
+  for (const ctrl of controllers.values()) ctrl.abort()
+  closeViewer()
+}
+
+function openChat(chat: Chat) {
+  leaveChat()
+  const restored: Turn[] = []
+  for (const s of chat.turns) {
+    try {
+      const result = tidy(s.result)
+      restored.push({
+        key: nextKey++, question: s.question, direction: s.direction, year: s.year, document: s.document,
+        previous: s.previous, phase: 'shown', result, error: '', gen: blocks(result).model ? 'done' : 'idle',
+        genError: '', started: 0, showExtract: hasMask(blocks(result).model?.text), opened: [],
+      })
+    } catch { /* lượt sai dạng: bỏ */ }
+  }
+  chatId.value = chat.id
+  savedSig = signature(chat.turns)
+  turns.value = restored
+  rememberChat(chat.id)
+  say(t('assist.chats.opened', { title: chat.title }))
+}
+
+function freshChat() {
+  leaveChat()
+  turns.value = []
+  chatId.value = newChatId()
+  savedSig = ''
+  rememberChat(null)
+  nextTick(() => field.value?.focus())
+}
+
+function pickChat(id: string) {
+  const chat = chats.value.find((c) => c.id === id)
+  if (chat && !busy.value) openChat(chat)
+}
+
+function removeChat(id: string) {
+  const store = historyStore()
+  const key = chatKey.value
+  if (!store || !key) return
+  chats.value = dropChat(store, key, id)
+  if (id === chatId.value) freshChat()
+}
+
+onMounted(() => {
+  const store = historyStore()
+  const key = chatKey.value
+  if (!store || !key) return
+  chats.value = readChats(store, key)
+  let current: string | null = null
+  try { current = sessionStorage.getItem(CURRENT_CHAT) } catch { /* trình duyệt chặn lưu trữ */ }
+  const chat = current ? chats.value.find((c) => c.id === current) : undefined
+  if (chat && !turns.value.length) openChat(chat)
+})
+
 onMounted(() => window.addEventListener('keydown', onEscape))
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onEscape)
@@ -413,6 +512,10 @@ onBeforeUnmount(() => {
   <div class="sg-ask" :class="{ 'is-empty': !turns.length }">
     <header class="sg-ask-head">
       <h1>{{ t('assist.title') }}</h1>
+      <AssistHistory
+        v-if="allowed" :chats="chats" :current="chatId" :busy="busy" :has-turns="turns.length > 0"
+        @fresh="freshChat" @pick="pickChat" @remove="removeChat"
+      />
     </header>
 
     <!-- trình đọc màn hình: đang tìm, tìm thấy mấy đoạn, đã trả lời, không tìm thấy, lỗi -->

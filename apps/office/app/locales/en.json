@@ -505,7 +505,14 @@
     "openSearch": "Search with this question",
     "took": "{s} s",
     "history": "Questions in this session",
-    "historyNote": "Questions and answers stay on this page only and are not stored on the server — reloading the page clears them.",
+    "historyNote": "Chat history is kept only in this browser, for your account — not on the server; signing out deletes it.",
+    "chats": {
+      "new": "New chat",
+      "open": "Chat history ({n})",
+      "turns": "{n} question(s)",
+      "remove": "Delete chat “{title}”",
+      "opened": "Reopened the chat “{title}”."
+    },
     "scope": {
       "title": "Asking about one document only",
       "chip": "In {label}",

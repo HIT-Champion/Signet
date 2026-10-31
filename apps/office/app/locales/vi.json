@@ -505,7 +505,14 @@
     "openSearch": "Tìm kiếm với câu này",
     "took": "{s} giây",
     "history": "Các câu hỏi trong phiên này",
-    "historyNote": "Câu hỏi và câu trả lời chỉ giữ trên trang này, không lưu ở máy chủ — tải lại trang là mất.",
+    "historyNote": "Lịch sử trò chuyện chỉ lưu trong trình duyệt này, theo tài khoản của bạn — không lưu ở máy chủ; đăng xuất là xóa.",
+    "chats": {
+      "new": "Cuộc trò chuyện mới",
+      "open": "Lịch sử trò chuyện ({n})",
+      "turns": "{n} câu hỏi",
+      "remove": "Xóa cuộc trò chuyện “{title}”",
+      "opened": "Đã mở lại cuộc trò chuyện “{title}”."
+    },
     "scope": {
       "title": "Chỉ hỏi trong văn bản",
       "chip": "Trong {label}",
