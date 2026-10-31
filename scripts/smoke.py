@@ -972,12 +972,15 @@ def main(argv: list[str] | None = None) -> None:
        f" {time.time() - started:.0f} giây, svc-files trả lời trong {got.get('duration_ms')} ms)")
     # Câu chỉ có từ của riêng văn bản này: đơn vị khác không thấy gì, kể cả văn bản của mình có chữ "hạn", "ngày".
     # Chỉ tìm theo từ khóa (CI) thì không có nguồn nào. Tìm theo nghĩa (bản cài có mô hình nhúng) luôn trả vài đoạn gần
-    # nghĩa nhất trong văn bản người hỏi được xem (#360): khi đó chỉ đòi văn bản kia và chữ riêng của nó không có mặt
+    # nghĩa nhất trong văn bản người hỏi được xem (#360): khi đó chỉ đòi văn bản kia và chữ riêng của nó không có mặt.
+    # Không có căn cứ thì câu hỏi có thể vào lưới an toàn (#496): trả lời bằng lời giới thiệu, nguồn chỉ là mục hướng
+    # dẫn, không văn bản nào (#512)
     def withheld(got: dict, document_id: str, marker: str) -> bool:
         texts = [s.get("excerpt") or "" for s in got["sources"]] + [(got.get("answer") or {}).get("text") or ""]
+        intro = got.get("route") == "gioi_thieu" and all(s.get("document_id") is None for s in got["sources"])
         return not any(s.get("document_id") == document_id for s in got["sources"]) \
             and not any(marker.casefold() in t.casefold() for t in texts) \
-            and (got.get("semantic") is True or got["status"] == "no_evidence" and got["sources"] == [])
+            and (got.get("semantic") is True or got["status"] == "no_evidence" and got["sources"] == [] or intro)
 
     other = ask(other_tenant, f"TRANG2{tag} là gì?")
     withheld(other, paged_id, f"TRANG2{tag}") or fail(f"văn thư Khoa Kinh tế hỏi ra văn bản của Khoa CNTT: {other}")
