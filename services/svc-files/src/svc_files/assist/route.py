@@ -156,6 +156,7 @@ _SYMBOL_RE = re.compile(r"\d+[a-z]?/[a-z]")
 # huong_dan mà kho hướng dẫn không có mục nào khớp: tìm trong kho văn bản như van_ban (answer.py)
 NO_GUIDE_REASON = "khong-khop-huong-dan"
 NO_DOC_REASON = "khong-thay-van-ban"     # van_ban không có đoạn nào, hướng dẫn sử dụng có mục khớp (answer.py)
+NAMED_REASON = "so-ky-hieu"              # câu nêu đúng số ký hiệu của một văn bản: hỏi trong văn bản đó (answer.py)
 _APP_RE = re.compile(r"\b(?:signet|phan mem|tren he thong|ung dung|giao dien|menu|thanh ben|hop viec|nut)\b")
 _FEATURES_RE = re.compile(
     r"\b(?:nghi phep|don nghi|van ban di|van ban den|ky so|chu ky so|trinh ky|phat hanh van ban|vao so|"

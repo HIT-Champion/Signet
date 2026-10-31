@@ -179,6 +179,13 @@ def test_a_question_inside_one_document_skips_the_intent_step(asking):
     assert body["route"] == "van_ban" and intent_calls(fake) == []
 
 
+def test_a_question_naming_one_document_by_symbol_skips_the_intent_step(asking):
+    fake = FakeOllama(reply=model(says("huong_dan", "x")))
+    env = asking(env=ON, passages=demo(), ai=ollama(fake))
+    body = routed(env, "Công văn 88/CTSV yêu cầu những gì?")
+    assert (body["route"], body["route_reason"]) == ("van_ban", "so-ky-hieu") and intent_calls(fake) == []
+
+
 def test_without_a_model_the_rules_route(asking):
     env = asking(env=ON, passages=demo())
     assert routed(env, "Bạn làm được gì?")["route_reason"] == "kw:lam-duoc-gi"

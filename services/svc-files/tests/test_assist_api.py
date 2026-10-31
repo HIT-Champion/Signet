@@ -229,6 +229,29 @@ def test_a_summary_inside_one_document_reads_its_leading_passages(asking):
     assert got["status"] == "no_evidence" and got["sources"] == [] and "88/CTSV" not in json.dumps(got)
 
 
+def test_a_question_naming_one_document_by_symbol_is_asked_inside_it(asking):
+    # hỏi cả kho mà nêu đúng số ký hiệu: như hỏi trong văn bản đó — tìm lọc theo văn bản, không đoạn nào khớp thì đọc
+    # các đoạn đầu (01/11: hỏi riêng văn bản thì được, hỏi cả kho thì "không tìm thấy")
+    env = asking(passages=[*demo(), passage("Lịch thi học kỳ một.", symbol="12/TB-ĐT")])
+    env.retriever.no_match = True
+    body = ask(env, env.token(), question="Công văn 88/ctsv yêu cầu những gì?").json()
+    assert (body["route"], body["route_reason"]) == ("van_ban", "so-ky-hieu")
+    assert env.retriever.calls[-1]["filters"].document_id == D88
+    assert [c["document_id"] for c in env.retriever.leading_calls] == [D88]
+    assert body["status"] != "no_evidence" and [s["document_id"] for s in body["sources"]] == [D88]
+    # không nêu số ký hiệu, nêu hai văn bản, số ký hiệu không văn bản nào có, ngày: tìm cả kho như cũ
+    for question in ("Học bổng khuyến khích học tập?", "So sánh 88/CTSV và 12/TB-ĐT", "Văn bản 77/QĐ-XYZ nói gì?",
+                     "Văn bản ngày 15/11/2026 nói gì?"):
+        ask(env, env.token(), question=question)
+        assert env.retriever.calls[-1]["filters"].document_id is None, question
+    assert len(env.retriever.leading_calls) == 1
+    # văn bản người hỏi không được đọc không thành phạm vi
+    hidden = asking(passages=demo(), readers={D88: {"u-khac"}})
+    got = ask(hidden, hidden.token(sub="u-giang-vien-ktpm", role="staff"), question="88/CTSV yêu cầu gì?").json()
+    assert got["route_reason"] != "so-ky-hieu" and hidden.retriever.calls[-1]["filters"].document_id is None
+    assert got["sources"] == [] and "88/CTSV" not in json.dumps(got)
+
+
 @pytest.mark.parametrize("role", ["tenant_admin", "verifier", "agent"])
 def test_roles_without_documents_are_403_before_any_search(asking, role):
     env = asking(passages=demo())

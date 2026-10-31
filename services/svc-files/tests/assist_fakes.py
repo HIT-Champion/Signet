@@ -37,7 +37,7 @@ import jwt
 from conftest import ISSUER, TENANT_A, FakeHasura
 from svc_files.auth import HASURA_CLAIMS
 from svc_files.assist.ai import OllamaAi
-from svc_files.assist.retrieve import Passage, Retrieval
+from svc_files.assist.retrieve import Passage, Retrieval, symbol_key, symbols
 from svc_files.hasura import HasuraAuthError, HasuraError
 
 CHAT_MODEL = "qwen3:1.7b"
@@ -98,6 +98,7 @@ class FakeRetriever:
 
     no_match: bool = False      # search không khớp đoạn nào (vd "tóm tắt văn bản này"); leading vẫn trả đoạn
     leading_calls: list[dict[str, Any]] = field(default_factory=list)
+    named_calls: list[str] = field(default_factory=list)
 
     def _visible(self, scope) -> list[Passage]:
         ns = jwt.decode(scope.token, options={"verify_signature": False})[HASURA_CLAIMS] if scope.token else {}
@@ -112,6 +113,15 @@ class FakeRetriever:
             raise self.fail
         mine = [p for p in self._visible(scope) if p.document_id == document_id]
         return Retrieval(mine[:limit], len(mine), False)
+
+    async def named(self, scope, question: str) -> list[str]:
+        """Văn bản thấy được có số ký hiệu (``doc["symbol"]`` của đoạn) đúng như câu hỏi nêu (``Retriever.named``)."""
+        self.named_calls.append(question)
+        if self.fail is not None:
+            raise self.fail
+        keys = {symbol_key(c) for c in symbols(question)}
+        return list(dict.fromkeys(p.document_id for p in self._visible(scope)
+                                  if symbol_key(str(p.doc.get("symbol") or "")) in keys))
 
     async def search(self, scope, *, q, vector, limit=5, filters=None, question=None) -> Retrieval:
         self.calls.append({"scope": scope, "q": q, "vector": vector, "limit": limit, "filters": filters,
