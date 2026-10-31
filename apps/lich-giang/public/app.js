@@ -100,16 +100,22 @@ function moPhan(ten, { focus = true } = {}) {
 }
 
 /** Dòng nhãn — giá trị của một đề nghị hay một bước duyệt (dl). */
-function bangDon(rows) {
-  const dl = make('dl', { className: 'chi-tiet' })
+function bangDon(rows, className = 'chi-tiet') {
+  const dl = make('dl', { className })
   for (const r of rows) dl.append(make('dt', { textContent: r.label }), make('dd', { textContent: r.value }))
   return dl
 }
 
-/** Các bước duyệt đã xong của một đề nghị (bộ môn, rồi khoa), mỗi bước một bảng; bước chưa làm thì không có. */
+/** Tên thẻ của một đề nghị: loại · học phần, lấy từ bảng tóm tắt (chữ theo ngôn ngữ đang dùng). */
+function tieuDe(rows) {
+  const v = (name) => rows.find((r) => r.name === name)?.value
+  return [v('loai'), v('hocPhan')].filter(Boolean).join(' · ')
+}
+
+/** Các bước duyệt đã xong của một đề nghị (bộ môn, rồi khoa), mỗi bước một khối; bước chưa làm thì không có. */
 function ketQuaDuyet(forms, data, buoc = [forms.boMon, forms.khoa]) {
   return buoc.map((schema) => tomTat(schema, data).filter((r) => data?.[r.name] !== undefined))
-    .filter((rows) => rows.length).map((rows) => bangDon(rows))
+    .filter((rows) => rows.length).map((rows) => bangDon(rows, 'chi-tiet duyet'))
 }
 
 // --- Đơn của tôi ---
@@ -131,7 +137,8 @@ function veDon(forms) {
     const dau = make('div', { className: 'the-dau' })
     dau.append(make('span', { className: `nhan nhan-${tt.ma}`, textContent: tt.nhan }),
       make('span', { className: 'gio', textContent: t('mine.sentAt', { time: ngayGio(don.startedAt) }) }))
-    li.append(dau, bangDon(tomTat(forms.don, don.data)), ...ketQuaDuyet(forms, don.data))
+    const rows = tomTat(forms.don, don.data)
+    li.append(dau, make('h2', { textContent: tieuDe(rows) }), bangDon(rows), ...ketQuaDuyet(forms, don.data))
     if (don.endedAt) {
       li.append(make('p', { className: 'gio', textContent: t('mine.endedAt', { time: ngayGio(don.endedAt) }) }))
     }
@@ -147,9 +154,11 @@ let soThe = 0
 
 function dungTheViec(task, forms, draft) {
   const li = make('li', { className: 'the' })
-  const h2 = make('h2', { textContent: t('review.sentAt', { time: ngayGio(task.createdAt) }) })
+  const rows = tomTat(forms.don, task.data)
+  const sentAt = t('review.sentAt', { time: ngayGio(task.createdAt) })
+  const h2 = make('h2', { textContent: tieuDe(rows) || sentAt })
   h2.tabIndex = -1
-  li.append(h2, bangDon(tomTat(forms.don, task.data)))
+  li.append(h2, make('p', { className: 'gio', textContent: sentAt }), bangDon(rows))
   // bước của khoa: lãnh đạo khoa đọc ý kiến của trưởng bộ môn trước khi quyết định
   if (task.formKey === FORM_KHOA) li.append(...ketQuaDuyet(forms, task.data, [forms.boMon]))
   if (task.dueAt) {

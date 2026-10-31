@@ -52,7 +52,8 @@ Ba phần, chuyển bằng thanh trên cùng:
   thấy đề nghị bộ môn đã đồng ý, kèm ý kiến của trưởng bộ môn. Danh sách tự làm mới mỗi 30 giây mà không xóa ghi chú
   đang gõ.
 
-Trợ năng, ngôn ngữ (vi/en, lưu chung khóa `moc.locale`) và màu như Đơn nghỉ phép.
+Trợ năng và ngôn ngữ (vi/en, lưu chung khóa `moc.locale`) như Đơn nghỉ phép; màu "Lịch hạn" và phông Be Vietnam Pro
+như Không gian cá nhân (`apps/ca-nhan`).
 
 ## API chung của lõi mà trang gọi
 

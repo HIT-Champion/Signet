@@ -162,6 +162,9 @@ test('trang không có script nội tuyến, không innerHTML; form chỉ dựng
   const pkg = JSON.parse(read(APP, 'package.json'))
   const ref = JSON.parse(read(ROOT, 'apps/bang-tin/package.json'))
   assert.equal(pkg.dependencies['oidc-client-ts'], ref.dependencies['oidc-client-ts'])
+  // phông cùng phiên bản với Không gian cá nhân
+  const caNhan = JSON.parse(read(ROOT, 'apps/ca-nhan/package.json'))
+  assert.equal(pkg.dependencies['@fontsource/be-vietnam-pro'], caNhan.dependencies['@fontsource/be-vietnam-pro'])
 })
 
 function contrast(a, b) {
@@ -177,10 +180,14 @@ function contrast(a, b) {
 test('các cặp chữ/nền của style.css đạt WCAG AA (4,5:1)', () => {
   const css = read(APP, 'public/style.css')
   const v = Object.fromEntries([...css.matchAll(/--([a-z0-9-]+): (#[0-9a-f]{6});/g)].map((m) => [m[1], m[2]]))
-  const pairs = [['stone-900', 'stone-50'], ['stone-600', 'stone-50'], ['stone-600', 'butter'], ['brand-800', 'butter'],
-    ['red-700', 'red-50'], ['green-800', 'green-50'], ['amber-800', 'amber-50'], ['stone-900', 'stone-100']]
+  const pairs = [['stone-900', 'stone-50'], ['stone-600', 'stone-50'], ['stone-500', 'stone-50'],
+    ['field-ink', 'field'], ['brand-800', 'brand-50'], ['red-700', 'red-50'], ['amber-800', 'amber-50'],
+    ['stone-900', 'stone-100']]
   for (const [fg, bg] of pairs) assert.ok(contrast(v[fg], v[bg]) >= 4.5, `${fg} trên ${bg}`)
-  for (const bg of ['brand-700', 'brand-800']) assert.ok(contrast('#ffffff', v[bg]) >= 4.5, `chữ trắng trên ${bg}`)
-  assert.ok(contrast(v['stone-600'], '#ffffff') >= 4.5)
-  assert.ok(contrast(v.focus, v['stone-50']) >= 3, 'viền tiêu điểm')
+  for (const bg of ['brand-700', 'brand-800', 'field', 'field-hover']) {
+    assert.ok(contrast('#ffffff', v[bg]) >= 4.5, `chữ trắng trên ${bg}`)
+  }
+  for (const fg of ['stone-500', 'stone-600']) assert.ok(contrast(v[fg], '#ffffff') >= 4.5, `${fg} trên nền trắng`)
+  assert.ok(contrast(v.focus, '#ffffff') >= 3, 'viền tiêu điểm')
+  assert.ok(contrast(v['input-edge'], '#ffffff') >= 3, 'viền ô nhập')
 })
