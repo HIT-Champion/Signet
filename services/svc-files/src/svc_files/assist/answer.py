@@ -33,17 +33,20 @@ Theo đúng thứ tự, mỗi bước chặn được thì chặn trước khi t
 8. Ghi **một** dòng ``assistant.answered`` vào sổ kiểm toán bằng vai trò ``agent`` **rồi mới trả lời** — không ghi được
    sổ thì 503, không trả gì.
 
-Không có đoạn nào → ``no_evidence``, không gọi mô hình; giống hệt dù văn bản không tồn tại hay người hỏi không được
-đọc.
+Không có đoạn nào → ``no_evidence``; giống hệt dù văn bản không tồn tại hay người hỏi không được đọc.
+
+Lượt ``generate`` của mọi đường đều do mô hình viết lời đáp: đường không có đoạn cho mô hình đọc (đếm văn bản, việc
+của tôi, ngoài phạm vi, không tìm thấy, hỏi lại câu trước) thì máy chủ soạn kết quả, mô hình diễn đạt lại
+(``grounding.SYSTEM_NOTE``, kiểm số bằng ``validate_intro``); mô hình không viết được thì trả câu máy chủ đã soạn.
 
 Bộ định tuyến (route.py, #423) chọn đường sau bước 2, trước khi tốn gì thêm: ``gioi_thieu`` trả mục của tệp Giới thiệu
 trợ lý (lượt ``generate``: mô hình viết lời đáp từ các mục đó, lời dặn nêu phạm vi trợ lý; không đạt thì vẫn là
-câu trích), ``ngoai_pham_vi`` trả câu cố định — cả hai không tìm; ``ngoai_pham_vi`` không gọi mô hình; ``huong_dan`` tìm
+câu trích), ``ngoai_pham_vi`` trả câu cố định — cả hai không tìm; ``huong_dan`` tìm
 trong kho hướng dẫn sử dụng (guide.py) thay cho bước 4–5, rồi câu trích và mô hình như văn bản — kho không có mục nào
 khớp thì đi như ``van_ban`` (mã lý do ``khong-khop-huong-dan``); ``van_ban`` như trên. Hai đường dữ liệu (#441, data.py)
 ``viec_cua_toi``, ``dem_van_ban`` đếm thẳng trong CSDL qua Hasura bằng token người hỏi, trả câu có số, ``data`` và
-``link``; không tìm, không gọi mô hình. ``van_ban`` mặc định mà không ra đoạn nào thì qua lưới an toàn
-(``route.fallback``): câu ngắn, không chỉ văn bản thành ``gioi_thieu`` mã ``luoi-an-toan``, không gọi mô hình.
+``link``; không tìm. ``van_ban`` mặc định mà không ra đoạn nào thì qua lưới an toàn
+(``route.fallback``): câu ngắn, không chỉ văn bản thành ``gioi_thieu`` mã ``luoi-an-toan``.
 Câu nối tiếp (có ``previous``) được ghép thành câu độc lập trước khi chọn đường; câu ghép thay câu hỏi ở mọi bước sau
 và trả về ở ``rewritten``. Sổ kiểm toán, nhật ký ghi đường và mã lý do, không ghi câu ghép. Nhật ký không bao giờ
 có câu hỏi, câu trả lời, đoạn trích: chỉ độ dài, số term, số đoạn, thời gian.
@@ -75,7 +78,7 @@ from .. import pii
 from ..auth import Principal
 from ..hasura import HasuraAuthError, HasuraError
 from ..search import SearchError
-from . import data, extract, grounding, guide, route, vi
+from . import data, extract, grounding, guide, intent, route, vi
 from .ai import AiClient
 from .guide import GuideStore
 from .intent import IntentStep
@@ -161,6 +164,16 @@ def _previous(text: str | None) -> str | None:
     return out if out and len(out) <= MAX_QUESTION else None
 
 
+def _recall(previous: str | None, lang: str) -> str:
+    """Lời đáp cho "tôi vừa hỏi gì?": câu hỏi lượt trước của chính người hỏi (giao diện gửi ở ``previous``)."""
+    before = _previous(previous)
+    if lang == "en":
+        return (f"Your previous question was: “{before}”." if before
+                else "This is your first question on this page; there is no previous question yet.")
+    return (f"Câu hỏi trước của bạn là: “{before}”." if before
+            else "Đây là câu hỏi đầu tiên của bạn trên trang này, chưa có câu hỏi trước.")
+
+
 class Assistant:
     def __init__(self, settings: Settings, *, retriever: Retriever, ai: AiClient, indexer: _Hold, hasura: _Hasura,
                  guides: GuideStore | None = None, clock: Callable[[], float] = time.monotonic,
@@ -221,7 +234,7 @@ class Assistant:
         if chosen.name == "huong_dan" and not self.guides.search(rewritten or question, s.ask_top_k):
             # hướng dẫn sử dụng không có mục nào khớp: có thể là câu về một văn bản, tìm như van_ban
             chosen = route.Route("van_ban", route.NO_GUIDE_REASON, chosen.lang)
-        if body.mode != "generate" or chosen.name in route.DIRECT_ROUTES:
+        if body.mode != "generate":
             return await self._answer(principal, body, question, rewritten, chosen, scope, request_id, start)
         try:
             await asyncio.wait_for(self.slots.acquire(), s.ask_queue_s)
@@ -253,8 +266,9 @@ class Assistant:
         deadline = start + s.ask_deadline_s
         warnings: list[str] = []
         asked = rewritten or question               # câu đem đi tìm, trích, hỏi mô hình
-        fixed: str | None = None                    # câu cố định của đường ngoai_pham_vi
+        fixed: str | None = None                    # câu soạn sẵn: ngoài phạm vi, câu hỏi trước
         counted: data.Answer | None = None          # câu có số của đường dữ liệu
+        recalled = chosen.reason == intent.RECALL   # hỏi lại câu trước ("tôi vừa hỏi gì?"): trả lời từ previous
         if chosen.name == "van_ban":
             found = await self._search(body, asked, scope, deadline, warnings, request_id)
             filtered = any(f is not None for f in (body.direction, body.year, body.type_code))
@@ -275,6 +289,8 @@ class Assistant:
         else:
             if chosen.name == "huong_dan":
                 found_passages = self.guides.search(asked, s.ask_top_k)
+            elif recalled:
+                found_passages, fixed = [], _recall(body.previous, chosen.lang)
             elif chosen.name == "gioi_thieu":
                 found_passages = self.guides.intro(chosen.reason, chosen.lang)
             elif chosen.name in route.DATA_ROUTES:
@@ -302,8 +318,13 @@ class Assistant:
                 warnings.append(warning)
             if model_text:
                 cited = grounding.citations(model_text)
+        elif body.mode == "generate":
+            # không có đoạn cho mô hình đọc: mô hình diễn đạt lại kết quả máy chủ đã soạn; không đạt thì trả câu đó
+            note = (counted.text if counted is not None else fixed if fixed is not None
+                    else self.guides.note(guide.NOT_FOUND, chosen.lang))
+            model_text, model, _, masked = await self._phrase(asked, note, deadline, request_id)
 
-        if counted is not None:
+        if counted is not None or recalled:
             status = "answered"
         elif not passages:
             status = "no_evidence"
@@ -313,11 +334,11 @@ class Assistant:
             status = "answered"
         extract_out = {"text": quoted.text, "source": "extract", "model": None} if quoted.text else None
         answer_out = {"text": model_text, "source": "model", "model": model} if model_text else extract_out
-        if fixed is not None:
+        if fixed is not None and model_text is None:
             answer_out = {"text": fixed, "source": "fixed", "model": None}
-        if counted is not None:
+        if counted is not None and model_text is None:
             answer_out = {"text": counted.text, "source": "data", "model": None}
-        answer_source = ("data" if counted else "model" if model_text else "extract" if quoted.text
+        answer_source = ("model" if model_text else "data" if counted else "extract" if quoted.text
                          else "fixed" if fixed else "none")
         warnings = [w for w in dict.fromkeys(warnings) if w in WARNINGS]
         ask_id = str(body.ask_id or uuid.uuid4())
@@ -423,27 +444,43 @@ class Assistant:
                         ) -> tuple[str | None, str | None, str | None, int]:
         """(câu trả lời đã kiểm, mô hình đã gọi, cảnh báo, số chỗ đã che trong chữ gửi mô hình). ``intro``: đường
         ``gioi_thieu`` — lời dặn nêu phạm vi trợ lý (``grounding.SYSTEM_INTRO``), kiểm bằng ``validate_intro``."""
-        if not self.ai.chat_available:
-            return None, None, "model_unavailable", 0
-        left = deadline - self._clock()
-        if left < MODEL_MIN_S:
-            return None, None, "model_timeout", 0
         # Một bộ che cho cả lượt: câu hỏi che trước để số trong câu hỏi nhận nhãn số 1. ``best`` vẫn tính trên chữ
         # gốc (câu trích nguyên văn), sources() đổi sang toạ độ bản che. Mô hình đọc và validate kiểm cùng một bản che
         masker = pii.Masker()
         asked = masker.mask(question).text
         srcs = grounding.sources(passages[:INTRO_SOURCES] if intro else passages, best,
                                  max_chars=self.settings.ask_context_chars, masker=masker)
+        system = grounding.SYSTEM_INTRO if intro else grounding.SYSTEM
+        check = grounding.validate_intro if intro else grounding.validate
+        return await self._write(asked, srcs, system, check, masker, deadline, request_id)
+
+    async def _phrase(self, question: str, note: str, deadline: float, request_id: str,
+                      ) -> tuple[str | None, str | None, str | None, int]:
+        """Mô hình diễn đạt lại ``note`` — kết quả máy chủ đã soạn (số đếm, việc gần hạn, không tìm thấy, ngoài phạm
+        vi, câu hỏi trước) — thành lời đáp cho câu hỏi; mọi con số phải có trong ``note`` hay câu hỏi."""
+        masker = pii.Masker()
+        asked = masker.mask(question).text
+        srcs = [grounding.Source(1, "", "", masker.mask(grounding.clean(note)).text)]
+        return await self._write(asked, srcs, grounding.SYSTEM_NOTE, grounding.validate_intro, masker, deadline,
+                                 request_id)
+
+    async def _write(self, asked: str, srcs: list[grounding.Source], system: str,
+                     check: Callable[[str, list[grounding.Source], str], grounding.Verdict], masker: pii.Masker,
+                     deadline: float, request_id: str) -> tuple[str | None, str | None, str | None, int]:
+        if not self.ai.chat_available:
+            return None, None, "model_unavailable", 0
+        left = deadline - self._clock()
+        if left < MODEL_MIN_S:
+            return None, None, "model_timeout", 0
         limit = self.settings.ask_model_timeout_s
         with self._holding():
-            system = grounding.SYSTEM_INTRO if intro else grounding.SYSTEM
             result = await self.ai.chat(grounding.messages(srcs, asked, system=system), format=grounding.FORMAT,
                                         options=grounding.OPTIONS,
                                         timeout_s=min(limit, left - SAVE_RESERVE_S))
         model = self.ai.chat_model
         if result.content is None:
             return None, model, result.warning or "model_unavailable", masker.total
-        verdict = (grounding.validate_intro if intro else grounding.validate)(result.content, srcs, asked)
+        verdict = check(result.content, srcs, asked)
         if verdict.text:
             if verdict.reason:      # trimmed: đã bỏ câu không căn cứ, chỉ ghi mã
                 _log("office.assist.model_trimmed", request_id, model=model, masked=masker.total)

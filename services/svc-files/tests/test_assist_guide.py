@@ -107,6 +107,8 @@ def test_out_of_scope_text_is_fixed_per_language(store):
     assert store.fixed("vi").startswith("Câu này nằm ngoài phạm vi của tôi.")
     assert store.fixed("en").startswith("This question is outside what I can answer.")
     assert store.fixed("fr") == store.fixed("vi")
+    assert store.note(guide.NOT_FOUND, "vi").startswith("Tôi không tìm thấy văn bản nào bạn được xem")
+    assert store.note(guide.NOT_FOUND, "en").startswith("I found no document you can read")
 
 
 def test_the_intro_states_the_default_models_and_limits():

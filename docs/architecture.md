@@ -766,7 +766,7 @@ bản ghi; QĐ-013 ghi WAF, gộp ở #130. Câu nào của QĐ cũ đã lệch 
   theo vai trò, đúng như `office.document_visible` — văn bản hạn chế không bao giờ vào chỉ mục; (2) hậu kiểm bằng
   Hasura với token người hỏi, bỏ mọi đoạn của văn bản người hỏi không đọc được hoặc `restricted`. Lớp 1 quyết độ phủ,
   lớp 2 quyết an toàn: chỉ mục chậm vài giây sau khi bật hạn chế hay hủy giao việc vẫn không lộ đoạn nào. Không có
-  đoạn nào qua hậu kiểm thì không gọi mô hình.
+  đoạn nào qua hậu kiểm thì mô hình không đọc chữ nào của văn bản, chỉ diễn đạt lại lời báo không tìm thấy.
 - **Hệ quả:** không có mô hình (CI, máy yếu) vẫn chạy đủ: tìm theo từ khóa + câu trích nguyên văn. Câu trả lời của mô
   hình chỉ hiện khi qua kiểm trích dẫn và con số, không thì trả câu trích. Đồng bộ chỉ mục đoạn là việc của
   `svc-files` (vòng nền, như F2.7). F4.3 (gợi ý giao việc) dùng lại phần truy xuất này qua route nội bộ

@@ -25,8 +25,9 @@ from datetime import date
 
 import pytest
 
-from assist_fakes import FakeOllama, ollama
+from assist_fakes import CHAT_MODEL, FakeOllama, ollama
 from conftest import TENANT_A
+from svc_files.assist import grounding
 from test_assist_api import ask, asking, demo  # noqa: F401 (asking là fixture)
 
 TODAY = date(2026, 10, 30)
@@ -63,7 +64,7 @@ def inbox(asking):
 
 
 @pytest.mark.parametrize("mode", ["extract", "generate"])
-def test_my_tasks_are_counted_from_the_inbox_without_search_or_model(inbox, mode):
+def test_my_tasks_are_counted_from_the_inbox_without_search(inbox, mode):
     body = answered(inbox, "Việc nào của tôi sắp quá hạn?", mode=mode)
     assert (body["route"], body["route_reason"], body["status"]) == ("viec_cua_toi", "kw:viec-cua-toi", "answered")
     assert body["answer"]["source"] == "data" and body["answer"]["model"] is None and body["extract"] is None
@@ -74,9 +75,24 @@ def test_my_tasks_are_counted_from_the_inbox_without_search_or_model(inbox, mode
     assert text.startswith("Hộp việc của bạn có 5 việc đang chờ: 1 quá hạn, 1 đến hạn hôm nay, 1 đến hạn trong 2 ngày")
     assert "Gần hạn nhất: Xử lý văn bản đến 88/CTSV (quá 3 ngày); Duyệt văn bản đi (hạn hôm nay); " in text
     assert "12/TCCB" not in text and "Căn cứ: Hộp việc của bạn trên Signet ngày 30/10/2026" in text
-    assert inbox.retriever.calls == [] and inbox.fake.requests == []
+    assert inbox.retriever.calls == []
+    # generate: mô hình diễn đạt lại câu có số; câu giả có số "3,2" không có trong câu đó → bị loại, trả câu có số
+    sent = [c["messages"][0]["content"] for c in inbox.fake.calls("/api/chat")]
+    assert sent == ([grounding.SYSTEM_NOTE] if mode == "generate" else [])
     assert [c["op"] for c in inbox.hasura.data_calls] == ["myTasks"]
     assert inbox.hasura.ask_calls[-1]["by"] == "token"                    # số ký hiệu: hậu kiểm bằng token người hỏi
+
+
+def test_the_model_words_the_task_answer_from_the_counted_sentence(inbox):
+    said = "Bạn có 5 việc đang chờ, trong đó việc Xử lý văn bản đến 88/CTSV đã quá 3 ngày."
+    inbox.fake.reply = json.dumps({"du_can_cu": True, "tra_loi": said}, ensure_ascii=False)
+    body = answered(inbox, "Việc nào của tôi sắp quá hạn?", mode="generate")
+    assert body["answer"] == {"text": said, "source": "model", "model": CHAT_MODEL}
+    assert (body["status"], body["link"], body["data"]["tasks"]) == ("answered", "/", 5)
+    (call,) = inbox.fake.calls("/api/chat")
+    assert "Hộp việc của bạn có 5 việc đang chờ" in call["messages"][1]["content"]
+    (event,) = inbox.hasura.agent_events
+    assert event["diff"]["answer_source"] == "model"
 
 
 def test_an_empty_inbox_says_so_and_english_questions_get_english(inbox):

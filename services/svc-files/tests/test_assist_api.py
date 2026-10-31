@@ -227,7 +227,10 @@ def test_no_evidence_when_every_passage_is_forbidden_and_the_model_gets_nothing(
         assert body["status"] == "no_evidence" and body["sources"] == [] and body["answer"] is None
         assert body["extract"] is None and body["warnings"] == []
         assert "88/CTSV" not in r.text and "3,2" not in r.text
-    assert fake.calls("/api/chat") == []
+    # generate: mô hình chỉ đọc lời báo không tìm thấy của máy chủ, không một chữ nào của văn bản bị chặn
+    (call,) = fake.calls("/api/chat")
+    sent = call["messages"][1]["content"]
+    assert "88/CTSV" not in sent and "3,2" not in sent and "Tôi không tìm thấy văn bản nào" in sent
     assert [e["diff"]["status"] for e in env.hasura.agent_events] == ["no_evidence", "no_evidence"]
     assert all(e["diff"]["documents"] == "" for e in env.hasura.agent_events)
 

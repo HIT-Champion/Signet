@@ -69,7 +69,8 @@ class AskAnswer(BaseModel):
                                   "không như HTML")
     source: Literal["extract", "model", "fixed", "data"] = Field(
         description="extract: câu trích nguyên văn · model: mô hình viết, máy chủ kiểm và gán [n] theo bằng chứng · "
-                    "fixed: câu cố định cho câu hỏi ngoài phạm vi · data: câu có số từ dữ liệu của người hỏi")
+                    "fixed: câu máy chủ soạn sẵn (ngoài phạm vi, câu hỏi trước) · data: câu có số từ dữ liệu của "
+                    "người hỏi")
     model: str | None = Field(description="Mô hình đã viết câu trả lời; null với câu trích")
 
 
@@ -116,7 +117,7 @@ class AskOut(BaseModel):
         description="Đường bộ định tuyến đã chọn: van_ban: tìm trong kho văn bản · gioi_thieu: câu về chính trợ lý, "
                     "câu chào · huong_dan: cách dùng Signet, trả lời từ hướng dẫn sử dụng · ngoai_pham_vi: câu cố "
                     "định, không tìm · viec_cua_toi: đếm việc trong Hộp việc của người hỏi · dem_van_ban: đếm văn bản "
-                    "người hỏi được xem. Trừ van_ban, huong_dan, các đường không gọi mô hình, cả khi mode=generate")
+                    "người hỏi được xem. Lượt mode=generate của mọi đường đều nhờ mô hình viết lời đáp")
     route_reason: str = Field(description="Mã lý do, máy đọc: `llm:<mã>` (mô hình chọn đường), `kw:<mẫu>` "
                                           "(mẫu đã khớp, khi không có bước ý định), `mac-dinh`, "
                                           "`khong-khop-huong-dan`, `khong-thay-van-ban` (kho văn bản không có đoạn "

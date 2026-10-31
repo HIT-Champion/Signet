@@ -48,3 +48,9 @@ are the conditions for a scholarship?", "Where do I submit a leave request?", "W
 This question is outside what I can answer. I answer questions about the documents you can read, about how to use
 Signet, about your tasks and document counts. You could ask, for example: "What are the scholarship conditions?",
 "Where do I submit a leave request?", "Which of my tasks are almost overdue?", "What can you do?".
+
+## Not found {#khong-tim-thay}
+
+I found no document you can read that answers this. The document may not be in the store yet, you may not have access
+to it, or the question needs a clearer document name, number or topic. Try asking more specifically, removing some
+filters, or searching on the Search page.

@@ -304,8 +304,9 @@ Danh sách đủ ở README svc-files.
   lời dặn mô hình.
 - *Văn bản hạn chế không bao giờ vào chỉ mục:* `chunks.eligible` loại văn bản hạn chế, văn bản đến đã hủy, văn bản đi
   chưa phát hành (`assist/chunks.py`); bật hạn chế thì vòng đồng bộ xóa mọi đoạn, hậu kiểm che khoảng trễ vài giây.
-- *Không có căn cứ thì không gọi mô hình:* `no_evidence`, câu trả lời y hệt dù văn bản không tồn tại hay người hỏi
-  không được đọc (`assist/answer.py`).
+- *Không có căn cứ thì mô hình không đọc chữ nào của văn bản:* `no_evidence`, câu trả lời y hệt dù văn bản không tồn
+  tại hay người hỏi không được đọc; lượt `generate` chỉ nhờ mô hình diễn đạt lại lời báo không tìm thấy
+  (`assist/answer.py`).
 - *Kiểm trích dẫn và con số trước khi trả:* máy chủ bỏ mọi `[n]` mô hình ghi, rồi gán cho từng câu đoạn chứa **mọi** số
   từ 2 chữ số của câu và ≥ 60 % từ mới của câu; câu có số không có trong nguồn là loại cả câu trả lời, câu thiếu căn
   cứ khác thì bỏ riêng câu đó (không còn câu nào có căn cứ thì loại), người dùng vẫn có câu

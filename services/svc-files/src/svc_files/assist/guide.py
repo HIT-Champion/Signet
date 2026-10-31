@@ -54,6 +54,7 @@ INTRO_SECTIONS = {
 INTRO_DEFAULT = "gioi-thieu"
 INTRO_ORDER = ("gioi-thieu", "lam-duoc-gi", "cach-hoi", "mo-hinh")    # mục kèm theo làm nguồn phụ
 OUT_OF_SCOPE = "ngoai-pham-vi"
+NOT_FOUND = "khong-tim-thay"         # câu hỏi văn bản không có đoạn nào, không có mục hướng dẫn nào
 LEAD_SENTENCES = 3
 MIN_COVERAGE = 0.35         # tỷ lệ trọng số term của câu hỏi có trong mục
 
@@ -181,7 +182,12 @@ class GuideStore:
 
     def fixed(self, lang: str) -> str:
         """Câu cố định cho câu ngoài phạm vi (mục ``ngoai-pham-vi`` của tệp giới thiệu)."""
-        s = self.intros.get((lang, OUT_OF_SCOPE)) or self.intros[("vi", OUT_OF_SCOPE)]
+        return self.note(OUT_OF_SCOPE, lang)
+
+    def note(self, anchor: str, lang: str) -> str:
+        """Chữ của một mục tệp giới thiệu (``ngoai-pham-vi``, ``khong-tim-thay``): mô hình diễn đạt lại ở lượt
+        generate, mô hình không viết được thì trả nguyên văn."""
+        s = self.intros.get((lang, anchor)) or self.intros[("vi", anchor)]
         return s.text
 
 
