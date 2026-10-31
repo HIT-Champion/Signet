@@ -143,6 +143,10 @@ class Settings:
     ask_api_url: str = ""
     ask_api_key: str = field(default="", repr=False)
     ask_model_timeout_s: float = 40.0
+    # bước ý định bằng mô hình (assist/intent.py): mô hình chọn đường trước khi tìm; tắt, lỗi hay quá hạn thì dùng bộ
+    # định tuyến luật (assist/route.py)
+    ask_intent: bool = True
+    ask_intent_timeout_s: float = 12.0
     ask_context_chars: int = 2800       # tổng ký tự nguồn gửi mô hình
     ask_concurrency: int = 1            # số lượt sinh câu trả lời cùng lúc
     ask_queue_s: float = 20.0           # chờ lượt sinh quá thì 503 busy
@@ -273,6 +277,8 @@ class Settings:
                     "" if (env.get("MOC_ASK_API") or "").strip().lower() == "openai"
                     else env.get("MOC_AI_MODEL", "qwen3:1.7b").strip()),
                 ask_model_timeout_s=float(env.get("MOC_ASK_MODEL_TIMEOUT_S", "40")),
+                ask_intent=_flag("MOC_ASK_INTENT", env.get("MOC_ASK_INTENT", "true")),
+                ask_intent_timeout_s=float(env.get("MOC_ASK_INTENT_TIMEOUT_S", "12")),
                 ask_api=(env.get("MOC_ASK_API") or "ollama").strip().lower(),
                 ask_api_url=(env.get("MOC_ASK_API_URL") or "").strip().rstrip("/"),
                 ask_api_key=(env.get("MOC_ASK_API_KEY") or "").strip(),
@@ -395,6 +401,8 @@ class Settings:
             raise ConfigError("MOC_ASK_DEADLINE_S phải trong khoảng (0, 55] — dưới 60 giây của APISIX")
         if self.ask_model_timeout_s <= 0:
             raise ConfigError("MOC_ASK_MODEL_TIMEOUT_S phải > 0")
+        if self.ask_intent_timeout_s <= 0:
+            raise ConfigError("MOC_ASK_INTENT_TIMEOUT_S phải > 0")
         if self.ask_api not in ("ollama", "openai"):
             raise ConfigError("MOC_ASK_API phải là ollama (mô hình tại chỗ) hoặc openai (API ngoài chuẩn OpenAI)")
         if self.ask_api == "openai":

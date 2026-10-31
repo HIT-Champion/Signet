@@ -71,6 +71,7 @@ ASK_ENV = {
     "MOC_SEARCH_SYNC_INTERVAL_S": "0", "MOC_AUDIT_ANCHOR_INTERVAL_S": "0", "MOC_TEXT_INTERVAL_S": "0",
     "MOC_IMPORT_INTERVAL_S": "0",     # vòng nền nạp lô tắt (không tạo thư mục spool)
     "MOC_ARCHIVE_INTERVAL_S": "0", "MOC_FILES_MAX_MB": "1", "MOC_AI_URL": "", "MOC_AI_EMBED_DIMS": str(DIMS),
+    "MOC_ASK_INTENT": "false",        # chỉ đếm lượt viết câu trả lời; bước ý định che câu hỏi như nhau (intent.py)
 }
 
 

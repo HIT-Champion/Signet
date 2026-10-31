@@ -22,7 +22,8 @@ import { ApiError } from '~/composables/useApi'
 import type { AskBody, AskResult, AskSource } from '~/composables/useApi'
 import {
   ASK_ROLES, MAX_QUESTION, SCOPE_PARAM, SUGGEST_GROUPS, blocks, canView, citeLabel, cleanQuestion, fallbackSuggestions,
-  hasMask, inAssistant, needsGenerate, pageUrl, previousFor, scopeOf, searched, sourceAnchor, tidy,
+  declined, hasMask, inAssistant, isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched,
+  sourceAnchor, tidy,
 } from '~/utils/answer'
 
 // Hỏi đáp trên kho văn bản (F4.2). Trợ lý moc-assistant (svc-files) chỉ tìm trong các văn bản người hỏi được xem,
@@ -160,7 +161,9 @@ function askError(e: unknown): string {
 }
 
 function warningTexts(res: AskResult): string[] {
-  return res.warnings.filter((code) => te(`assist.warning.${code}`)).map((code) => t(`assist.warning.${code}`))
+  // model_declined: khối "không tìm thấy" đã nói thay
+  return res.warnings.filter((code) => code !== 'model_declined' && te(`assist.warning.${code}`))
+    .map((code) => t(`assist.warning.${code}`))
 }
 
 function body(turn: Turn, mode: 'extract' | 'generate'): AskBody {
@@ -177,7 +180,7 @@ function body(turn: Turn, mode: 'extract' | 'generate'): AskBody {
 
 // Dòng "Đã hiểu là câu hỏi về: …" của một lượt: chỉ khi svc-files có bộ định tuyến (trả route); mã lý do để ở title
 const understood = (res: AskResult) =>
-  (res.route ? t('assist.understood', { route: t(`assist.route.${res.route}`) }) : '')
+  (res.route && !isIntro(res) ? t('assist.understood', { route: t(`assist.route.${res.route}`) }) : '')
 const outOfScope = (res: AskResult) => res.route === 'ngoai_pham_vi'
 
 function onKey(e: KeyboardEvent) {
@@ -321,6 +324,14 @@ async function generate(key: number, ctrl: AbortController) {
   } finally {
     if (controllers.get(key) === ctrl) controllers.delete(key)
   }
+}
+
+// câu trả lời là lời mô hình tổng hợp từ các đoạn tìm được: lúc mô hình đang viết chỉ hiện dòng "đang soạn", không
+// hiện câu trích rồi thay. Câu trích (chọn bằng thuật toán) chỉ là câu trả lời khi không có mô hình, mô hình quá hạn,
+// hỏng hay bị dừng; mô hình thấy các đoạn không trả lời câu hỏi (declined) thì nói không tìm thấy, đoạn tìm được để
+// gập. Lời giới thiệu trợ lý: hỏng hay dừng thì chữ soạn sẵn là câu trả lời, không kèm thông báo
+function modelWriting(turn: Turn): boolean {
+  return turn.gen === 'waiting' || turn.gen === 'running'
 }
 
 function stop(key: number) {
@@ -572,7 +583,10 @@ onBeforeUnmount(() => {
               </section>
 
               <template v-else>
-                <p v-if="turn.result.status === 'passages_only'" class="moc-note" data-testid="ask-passages">
+                <p
+                  v-if="turn.result.status === 'passages_only' && !modelWriting(turn) && !declined(turn.result)"
+                  class="moc-note" data-testid="ask-passages"
+                >
                   {{ t('assist.passagesOnly') }}
                 </p>
 
@@ -582,7 +596,7 @@ onBeforeUnmount(() => {
                   <AnswerText
                     :text="blocks(turn.result).model!.text" :sources="turn.result.sources" :ask="turn.result.ask_id"
                   />
-                  <p class="sg-answer-note">
+                  <p v-if="!isIntro(turn.result)" class="sg-answer-note">
                     <svg
                       class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"
                       stroke-width="2" aria-hidden="true"
@@ -599,7 +613,7 @@ onBeforeUnmount(() => {
                     {{ t('assist.maskedNote') }}
                   </p>
                   <button
-                    v-if="blocks(turn.result).extract" type="button"
+                    v-if="blocks(turn.result).extract && !isIntro(turn.result)" type="button"
                     class="mt-2 min-h-6 text-[13px] font-medium text-brand-700 underline underline-offset-2"
                     :aria-expanded="turn.showExtract" :aria-controls="`trich-${turn.key}`"
                     @click="turn.showExtract = !turn.showExtract"
@@ -608,15 +622,35 @@ onBeforeUnmount(() => {
                   </button>
                 </section>
 
+                <!-- mô hình đọc các đoạn tìm được, thấy không trả lời câu hỏi -->
+                <section
+                  v-if="!modelWriting(turn) && declined(turn.result)" class="sg-answer" data-testid="ask-declined"
+                >
+                  <p>{{ t('assist.declinedAnswer') }}</p>
+                  <button
+                    v-if="blocks(turn.result).extract || turn.result.sources.length" type="button"
+                    class="mt-2 min-h-6 text-[13px] font-medium text-brand-700 underline underline-offset-2"
+                    :aria-expanded="turn.showExtract" :aria-controls="`trich-${turn.key}`"
+                    @click="turn.showExtract = !turn.showExtract"
+                  >
+                    {{ turn.showExtract ? t('assist.hideFound') : t('assist.showFound') }}
+                  </button>
+                </section>
+
                 <!-- câu trích nguyên văn: là câu trả lời khi không có mô hình, là khối phụ khi có -->
                 <section
-                  v-if="blocks(turn.result).extract && (!blocks(turn.result).model || turn.showExtract)"
+                  v-if="blocks(turn.result).extract && !modelWriting(turn)
+                    && ((!blocks(turn.result).model && !declined(turn.result)) || turn.showExtract)"
                   :id="`trich-${turn.key}`" class="sg-answer" :class="{ 'is-quote': blocks(turn.result).model }"
                   data-testid="ask-extract"
                 >
-                  <h3 class="sg-answer-label">{{ t('assist.extractTitle') }}</h3>
+                  <h3 :class="isIntro(turn.result) ? 'sr-only' : 'sg-answer-label'">{{ t('assist.extractTitle') }}</h3>
+                  <!-- giới thiệu trợ lý: chữ soạn sẵn hiện như tin nhắn, không ngoặc trích, không [n] -->
+                  <p v-if="isIntro(turn.result)" class="whitespace-pre-line">
+                    {{ plainIntro(blocks(turn.result).extract!.text) }}
+                  </p>
                   <AnswerText
-                    :text="blocks(turn.result).extract!.text" :sources="turn.result.sources"
+                    v-else :text="blocks(turn.result).extract!.text" :sources="turn.result.sources"
                     :ask="turn.result.ask_id"
                   />
                 </section>
@@ -634,7 +668,8 @@ onBeforeUnmount(() => {
                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
                   <span class="font-medium">
-                    {{ turn.gen === 'waiting' ? t('assist.waiting') : t('assist.generating') }}
+                    {{ turn.gen === 'waiting' ? t('assist.waiting')
+                      : t(isIntro(turn.result) ? 'assist.introWriting' : 'assist.generating') }}
                   </span>
                   <span v-if="turn.gen === 'running'" class="text-stone-500 tabular-nums">
                     {{ t('assist.elapsed', { s: elapsed(turn) }) }}
@@ -642,10 +677,13 @@ onBeforeUnmount(() => {
                   <button type="button" class="btn-secondary ml-auto !px-2.5 !py-1 !text-xs" @click="stop(turn.key)">
                     {{ t('assist.stop') }}
                   </button>
-                  <span class="basis-full text-[13px] text-stone-500">{{ t('assist.generatingHint') }}</span>
+                  <span v-if="!isIntro(turn.result)" class="basis-full text-[13px] text-stone-500">
+                    {{ t('assist.generatingHint') }}
+                  </span>
                 </div>
                 <div
-                  v-else-if="turn.gen === 'stopped' || turn.gen === 'failed'" data-testid="ask-generate-note"
+                  v-else-if="(turn.gen === 'stopped' || turn.gen === 'failed') && !isIntro(turn.result)"
+                  data-testid="ask-generate-note"
                   class="mt-4 flex flex-wrap items-center gap-3 text-sm text-amber-900"
                 >
                   <span>
@@ -681,7 +719,9 @@ onBeforeUnmount(() => {
 
                 <!-- nguồn: mỗi nguồn một dòng gọn, "Chi tiết" mở đoạn trích -->
                 <section
-                  v-if="turn.result.sources.length" class="sg-sources" :aria-labelledby="`nguon-${turn.key}`"
+                  v-if="turn.result.sources.length && !isIntro(turn.result) && !modelWriting(turn)
+                    && (!declined(turn.result) || turn.showExtract)" class="sg-sources"
+                  :aria-labelledby="`nguon-${turn.key}`"
                 >
                   <h3 :id="`nguon-${turn.key}`" class="sg-sources-title">
                     {{ t('assist.source.title') }} <span class="tabular-nums">({{ turn.result.sources.length }})</span>
