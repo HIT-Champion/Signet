@@ -157,9 +157,8 @@ make check
   - Đặt một dải cụ thể (vd `172.16.0.0/12`) vẫn được, nhưng dải đó phải khớp mạng sau mỗi lần tạo lại (mục 8).
 - Máy demo công khai: giữ `MOC_CLI_CLIENT_ENABLED=true` để `seed.py`, `smoke.py` chạy được; muốn xem nhắc hạn ngay khi
   demo thì `MOC_SLA_DURATION=PT1M` (mặc định `PT24H`). Máy có dữ liệu thật: `MOC_CLI_CLIENT_ENABLED=false`, không chạy
-  `seed.py`, `smoke.py` (cả hai ghi dữ liệu thử vào hệ thống). Nhưng phần kiểm của `scripts/nang_cap.sh` (mục 7) luôn
-  chạy smoke, nên trên máy này nâng tay luôn báo mục smoke trượt, còn GitOps `MOC_GITOPS_MODE=nang-cap` coi đó là nâng
-  lỗi và tự lùi mọi bản (#491): chưa bật chế độ này trên máy có dữ liệu thật.
+  `seed.py`, `smoke.py` (cả hai ghi dữ liệu thử vào hệ thống). Phần kiểm của `scripts/nang_cap.sh` (mục 7) tự bỏ smoke
+  trên máy này, nâng tay và GitOps `MOC_GITOPS_MODE=nang-cap` đều dùng được (#491).
 - **Chép `.env` ra ngoài máy chủ ngay** (trình quản lý mật khẩu của đội): `MOC_BACKUP_PASSWORD` mở kho sao lưu,
   `MOC_OPENBAO_SEAL_KEY` mở két — mất là mất bản sao lưu và tệp văn bản hạn chế. Cất bản chép này ở chỗ khác với kho
   sao lưu.
@@ -318,7 +317,7 @@ kho chỉ gồm tệp đã mã hóa). Diễn tập khôi phục: [`van-hanh.md`]
 commit mới trên nhánh `deploy` tự được cài lại thì làm thêm một bản sao riêng của reconciler (`/opt/moc-src`, nhánh
 `deploy`) và đặt `MOC_GITOPS_DIR` như `van-hanh.md` — không dùng chung `~/Signet`. Bản thật nên nâng có sao lưu, lỗi
 thì tự lùi (`MOC_GITOPS_MODE=nang-cap`), theo từng bản phát hành trên `main` (`MOC_GITOPS_FOLLOW=release`) hoặc qua
-cổng ký nhánh `deploy` (`van-hanh.md` mục GitOps, #344); máy có dữ liệu thật thì chưa được (mục 3, #491).
+cổng ký nhánh `deploy` (`van-hanh.md` mục GitOps, #344).
 
 **Máy không có systemd** (WSL2 chưa bật systemd, PID 1 là `init`): chạy reconciler bằng cron của người dùng `moc` thay
 cho timer, mỗi phút một lượt như timer. Lượt gặp khóa đang bị giữ (đang nâng, sao lưu) thì tự bỏ qua. Nhật ký mỗi
@@ -361,7 +360,9 @@ Kịch bản:
    - realm đủ client, theme và thuộc tính user profile;
    - `moc.py audit verify`;
    - `smoke.py`. Smoke trượt đúng ở bước hỏi đáp (chữ chưa kịp vào chỉ mục khi máy quá tải) thì chạy lại một lần, có in
-     rõ là lần thử lại.
+     rõ là lần thử lại. Smoke đăng nhập bằng tài khoản mẫu và ghi dữ liệu thử, nên chỉ chạy khi bản cài bật client
+     `moc-cli` (`MOC_CLI_CLIENT_ENABLED=true`); máy có dữ liệu thật thì bỏ (#491). `MOC_NANG_CAP_SMOKE=co` hay `khong`
+     (môi trường hoặc `.env` của bản cài) để chọn tay.
 
 Nếu dừng giữa chừng sau khi trang đã dừng, hoặc kiểm có mục trượt, kịch bản in lệnh lùi:
 

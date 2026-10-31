@@ -393,10 +393,11 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   the installation (`/api/status`) is the tag whose tree matches the `deploy vX.Y.Z` commit, not `X.Y.Z-1-g…`. On the
   first run, when the running installation already matches the tag at the head of `deploy` (same tree), the reconciler
   only records it and does not stop the site to reinstall. Enable it together with `MOC_GITOPS_ALLOWED_SIGNERS`.
-  Limitation (#491): the checks always run smoke, and smoke signs in with the sample accounts through the `moc-cli`
-  client (and writes test data). On a machine with real data (`seed.py` not run, `MOC_CLI_CLIENT_ENABLED=false`,
-  `trien-khai.md` section 3) every upgrade fails its checks and rolls back: for now this mode only works on a machine
-  with sample data, like the online site.
+  Smoke signs in with the sample accounts through the `moc-cli` client and writes test data, so the checks run smoke
+  only when the installation enables that client (`MOC_CLI_CLIENT_ENABLED=true`, a demo machine). A machine with real
+  data (`MOC_CLI_CLIENT_ENABLED=false`, `trien-khai.md` section 3) skips smoke, and the remaining read-only checks still
+  decide between success and rollback (#491). Set `MOC_NANG_CAP_SMOKE=khong` in `.env` so a demo machine does not
+  write test data on every upgrade either, or `co` to always run it.
 - **Every release upgrades production** (`MOC_GITOPS_FOLLOW=release` with `MOC_GITOPS_BRANCH=main`): the reconciler
   applies the newest `vX.Y.Z` tag reachable from `main` instead of the branch head. Untagged commits on `main`, `-rc`
   tags and tags not yet on `main` are never applied. With `MOC_GITOPS_ALLOWED_SIGNERS` set, the tag's signature is
@@ -407,7 +408,7 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   server: restrict that with a ruleset on tags.
 
 ```bash
-# production: every release on main upgrades the site, with a backup and automatic rollback (real data: not yet, #491)
+# production: every release on main upgrades the site, with a backup and automatic rollback
 sudo install -d -o moc -g moc /opt/moc-src      # as above: moc cannot create folders in /opt
 git clone -b main https://github.com/HIT-Champion/Signet.git /opt/moc-src
 printf '%s\n' MOC_GITOPS_DIR=/opt/moc-src MOC_GITOPS_BRANCH=main MOC_GITOPS_FOLLOW=release \

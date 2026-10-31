@@ -34,6 +34,7 @@ SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # RAM trống tối thiểu: dựng image bản mới khi bản cũ còn chạy, rồi chạy cả hệ thống (lần nâng 1.1.0 ngày 25/10)
 MIN_RAM_MB=${MOC_NANG_CAP_RAM_MB:-2000}
 DEST=""
+SMOKE=co         # co | khong: kiểm có chạy smoke không (smoke_mode)
 PHASE=truoc      # truoc: chưa đổi gì | giua: đã dừng trang hoặc đang cài | kiem: đã chạy, đang kiểm
 NEXT=""          # lệnh nên chạy nếu dừng ở giữa
 FAILS=()
@@ -70,6 +71,21 @@ use_install() {
   [ -n "${1:-}" ] || usage
   [ -f "$1/.moc-install" ] || die "$1 không phải bản cài Signet (không có .moc-install) — cài lần đầu: make install"
   DEST="$(cd "$1" && pwd -P)"
+  SMOKE=$(smoke_mode) || die "MOC_NANG_CAP_SMOKE=$SMOKE: chỉ nhận co, khong hoặc để trống"
+}
+
+# Smoke đăng nhập bằng tài khoản mẫu qua client moc-cli và ghi văn bản thử (#491). MOC_NANG_CAP_SMOKE (môi trường, không
+# thì .env của bản cài như reconciler đọc): co là chạy, khong là bỏ; để trống thì chạy khi bản cài bật client moc-cli
+# (MOC_CLI_CLIENT_ENABLED=true như máy demo), bỏ khi tắt như máy có dữ liệu thật (docs/trien-khai.md mục 3)
+smoke_mode() {
+  local v="${MOC_NANG_CAP_SMOKE:-}"
+  [ -n "$v" ] || v=$(sed -n 's/^MOC_NANG_CAP_SMOKE=//p' "$DEST/.env" 2>/dev/null | tail -n 1)
+  case "$v" in
+    co | khong) echo "$v" ;;
+    "") [ "$(sed -n 's/^MOC_CLI_CLIENT_ENABLED=//p' "$DEST/.env" 2>/dev/null | tail -n 1)" = true ] \
+          && echo co || echo khong ;;
+    *) echo "$v"; return 1 ;;
+  esac
 }
 
 # Phiên bản make install sẽ gắn cho một thư mục mã nguồn — như src_version của scripts/install.sh (bản cũ không có
@@ -221,7 +237,12 @@ kiem_all() {
   check "dịch vụ khỏe" check_health
   check "client, theme, user profile của realm" check_realm
   check "sổ kiểm toán, mốc neo" in_dest python3 scripts/moc.py audit verify
-  check "smoke" check_smoke
+  if [ "$SMOKE" = co ]; then
+    check "smoke" check_smoke
+  else
+    step "Kiểm: smoke"
+    echo "-> bỏ qua: smoke cần tài khoản mẫu và ghi dữ liệu thử (MOC_NANG_CAP_SMOKE=co để chạy)"
+  fi
 }
 
 report() {
