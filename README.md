@@ -271,13 +271,13 @@ python3 scripts/seed.py                 # dữ liệu mẫu, lần đầu
 ## Chạy thử
 
 **Bản online** <https://signet.htechcs.com> chạy bản phát hành mới nhất trên máy của đội, ra Internet qua Cloudflare
-Tunnel; `.github/workflows/ban-online.yml` kiểm hằng ngày bản đó đúng thẻ mới nhất. Tài khoản dùng thử gửi kèm hồ sơ
-dự thi; repo không công khai mật khẩu. Từ 01/11/2026, bản online chạy `v1.4.0` cộng các bản vá đã gộp vào
-`develop` nhưng chưa gắn thẻ: giao diện (#470, #481) và trợ lý hỏi đáp (#503, #504); `/api/status` vẫn báo `1.4.0`.
-Các tính năng chưa phát hành khác (mục "Chưa phát hành" của [`CHANGELOG.md`](CHANGELOG.md)) có khi tự cài từ mã
-nguồn. Trợ lý hỏi đáp của bản online viết câu trả lời qua API
-ngoài chuẩn OpenAI (`MOC_ASK_API=openai`, mô hình `gpt-6-luna-wd`, không phải mô hình nguồn mở): chỉ câu hỏi và các
-đoạn căn cứ đã che thông tin cá nhân rời máy. Bản tự cài mặc định dùng Ollama tại chỗ
+Tunnel; `.github/workflows/ban-online.yml` kiểm hằng ngày bản đó đúng thẻ mới nhất. Tài khoản dùng thử gửi kèm hồ sơ dự
+thi; repo không công khai mật khẩu. Từ tối 31/10/2026, bản online chạy `v1.4.0` cộng các bản vá đã gộp vào `develop`
+nhưng chưa gắn thẻ: giao diện (#470, #481, #495, #500) và trợ lý hỏi đáp (#496, #503, #504); `/api/status` vẫn báo
+`1.4.0`. Ứng dụng ngành Đổi, bù lịch giảng (#483) cài thêm bằng `moc app install`. Các tính năng chưa phát hành khác
+(mục "Chưa phát hành" của [`CHANGELOG.md`](CHANGELOG.md)) có khi tự cài từ mã nguồn. Trợ lý hỏi đáp của bản online viết
+câu trả lời qua API ngoài chuẩn OpenAI (`MOC_ASK_API=openai`, mô hình `gpt-6-luna-wd`, không phải mô hình nguồn mở): chỉ
+câu hỏi và các đoạn căn cứ đã che thông tin cá nhân rời máy. Bản tự cài mặc định dùng Ollama tại chỗ
 ([`DEPENDENCIES.md`](DEPENDENCIES.md)).
 
 **Bản tự cài:** mật khẩu chung của các tài khoản mẫu là giá trị `MOC_DEMO_PASSWORD` trong `.env`. Văn thư, lãnh đạo,

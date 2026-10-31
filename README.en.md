@@ -282,14 +282,15 @@ python3 scripts/seed.py                 # sample data, first time only
 ## Try it out
 
 **Online:** <https://signet.htechcs.com> runs the latest release on the team's machine, reaching the Internet through
-Cloudflare Tunnel; `.github/workflows/ban-online.yml` checks daily that it runs the newest tag. Trial accounts are
-sent with the contest submission; the repository does not publish passwords. Since 01/11/2026 the online site runs
-`v1.4.0` plus fixes merged into `develop` but not yet tagged: the interface (#470, #481) and the assistant (#503,
-#504); `/api/status` still reports `1.4.0`. Other unreleased features (the "Chưa phát hành" section of
-[`CHANGELOG.md`](CHANGELOG.md)) are available when you install from source. The online assistant writes
-its answers through an external OpenAI-compatible API (`MOC_ASK_API=openai`, model `gpt-6-luna-wd`, not an
-open-source model): only the question and the supporting passages, with personal data masked, leave the machine. Your
-own installation uses local Ollama by default ([`DEPENDENCIES.md`](DEPENDENCIES.md)).
+Cloudflare Tunnel; `.github/workflows/ban-online.yml` checks daily that it runs the newest tag. Trial accounts are sent
+with the contest submission; the repository does not publish passwords. Since the evening of 31/10/2026 the online site
+runs `v1.4.0` plus fixes merged into `develop` but not yet tagged: the interface (#470, #481, #495, #500) and the
+assistant (#496, #503, #504); `/api/status` still reports `1.4.0`. The teaching schedule change app (#483) is added with
+`moc app install`. Other unreleased features (the "Chưa phát hành" section of [`CHANGELOG.md`](CHANGELOG.md)) are
+available when you install from source. The online assistant writes its answers through an external OpenAI-compatible
+API (`MOC_ASK_API=openai`, model `gpt-6-luna-wd`, not an open-source model): only the question and the supporting
+passages, with personal data masked, leave the machine. Your own installation uses local Ollama by default
+([`DEPENDENCIES.md`](DEPENDENCIES.md)).
 
 **Your own installation:** the shared password of the sample accounts is the value of `MOC_DEMO_PASSWORD` in `.env`.
 Clerks, faculty leaders, team and division heads, and unit administrators must use two-factor authentication: after
