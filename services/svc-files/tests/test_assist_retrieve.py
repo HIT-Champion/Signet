@@ -94,6 +94,24 @@ def test_stale_index_never_leaks_unreadable_or_restricted_documents(make_token, 
     assert set(hasura.ask_calls[-1]["ids"]) == {mine, revoked, sealed}
 
 
+def test_leading_reads_one_document_in_reading_order_after_the_post_check(make_token, hasura, index):
+    doc = hasura.add_document(TENANT_A, "Rà soát danh sách xét tốt nghiệp", assignments=[],
+                              updated_at="2026-10-21T08:00:00+00:00",
+                              files=[link(text(sentences("TRANGMOT", 2), sentences("TRANGHAI", 2)), file_id="f-lead")])
+    add(hasura, "Văn bản khác", sentences("KHAC", 2))
+    hidden = add(hasura, "Văn bản mật", sentences("MAT", 2), readers={"u-khac"})
+    sync(hasura, index)
+    got = run(retriever(index, hasura).leading(scope_of(make_token), doc, 10))
+    assert got.passages and {p.document_id for p in got.passages} == {doc}
+    pages = [p.page for p in got.passages]
+    assert pages == sorted(pages) and pages[0] == 1 and pages[-1] == 2
+    assert index.searches[-1]["q"] == "" and f'document_id = "{doc}"' in index.searches[-1]["filter"]
+    assert index.searches[-1]["filter"][0] == f'tenant_id = "{TENANT_A}"'
+    assert run(retriever(index, hasura).leading(scope_of(make_token), doc, 1)).passages == got.passages[:1]
+    blocked = run(retriever(index, hasura).leading(scope_of(make_token), hidden, 10))
+    assert blocked.passages == [] and blocked.candidates > 0          # Meilisearch trả, hậu kiểm chặn
+
+
 def test_only_passages_of_documents_hasura_returns(make_token, hasura, index):
     hidden = [add(hasura, f"Văn bản mật {i}", sentences("KYLUAT", 2), readers={"u-khac"}) for i in range(4)]
     sync(hasura, index)

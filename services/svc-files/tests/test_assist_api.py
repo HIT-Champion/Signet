@@ -208,6 +208,27 @@ def test_needs_a_token(asking):
     assert r.status_code == 401 and r.json()["detail"]["code"] == "missing_token"
 
 
+def test_a_summary_inside_one_document_reads_its_leading_passages(asking):
+    # "tóm tắt văn bản này" không khớp đoạn nào: mô hình vẫn có các đoạn đầu của văn bản làm căn cứ
+    summary = "Tóm tắt nội dung văn bản này"
+    env = asking(passages=demo())
+    env.retriever.no_match = True
+    body = ask(env, env.token(), question=summary, document_id=D88).json()
+    assert body["status"] != "no_evidence" and [s["document_id"] for s in body["sources"]] == [D88]
+    assert [c["document_id"] for c in env.retriever.leading_calls] == [D88]
+    env.retriever.no_match = False
+    ask(env, env.token(), question=summary, document_id=D88)        # xin tóm tắt: đoạn đầu, cả khi có đoạn khớp
+    ask(env, env.token(), document_id=D88)                          # câu hỏi thường có đoạn khớp: không
+    env.retriever.no_match = True
+    ask(env, env.token(), question=summary)                         # không hỏi trong một văn bản: không
+    assert len(env.retriever.leading_calls) == 2
+    # đoạn đầu cũng qua hậu kiểm: văn bản không được đọc thì vẫn không có căn cứ
+    hidden = asking(passages=demo(), readers={D88: {"u-khac"}})
+    hidden.retriever.no_match = True
+    got = ask(hidden, hidden.token(sub="u-giang-vien-ktpm", role="staff"), question=summary, document_id=D88).json()
+    assert got["status"] == "no_evidence" and got["sources"] == [] and "88/CTSV" not in json.dumps(got)
+
+
 @pytest.mark.parametrize("role", ["tenant_admin", "verifier", "agent"])
 def test_roles_without_documents_are_403_before_any_search(asking, role):
     env = asking(passages=demo())

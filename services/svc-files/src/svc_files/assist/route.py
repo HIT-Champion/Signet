@@ -69,6 +69,17 @@ class Route:
     lang: str = "vi"        # ngôn ngữ của mẫu đã khớp (vi · en): chọn bản Giới thiệu trợ lý, câu cố định
 
 
+# Hỏi tóm tắt, ý chính của văn bản đang hỏi: answer.py đưa các đoạn đầu của văn bản cho mô hình, không chỉ đoạn khớp
+_SUMMARY_RE = re.compile(r"\b(?:tom (?:tat|luoc)|noi dung (?:chinh|tong quat)|y chinh|khai quat|tong quan|"
+                         r"(?:noi|de cap|yeu cau|quy dinh) (?:(?:ve|den|toi) )?(?:nhung )?(?:gi|cai gi|viec gi)|"
+                         r"ve viec gi|summar\w*|overview|main points|what (?:is|does) (?:it|this) (?:about|say))\b")
+
+
+def wants_summary(text: str) -> bool:
+    """Câu hỏi xin tóm tắt, ý chính, "nói gì" — dùng cho câu hỏi trong một văn bản (``document_id``)."""
+    return _SUMMARY_RE.search(folded(text)) is not None
+
+
 def folded(text: str) -> str:
     """Câu hỏi đem so mẫu: bỏ dấu, chữ thường, mỗi dấu câu thành dấu cách, gộp khoảng trắng."""
     return " ".join(re.sub(r"[^\w]+", " ", fold(vi.normalize(text)).lower()).split())

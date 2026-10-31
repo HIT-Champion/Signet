@@ -271,6 +271,13 @@ class Assistant:
         recalled = chosen.reason == intent.RECALL   # hỏi lại câu trước ("tôi vừa hỏi gì?"): trả lời từ previous
         if chosen.name == "van_ban":
             found = await self._search(body, asked, scope, deadline, warnings, request_id)
+            if body.document_id is not None and (not found.passages or route.wants_summary(asked)):
+                # hỏi trong một văn bản mà không đoạn nào khớp, hoặc xin tóm tắt: các đoạn đầu của văn bản theo thứ tự
+                # đọc làm căn cứ cho mô hình ("Tóm tắt nội dung văn bản này")
+                lead = await self._leading(scope, str(body.document_id), request_id)
+                if lead.passages:
+                    found = Retrieval(lead.passages, candidates=found.candidates + lead.candidates,
+                                      semantic=found.semantic, hybrid_error=found.hybrid_error)
             filtered = any(f is not None for f in (body.direction, body.year, body.type_code))
             # kho văn bản không có đoạn nào: thử hướng dẫn sử dụng trước khi nói không tìm thấy ("Nộp đơn nghỉ phép ở
             # đâu?" bị chọn nhầm là câu hỏi văn bản vẫn có câu trả lời)
@@ -438,6 +445,20 @@ class Assistant:
             _log("office.assist.search_failed", request_id, error=found.hybrid_error, fallback="keywords")
             warnings.append("embed_unavailable")
         return found
+
+    async def _leading(self, scope: Any, document_id: str, request_id: str) -> Retrieval:
+        """Các đoạn đầu của văn bản đang hỏi (``Retriever.leading``); lỗi như ``_search``."""
+        try:
+            return await self.retriever.leading(scope, document_id, self.settings.ask_top_k)
+        except HasuraAuthError as exc:
+            raise AskError(401, "invalid_token", "Token không hợp lệ hoặc đã hết hạn",
+                           headers={"WWW-Authenticate": "Bearer"}) from exc
+        except HasuraError as exc:
+            _log("office.assist.search_failed", request_id, error=str(exc), code=exc.code)
+            raise AskError(503, "database_unavailable", "CSDL chưa sẵn sàng") from exc
+        except SearchError as exc:
+            _log("office.assist.search_failed", request_id, error=str(exc))
+            raise AskError(503, "search_unavailable", "Dịch vụ tìm kiếm chưa sẵn sàng — thử lại sau") from exc
 
     async def _generate(self, question: str, passages: list[Passage], best: dict[str, tuple[int, int]],
                         deadline: float, request_id: str, *, intro: bool = False,

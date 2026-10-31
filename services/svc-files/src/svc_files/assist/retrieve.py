@@ -65,6 +65,8 @@ from .vi import TOKEN_RE
 FIELDS = ["id", "document_id", "kind", "file_id", "file_role", "page", "seq", "text"]
 MORE_ROUNDS = 2            # thiếu đoạn mà Meilisearch còn kết quả: lấy thêm tối đa từng này lượt
 RELAX_MIN = 0.5            # tìm nới: đoạn phải có từ chiếm ≥ tỷ lệ này trọng số của câu hỏi
+LEADING_SCAN = 200         # số đoạn tối đa đọc của một văn bản khi lấy các đoạn đầu (``Retriever.leading``)
+ROLE_ORDER = {"main": 0, "attachment": 1, "issued": 2}
 WORD = re.compile(r"\w+")
 
 # Tỷ trọng nghĩa tối đa khi câu hỏi cần đúng chữ. Meilisearch xếp chung hai danh sách theo điểm nhân trọng số: đoạn
@@ -275,6 +277,29 @@ class Retriever:
         (passages, candidates, relaxed), semantic, error = await self._hybrid_or_keywords(
             scope, q, vector, filter_parts(filters), lambda body: self._passages(scope, body, limit), ratio)
         return Retrieval(passages, candidates, semantic, error, relaxed, ratio if semantic else None)
+
+    async def leading(self, scope: Scope, document_id: str, limit: int) -> Retrieval:
+        """Các đoạn đầu của một văn bản theo thứ tự đọc: trích yếu, rồi tệp chính, đính kèm, bản phát hành theo trang
+        và thứ tự đoạn. Dùng khi hỏi trong một văn bản ("tóm tắt văn bản này") mà không đoạn nào khớp câu hỏi. Cùng
+        lọc trước theo vai trò và hậu kiểm bằng token như ``search``."""
+        if scope.where == NOTHING or limit <= 0:
+            return Retrieval([], 0, False)
+        body = {"q": "", "filter": [f"tenant_id = {_quoted(str(scope.tenant_id))}", *scope.where,
+                                    f"document_id = {_quoted(document_id)}"],
+                "limit": LEADING_SCAN, "offset": 0, "attributesToRetrieve": FIELDS}
+        hits = await self.index.search(body)
+        if not hits:
+            return Retrieval([], 0, False)
+        row = (await self._readable(scope, [document_id])).get(document_id)
+        if row is None or not eligible(row):
+            return Retrieval([], len(hits), False)
+        hits.sort(key=lambda h: (h.get("kind") != "meta", ROLE_ORDER.get(h.get("file_role") or "", 3),
+                                 str(h.get("file_id") or ""), h.get("page") or 0, h.get("seq") or 0))
+        doc = source_doc(row)
+        return Retrieval([Passage(chunk_id=str(h["id"]), document_id=document_id, kind=h.get("kind") or "page",
+                                  file_id=h.get("file_id"), file_role=h.get("file_role"), page=h.get("page"),
+                                  text=h.get("text") or "", score=0.0, doc=doc) for h in hits[:limit]],
+                         len(hits), False)
 
     async def _passages(self, scope: Scope, body: dict[str, Any], limit: int) -> tuple[list[Passage], int, int]:
         """(đoạn đã hậu kiểm theo thứ tự xếp hạng, số đoạn Meilisearch đã trả, số đoạn nhờ tìm nới)."""
