@@ -44,9 +44,14 @@ const leader = computed(() => isAppLeader(claims.value?.role))
 const builder = computed(() => canBuildForms(claims.value?.role))
 const groups = computed(() => appCatalog(t, rows.value, coreVersion.value, optional.value))
 
+// đường kiểm của ứng dụng tùy chọn chưa cài có thể treo tới khi cổng hết hạn (đo 31/10: /wiki/health.php > 40 giây
+// trên máy chưa cài wiki): mỗi lần hỏi có hạn, và danh sách không chờ phần dò
+const PROBE_TIMEOUT_MS = 3000
+const STATUS_TIMEOUT_MS = 8000     // /api/status kiểm 9 dịch vụ, thường 1–2 giây
+
 async function loadCoreVersion() {
   try {
-    const res = await fetch('/api/status', { cache: 'no-store' })
+    const res = await fetch('/api/status', { cache: 'no-store', signal: AbortSignal.timeout(STATUS_TIMEOUT_MS) })
     const version = res.ok ? (await res.json() as { version?: unknown }).version : null
     coreVersion.value = typeof version === 'string' && version ? version : null
   } catch {
@@ -57,7 +62,7 @@ async function loadCoreVersion() {
 async function probeOptional() {
   const found = await Promise.all(OPTIONAL_APPS.map(async (a) => {
     try {
-      const res = await fetch(a.probe, { cache: 'no-store' })
+      const res = await fetch(a.probe, { cache: 'no-store', signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) })
       // "ok" chứ không chỉ 200: route chưa có thì app-office trả trang của chính nó
       return res.ok && (await res.text()).trim() === 'ok' ? a.name : null
     } catch {
@@ -71,10 +76,10 @@ async function load() {
   loading.value = true
   failure.value = ''
   try {
+    void probeOptional()      // ứng dụng tùy chọn hiện thêm khi đường kiểm trả lời
     const [data] = await Promise.all([
       gql<{ core_app_catalog: InstalledApp[] }>(appsQuery(claims.value?.role)),
       loadCoreVersion(),
-      probeOptional(),
     ])
     rows.value = data.core_app_catalog
     loaded.value = true
