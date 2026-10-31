@@ -151,6 +151,16 @@ class Settings:
     ai_embed_model: str = "qwen3-embedding:0.6b"    # rỗng: không nhúng, chỉ tìm từ khóa
     ai_embed_dims: int = 1024
     ai_embed_batch: int = 8             # số đoạn mỗi lô nhúng nền
+    # Nơi nhúng (tìm theo nghĩa): ollama (MOC_AI_EMBED_MODEL tại chỗ, mặc định) hoặc openai — máy chủ nói chuẩn OpenAI
+    # ở MOC_EMBED_API_URL (…/v1, cả Azure AI Foundry), tên mô hình ở MOC_EMBED_API_MODEL (bắt buộc, không lấy
+    # MOC_AI_EMBED_MODEL: compose kéo mô hình đó về Ollama). MOC_EMBED_API_DIMS (tùy chọn) gửi làm tham số
+    # ``dimensions`` và là số chiều véc-tơ; rỗng thì không gửi, số chiều là MOC_AI_EMBED_DIMS. Khóa MOC_EMBED_API_KEY
+    # như MOC_ASK_API_KEY: bí mật tùy chọn đến từ két, không in ra repr hay nhật ký
+    embed_api: str = "ollama"
+    embed_api_url: str = ""
+    embed_api_key: str = field(default="", repr=False)
+    embed_api_model: str = ""
+    embed_api_dims: int = 0             # 0: không gửi ``dimensions``
     assistant_id: str = "moc-assistant"  # danh tính trợ lý trong sổ kiểm toán (X-Hasura-User-Id của vai trò agent)
     # Trang trạng thái hệ thống, công khai (GET /api/status — status.py)
     version: str = "dev"                # MOC_VERSION: phiên bản Signet đang chạy (thẻ image)
@@ -274,6 +284,11 @@ class Settings:
                 ai_embed_model=env.get("MOC_AI_EMBED_MODEL", "qwen3-embedding:0.6b").strip(),
                 ai_embed_dims=int(env.get("MOC_AI_EMBED_DIMS", "1024")),
                 ai_embed_batch=int(env.get("MOC_AI_EMBED_BATCH", "8")),
+                embed_api=(env.get("MOC_EMBED_API") or "ollama").strip().lower(),
+                embed_api_url=(env.get("MOC_EMBED_API_URL") or "").strip().rstrip("/"),
+                embed_api_key=(env.get("MOC_EMBED_API_KEY") or "").strip(),
+                embed_api_model=(env.get("MOC_EMBED_API_MODEL") or "").strip(),
+                embed_api_dims=int((env.get("MOC_EMBED_API_DIMS") or "").strip() or 0),
                 assistant_id=env.get("MOC_ASSISTANT_ID", "moc-assistant").strip(),
                 version=env.get("MOC_VERSION", "dev").strip() or "dev",
                 gateway_status_url=env.get("MOC_GATEWAY_STATUS_URL", "http://apisix:7085/status/ready").strip(),
@@ -389,6 +404,16 @@ class Settings:
                 raise ConfigError("MOC_ASK_API=openai cần tên mô hình ở MOC_ASK_MODEL")
         if self.ask_queue_s < 0:
             raise ConfigError("MOC_ASK_QUEUE_S phải ≥ 0")
+        if self.embed_api not in ("ollama", "openai"):
+            raise ConfigError("MOC_EMBED_API phải là ollama (mô hình tại chỗ) hoặc openai (API ngoài chuẩn OpenAI)")
+        if self.embed_api == "openai":
+            if not re.fullmatch(r"https?://[^\s/?#]+(?:/[^\s?#]*)?", self.embed_api_url):
+                raise ConfigError("MOC_EMBED_API=openai cần MOC_EMBED_API_URL dạng http(s)://máy-chủ/v1")
+            # "#" là dấu đoạn hỏng của chỉ mục (assist/index.py FAILED)
+            if not self.embed_api_model or "#" in self.embed_api_model:
+                raise ConfigError("MOC_EMBED_API=openai cần tên mô hình nhúng (không có '#') ở MOC_EMBED_API_MODEL")
+        if self.embed_api_dims < 0:
+            raise ConfigError("MOC_EMBED_API_DIMS phải ≥ 1, hoặc rỗng để không gửi số chiều")
         for name, count in (("MOC_ASK_TOP_K", self.ask_top_k), ("MOC_ASK_CANDIDATES", self.ask_candidates),
                             ("MOC_ASK_PER_DOC", self.ask_per_doc), ("MOC_ASK_CONTEXT_CHARS", self.ask_context_chars),
                             ("MOC_ASK_CONCURRENCY", self.ask_concurrency), ("MOC_AI_EMBED_DIMS", self.ai_embed_dims),
@@ -400,6 +425,12 @@ class Settings:
         if not 1 <= len(self.assistant_id) <= 64:
             raise ConfigError("MOC_ASSISTANT_ID phải dài 1–64 ký tự")
 
+    @property
+    def embed_dims(self) -> int:
+        """Số chiều véc-tơ nhúng (embedder Meilisearch, kiểm kết quả mô hình): MOC_EMBED_API_DIMS khi nhúng qua API
+        ngoài có đặt, còn lại MOC_AI_EMBED_DIMS."""
+        return self.embed_api_dims if self.embed_api == "openai" and self.embed_api_dims else self.ai_embed_dims
+
     def warnings(self) -> list[str]:
         """Cấu hình chạy được nhưng dễ chậm hay kém an toàn: app ghi nhật ký ``config.warning`` lúc khởi động, không
         chặn."""
@@ -408,7 +439,7 @@ class Settings:
             # Ollama của compose giữ tối đa 2 mô hình (OLLAMA_MAX_LOADED_MODELS): trích yếu F4.1 (MOC_AI_MODEL) dò và
             # nạp trước kể cả khi chỉ hỏi đáp, thêm mô hình sinh (trừ khi viết qua API ngoài) và mô hình nhúng F4.2
             models = ({self.ai_model} | ({self.ask_model} if self.ask_api == "ollama" else set())
-                      | ({self.ai_embed_model} if self.ai_embed_model else set()))
+                      | ({self.ai_embed_model} if self.ai_embed_model and self.embed_api == "ollama" else set()))
             if len(models) > 2:
                 out.append(f"MOC_ASK_MODEL ({self.ask_model}) khác MOC_AI_MODEL ({self.ai_model}): Ollama phải giữ "
                            f"{len(models)} mô hình nhưng compose chỉ cho 2 (OLLAMA_MAX_LOADED_MODELS) — mô hình bị nạp "
@@ -418,6 +449,10 @@ class Settings:
             sent = "đoạn văn bản đã che và MOC_ASK_API_KEY" if self.ask_api_key else "đoạn văn bản đã che"
             out.append(f"MOC_ASK_API_URL dùng http://: {sent} đi tới máy chủ mô hình không mã hóa. Dùng https://, trừ "
                        "khi máy chủ đó nằm trong mạng nội bộ tin cậy của đơn vị")
+        if self.embed_api == "openai" and self.embed_api_url.startswith("http://"):
+            sent = "đoạn văn bản đã che và MOC_EMBED_API_KEY" if self.embed_api_key else "đoạn văn bản đã che"
+            out.append(f"MOC_EMBED_API_URL dùng http://: {sent} đi tới máy chủ mô hình nhúng không mã hóa. Dùng "
+                       "https://, trừ khi máy chủ đó nằm trong mạng nội bộ tin cậy của đơn vị")
         if self.import_data_max_bytes + self.import_zip_max_bytes > IMPORT_GATEWAY_BYTES:
             out.append("MOC_IMPORT_DATA_MAX_MB + MOC_IMPORT_ZIP_MAX_MB vượt 63 MB: APISIX nhận thân yêu cầu tối đa 64m "
                        "(client_max_body_size, platform/apisix/config.yaml) nên lô lớn bị cổng từ chối (413) trước khi "

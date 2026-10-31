@@ -351,6 +351,8 @@ services:
       MOC_ALERT_TOKEN: ${MOC_ALERT_TOKEN:-}
       # tùy chọn (#430): khóa API ngoài viết câu trả lời của trợ lý hỏi đáp (svc-files, MOC_ASK_API=openai)
       MOC_ASK_API_KEY: ${MOC_ASK_API_KEY:-}
+      # tùy chọn: khóa API ngoài nhúng đoạn văn bản của trợ lý hỏi đáp (svc-files, MOC_EMBED_API=openai)
+      MOC_EMBED_API_KEY: ${MOC_EMBED_API_KEY:-}
     volumes:
       - ./platform/openbao:/moc:ro
       - openbao_data:/openbao/file
@@ -414,6 +416,13 @@ services:
       # khóa MOC_ASK_API_KEY đến từ két, không ở đây. Nhúng, trích yếu vẫn ở Ollama. Mặc định ollama
       MOC_ASK_API: ${MOC_ASK_API:-ollama}
       MOC_ASK_API_URL: ${MOC_ASK_API_URL:-}
+      # openai: nhúng (tìm theo nghĩa) qua API ngoài chuẩn OpenAI ở MOC_EMBED_API_URL (cả Azure AI Foundry), tên mô
+      # hình ở MOC_EMBED_API_MODEL, MOC_EMBED_API_DIMS rỗng thì không gửi số chiều; khóa MOC_EMBED_API_KEY đến từ két,
+      # không ở đây. Mặc định ollama (MOC_AI_EMBED_MODEL)
+      MOC_EMBED_API: ${MOC_EMBED_API:-ollama}
+      MOC_EMBED_API_URL: ${MOC_EMBED_API_URL:-}
+      MOC_EMBED_API_MODEL: ${MOC_EMBED_API_MODEL:-}
+      MOC_EMBED_API_DIMS: ${MOC_EMBED_API_DIMS:-}
       # F4.5 — ký số PAdES bản phát hành văn bản đi bằng khóa Transit của đơn vị, chứng thư do CA nội bộ trong két
       # cấp (chỉ minh họa, không có giá trị pháp lý). false: phát hành không ký, không gọi Transit hay PKI. Két khởi
       # tạo trước F4.5 chưa có PKI thì svc-files tự tắt ký số (docs/van-hanh.md mục Két bí mật)
