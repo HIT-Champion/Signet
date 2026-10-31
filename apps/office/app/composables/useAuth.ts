@@ -133,6 +133,7 @@ export function useAuth() {
 
   async function logout(): Promise<void> {
     dropDrafts()
+    dropChatHistory()       // lịch sử trò chuyện của trang Hỏi đáp (utils/chatHistory.ts) không ở lại máy dùng chung
     await (await getManager()).signoutRedirect()
   }
 

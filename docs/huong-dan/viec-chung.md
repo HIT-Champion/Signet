@@ -59,8 +59,10 @@ Chuông trên thanh trên cùng báo việc mới, việc hoặc văn bản quá
 
 ![Hỏi đáp: câu trích nguyên văn và hai văn bản nguồn](../anh/huong-dan/hoi-dap.png)
 
-Trợ lý chỉ tìm trong các văn bản bạn được xem, không bao giờ dùng văn bản hạn chế. Câu hỏi chỉ giữ trên trang, tải lại
-trang là mất. Cách trợ lý tìm và trả lời: [`demo-script.md`](../demo-script.md), mục "hỏi đáp trên kho văn bản".
+Trợ lý chỉ tìm trong các văn bản bạn được xem, không bao giờ dùng văn bản hạn chế. Các cuộc trò chuyện lưu trong trình
+duyệt này, theo tài khoản của bạn, không lưu ở máy chủ: bấm **Lịch sử trò chuyện** để mở lại một cuộc cũ hoặc xóa nó,
+bấm **Cuộc trò chuyện mới** để hỏi lại từ đầu. Đăng xuất là xóa hết lịch sử trên trình duyệt đó. Cách trợ lý tìm và trả
+lời: [`demo-script.md`](../demo-script.md), mục "hỏi đáp trên kho văn bản".
 
 ## Không gian cá nhân P.A.R.A
 
