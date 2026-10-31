@@ -148,3 +148,6 @@
 {"q": "Thời tiết", "route": "ngoai_pham_vi"}
 {"q": "Đơn nghỉ phép nộp ở mục nào?", "route": "huong_dan"}
 {"q": "Tôi được giao bao nhiêu việc trong tháng này?", "route": "viec_cua_toi"}
+{"q": "Có những văn bản nào về học bổng?", "route": "dem_van_ban"}
+{"q": "Liệt kê các văn bản đến tháng này", "route": "dem_van_ban"}
+{"q": "Danh sách quyết định ban hành năm 2026", "route": "dem_van_ban"}

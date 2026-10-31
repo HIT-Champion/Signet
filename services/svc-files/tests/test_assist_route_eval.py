@@ -18,14 +18,17 @@
 
 Khác test_assist_route.py (từng câu phải đúng): ở đây câu sai được phép, test chỉ giữ một mức sàn cho mỗi đường để
 sửa mẫu ở chỗ này không làm hỏng chỗ khác mà không ai biết. Nhãn là đường người hỏi mong đợi, không chép từ kết quả
-của bộ định tuyến. Sửa route.py làm số câu đúng tăng thì nâng ``FLOOR`` lên theo; chạy với ``-s`` để in bảng và các
-câu sai."""
+của bộ định tuyến. Sửa bộ chọn đường làm số câu đúng tăng thì nâng ``FLOOR`` lên theo; chạy với ``-s`` để in bảng và các
+câu sai. ``evaluate`` chấm được mọi bộ chọn cùng chữ ký với ``route.route``, không riêng bộ luật."""
 
 from __future__ import annotations
 
 import json
 from collections import Counter
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from svc_files.assist import route, vi
 
@@ -56,25 +59,48 @@ def test_dataset_is_well_formed() -> None:
     assert set(FLOOR) == set(route.ROUTES)
 
 
-def test_route_accuracy_floor() -> None:
-    total: Counter[str] = Counter()
-    correct: Counter[str] = Counter()
-    wrong: list[tuple[str, str, str]] = []
+@dataclass
+class Score:
+    total: Counter[str] = field(default_factory=Counter)
+    correct: Counter[str] = field(default_factory=Counter)
+    wrong: list[tuple[str, str, str]] = field(default_factory=list)     # (nhãn, đường ra, câu hỏi)
+
+    def report(self) -> str:
+        lines = [f"{name:<14} {self.correct[name]:>3}/{self.total[name]:<3} "
+                 f"{self.correct[name] / max(self.total[name], 1):.0%}" for name in route.ROUTES]
+        ok, n = sum(self.correct.values()), sum(self.total.values())
+        lines.append(f"{'tong':<14} {ok:>3}/{n:<3} {ok / max(n, 1):.0%}")
+        lines += [f"  mong {want} · ra {got} · {q}" for want, got, q in self.wrong]
+        return "\n".join(lines)
+
+
+def evaluate(choose: Callable[[str], Any]) -> Score:
+    """Chấm một bộ chọn đường bất kỳ cùng chữ ký với ``route.route``: nhận câu hỏi đã ``vi.normalize``, trả về đối
+    tượng có ``.name`` (``route.Route``) hoặc tên đường (str). Dùng được cho bộ luật hiện tại và cho bước chọn ý định
+    bằng mô hình sau này (giả lập mô hình trong test, hoặc chạy tay với mô hình thật)."""
+    score = Score()
     for row in _rows():
-        got = route.route(vi.normalize(row["q"])).name
-        total[row["route"]] += 1
+        out = choose(vi.normalize(row["q"]))
+        got = out if isinstance(out, str) else out.name
+        score.total[row["route"]] += 1
         if got == row["route"]:
-            correct[row["route"]] += 1
+            score.correct[row["route"]] += 1
         else:
-            wrong.append((row["route"], got, row["q"]))
+            score.wrong.append((row["route"], got, row["q"]))
+    return score
 
-    lines = [f"{name:<14} {correct[name]:>3}/{total[name]:<3} {correct[name] / total[name]:.0%}"
-             for name in route.ROUTES]
-    all_ok, all_n = sum(correct.values()), sum(total.values())
-    lines.append(f"{'tong':<14} {all_ok:>3}/{all_n:<3} {all_ok / all_n:.0%}")
-    lines += [f"  mong {want} · ra {got} · {q}" for want, got, q in wrong]
-    report = "\n".join(lines)
+
+def test_route_accuracy_floor() -> None:
+    score = evaluate(route.route)
+    report = score.report()
     print("\n" + report)
-
-    below = {name: (correct[name], floor) for name, floor in FLOOR.items() if correct[name] < floor}
+    below = {name: (score.correct[name], floor) for name, floor in FLOOR.items() if score.correct[name] < floor}
     assert not below, f"dưới mức sàn (đúng, sàn): {below}\n{report}"
+
+
+def test_evaluate_accepts_any_chooser() -> None:
+    """Bộ chấm không gắn với route.py: một bộ chọn trả về tên đường (str) cũng chấm được."""
+    score = evaluate(lambda q: "van_ban")
+    assert sum(score.total.values()) == len(_rows())
+    assert score.correct["van_ban"] == score.total["van_ban"]
+    assert score.correct["gioi_thieu"] == 0
