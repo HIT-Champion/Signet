@@ -22,8 +22,8 @@ import { ApiError } from '~/composables/useApi'
 import type { AskBody, AskResult, AskSource } from '~/composables/useApi'
 import {
   ASK_ROLES, MAX_QUESTION, SCOPE_PARAM, SUGGEST_GROUPS, blocks, canView, citeLabel, cleanQuestion, fallbackSuggestions,
-  hasMask, inAssistant, isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched, sourceAnchor,
-  tidy,
+  declined, hasMask, inAssistant, isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched,
+  sourceAnchor, tidy,
 } from '~/utils/answer'
 
 // Hỏi đáp trên kho văn bản (F4.2). Trợ lý moc-assistant (svc-files) chỉ tìm trong các văn bản người hỏi được xem,
@@ -161,7 +161,9 @@ function askError(e: unknown): string {
 }
 
 function warningTexts(res: AskResult): string[] {
-  return res.warnings.filter((code) => te(`assist.warning.${code}`)).map((code) => t(`assist.warning.${code}`))
+  // model_declined: khối "không tìm thấy" đã nói thay
+  return res.warnings.filter((code) => code !== 'model_declined' && te(`assist.warning.${code}`))
+    .map((code) => t(`assist.warning.${code}`))
 }
 
 function body(turn: Turn, mode: 'extract' | 'generate'): AskBody {
@@ -324,10 +326,12 @@ async function generate(key: number, ctrl: AbortController) {
   }
 }
 
-// lời giới thiệu trợ lý do mô hình viết: lúc đang viết chỉ hiện "Trợ lý đang trả lời…", không hiện chữ soạn sẵn rồi
-// thay; mô hình không đạt, bị dừng hay hỏng thì chữ soạn sẵn là câu trả lời, không kèm thông báo
-function introWriting(turn: Turn): boolean {
-  return !!turn.result && isIntro(turn.result) && (turn.gen === 'waiting' || turn.gen === 'running')
+// câu trả lời là lời mô hình tổng hợp từ các đoạn tìm được: lúc mô hình đang viết chỉ hiện dòng "đang soạn", không
+// hiện câu trích rồi thay. Câu trích (chọn bằng thuật toán) chỉ là câu trả lời khi không có mô hình, mô hình quá hạn,
+// hỏng hay bị dừng; mô hình thấy các đoạn không trả lời câu hỏi (declined) thì nói không tìm thấy, đoạn tìm được để
+// gập. Lời giới thiệu trợ lý: hỏng hay dừng thì chữ soạn sẵn là câu trả lời, không kèm thông báo
+function writing(turn: Turn): boolean {
+  return turn.gen === 'waiting' || turn.gen === 'running'
 }
 
 function stop(key: number) {
@@ -615,10 +619,23 @@ onBeforeUnmount(() => {
                   </button>
                 </section>
 
+                <!-- mô hình đọc các đoạn tìm được, thấy không trả lời câu hỏi -->
+                <section v-if="!writing(turn) && declined(turn.result)" class="sg-answer" data-testid="ask-declined">
+                  <p>{{ t('assist.declinedAnswer') }}</p>
+                  <button
+                    v-if="blocks(turn.result).extract" type="button"
+                    class="mt-2 min-h-6 text-[13px] font-medium text-brand-700 underline underline-offset-2"
+                    :aria-expanded="turn.showExtract" :aria-controls="`trich-${turn.key}`"
+                    @click="turn.showExtract = !turn.showExtract"
+                  >
+                    {{ turn.showExtract ? t('assist.hideFound') : t('assist.showFound') }}
+                  </button>
+                </section>
+
                 <!-- câu trích nguyên văn: là câu trả lời khi không có mô hình, là khối phụ khi có -->
                 <section
-                  v-if="blocks(turn.result).extract && (!blocks(turn.result).model || turn.showExtract)
-                    && !introWriting(turn)"
+                  v-if="blocks(turn.result).extract && !writing(turn)
+                    && ((!blocks(turn.result).model && !declined(turn.result)) || turn.showExtract)"
                   :id="`trich-${turn.key}`" class="sg-answer" :class="{ 'is-quote': blocks(turn.result).model }"
                   data-testid="ask-extract"
                 >
@@ -697,7 +714,8 @@ onBeforeUnmount(() => {
 
                 <!-- nguồn: mỗi nguồn một dòng gọn, "Chi tiết" mở đoạn trích -->
                 <section
-                  v-if="turn.result.sources.length && !isIntro(turn.result)" class="sg-sources"
+                  v-if="turn.result.sources.length && !isIntro(turn.result) && !writing(turn)
+                    && (!declined(turn.result) || turn.showExtract)" class="sg-sources"
                   :aria-labelledby="`nguon-${turn.key}`"
                 >
                   <h3 :id="`nguon-${turn.key}`" class="sg-sources-title">

@@ -27,7 +27,7 @@ import type { AskResult, AskSource } from '../app/composables/useApi.ts'
 const {
   ASK_ROLES, DATA_GROUP, DATA_LINKS, DATA_ROUTES, MASK_RE, MAX_PREVIOUS, MAX_QUESTION, ROUTES, SCOPE_PARAM,
   SUGGEST_GROUPS,
-  askAbout, blocks, canAskAbout, canView, citeLabel, cleanQuestion, fallbackSuggestions, hasMask, inAssistant,
+  askAbout, blocks, canAskAbout, canView, citeLabel, cleanQuestion, declined, fallbackSuggestions, hasMask, inAssistant,
   isIntro, needsGenerate, pageUrl, plainIntro, previousFor, scopeOf, searched, segments, sourceAnchor, tidy,
 } = await import('../app/utils/answer.ts')
 
@@ -166,6 +166,14 @@ test('khối hiện: câu trả lời của mô hình và câu trích; mô hình
   assert.deepEqual(blocks({ answer: null, extract: null }), { model: null, extract: null, direct: null })
   assert.deepEqual(blocks({ answer: { ...model, text: '' }, extract: null }),
     { model: null, extract: null, direct: null })
+})
+
+test('mô hình thấy các đoạn tìm được không trả lời câu hỏi: nói "không tìm thấy", không lấy câu trích', () => {
+  const model = { text: 'Điểm trung bình từ 3,2 trở lên [1].', source: 'model' as const, model: 'qwen3:1.7b' }
+  assert.equal(declined({ answer: SAMPLE.answer, extract: SAMPLE.extract, warnings: ['model_declined'] }), true)
+  assert.equal(declined({ answer: SAMPLE.answer, extract: SAMPLE.extract, warnings: ['model_timeout'] }), false)
+  assert.equal(declined({ answer: SAMPLE.answer, extract: SAMPLE.extract, warnings: [] }), false)
+  assert.equal(declined({ answer: model, extract: SAMPLE.extract, warnings: ['model_declined'] }), false)
 })
 
 test('nhãn che thông tin cá nhân (F4.4): nhận đúng nhãn, không nhầm với dấu trích dẫn', () => {

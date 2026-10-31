@@ -164,6 +164,11 @@ export function isIntro(res: Pick<AskResult, 'route'>): boolean {
   return res.route === 'gioi_thieu'
 }
 
+/** Mô hình đọc các đoạn tìm được và thấy chúng không trả lời câu hỏi (du_can_cu: false): tìm trúng chỗ sai. */
+export function declined(res: Pick<AskResult, 'answer' | 'extract' | 'warnings'>): boolean {
+  return !blocks(res).model && res.warnings.includes('model_declined')
+}
+
 /** Câu trích của tệp Giới thiệu trợ lý (“…” [1]) thành chữ thường để hiện như tin nhắn. */
 export function plainIntro(text: string): string {
   return text.replace(/^“([\s\S]*)”\s*\[\d+\]$/u, '$1')
