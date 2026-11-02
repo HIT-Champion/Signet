@@ -41,6 +41,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trợ lý hỏi đáp dùng mô hình chọn loại câu hỏi và hiểu câu nối tiếp trước khi tìm, bộ quy tắc chỉ còn là dự phòng (#496).
 - Trang Danh mục ứng dụng không còn đứng ở "Đang tải…" khi máy chủ chưa cài wiki nội bộ (#496).
 - Trang Xác thực văn bản và Trạng thái hệ thống có nút về trang chủ; logo ở thanh trên cũng về trang chủ (#494).
+- Trình dựng form: khung khai báo `app.yaml`, nội dung tệp và dữ liệu xem trước cuộn được bằng bàn phím (#516).
 
 ## [1.4.0] - 2026-10-31
 

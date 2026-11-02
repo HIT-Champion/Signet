@@ -17,14 +17,12 @@
 import AxeBuilder from '@axe-core/playwright'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { PASSWORD, TOTP_SECRET, signIn } from './helpers'
+import { AXE_TAGS, PASSWORD, TOTP_SECRET, signIn } from './helpers'
 
 // Trợ năng tự động (#246): axe-core quét cả trang theo WCAG 2.0, 2.1 mức A, AA và tiêu chí mới của 2.2 mức AA (#250,
 // như cỡ vùng bấm 2.5.8). Mỗi vai trò đăng nhập một lần rồi quét nhiều trang (tài khoản có TOTP phải chờ khoảng mã
 // mới). Lỗi chưa sửa nằm trong ALLOW, mỗi dòng có rule, trang, lý do và issue; danh sách chỉ ngắn đi: dòng nào không
 // còn khớp lỗi nào ở trang đã quét thì test đỏ. Kết quả từng trang ở test-results/axe/ (CI giữ lại khi test hỏng).
-
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 
 interface Allowed { rule: string, page: string, reason: string, issue: number }
 const ALLOW: Allowed[] = []
@@ -41,7 +39,7 @@ async function scan(page: Page, name: string, ready?: Locator): Promise<string[]
   await expect(ready ?? page.getByRole('heading', { level: 1 }).first()).toBeVisible()
   await expect(page.getByText('Đang tải…')).toHaveCount(0)
   await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {})
-  const { violations } = await new AxeBuilder({ page }).withTags(TAGS).analyze()
+  const { violations } = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()
   scanned.add(name)
   mkdirSync('test-results/axe', { recursive: true })
   writeFileSync(`test-results/axe/${name.replace(/[^a-z0-9]+/gi, '_')}.json`, JSON.stringify(violations, null, 2))
