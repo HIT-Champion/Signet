@@ -16,7 +16,7 @@
 
 import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
-import { expect, test, type Locator } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import { AXE_TAGS, PASSWORD, TOTP_SECRET, shot, signIn } from './helpers'
 
 // Trình dựng form (/ung-dung/dung-form, #303 bước 1b): quản trị đơn vị mở trang từ Danh mục ứng dụng, khai một form
@@ -25,6 +25,16 @@ import { AXE_TAGS, PASSWORD, TOTP_SECRET, shot, signIn } from './helpers'
 // báo lỗi, điền đủ thì ra dữ liệu sẽ gửi; tệp tải về đúng tên, đúng nội dung đang hiện. Không gọi API nào: form chỉ
 // vào lõi khi cài bằng moc app install (svc-workflow kiểm lại lúc đó). Chuyên viên không có nút, mở thẳng đường dẫn
 // thì thấy câu chỉ quản trị dùng được. Hai ảnh (dung-form-*) dùng cho tài liệu, chép từ artifact e2e-anh của CI.
+
+// Ảnh cho tài liệu: khung nhìn cao bằng cả trang rồi mới chụp. Chụp toàn trang ở khung 860px thì Chrome ghép từng
+// đoạn, cột phải (sticky) và thanh bên trôi xuống giữa ảnh, phần đầu ảnh mất cột kiểm, xem trước
+async function shotWhole(page: Page, name: string) {
+  const size = page.viewportSize()!
+  const height = await page.evaluate(() => document.documentElement.scrollHeight)
+  await page.setViewportSize({ width: size.width, height: Math.max(size.height, height) })
+  await shot(page, name)
+  await page.setViewportSize(size)
+}
 
 test('trình dựng form: khai trường, xem trước, tải tệp JSON Schema; chỉ quản trị đơn vị', async ({ browser }) => {
   test.skip(!PASSWORD || !TOTP_SECRET, 'đặt MOC_DEMO_PASSWORD, MOC_DEMO_TOTP_SECRET (make e2e tự đọc từ .env)')
@@ -70,7 +80,7 @@ test('trình dựng form: khai trường, xem trước, tải tệp JSON Schema;
   await expect(admin.getByTestId('fb-passed')).toBeVisible()
   await expect(admin.getByTestId('fb-manifest'))
     .toHaveText('workflow:\n  forms:\n    dat-phong.dang-ky-phong-hop: forms/dang-ky-phong-hop.json\n')
-  await shot(admin, 'dung-form-1-cac-truong')
+  await shotWhole(admin, 'dung-form-1-cac-truong')
 
   // xem trước: gửi trống thì ba ô bắt buộc báo lỗi, điền đủ thì ra dữ liệu sẽ gửi
   const preview = admin.getByTestId('form-builder-preview')
@@ -87,7 +97,7 @@ test('trình dựng form: khai trường, xem trước, tải tệp JSON Schema;
   await send.click()
   const sent = JSON.parse(await admin.getByTestId('fb-sent').locator('pre').innerText()) as Record<string, unknown>
   expect(sent).toEqual({ noiDungCuocHop: 'Họp bộ môn tháng 11', ngayHop: '2030-01-15', phong: 'phong-b' })
-  await shot(admin, 'dung-form-2-xem-truoc')
+  await shotWhole(admin, 'dung-form-2-xem-truoc')
 
   // trợ năng của chính trang này (trang cần vai quản trị, tro-nang.spec.ts không quét): khung sửa đang mở, dữ liệu
   // của phần xem trước và nội dung tệp đang hiện — các khung mã cuộn được phải nhận tiêu điểm bàn phím
