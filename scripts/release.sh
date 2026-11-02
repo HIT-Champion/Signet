@@ -87,7 +87,7 @@ fi
 
 # Ký thẻ khi người phát hành có khóa ký (#492): máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS chỉ tự nâng lên thẻ ký SSH bằng
 # khóa trong danh sách (docs/van-hanh.md mục GitOps). Có user.signingkey hoặc tag.gpgSign=true thì git tag -s; ký lỗi
-# thì dừng khi chưa có thẻ, chưa có gói. Không có khóa thì vẫn gắn thẻ không ký và báo rõ
+# thì dừng khi chưa có thẻ, chưa có gói. Không có khóa thì vẫn gắn thẻ không ký; thẻ không có chữ ký SSH thì báo ở cuối
 if [ -n "$(git config user.signingkey || true)" ] || [ "$(git config --type=bool tag.gpgSign || true)" = true ]; then
   echo "==> Gắn thẻ phiên bản $TAG, có ký ($(git config gpg.format || echo openpgp))"
   # chương trình ký trượt thì git vẫn có thể gắn thẻ không chữ ký và thoát 0 (gặp với gpg.format=ssh): kiểm chính thẻ
@@ -100,9 +100,6 @@ if [ -n "$(git config user.signingkey || true)" ] || [ "$(git config --type=bool
 else
   echo "==> Gắn thẻ phiên bản $TAG"
   git tag -a "$TAG" -m "Signet $VERSION"
-  echo "Cảnh báo: thẻ $TAG KHÔNG KÝ (chưa đặt user.signingkey): máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS sẽ không tự" \
-       "nâng lên bản này. Ký bằng khóa SSH: git config gpg.format ssh && git config user.signingkey" \
-       "~/.ssh/id_ed25519.pub, gỡ thẻ (git tag -d $TAG), xóa $DIST/signet-$VERSION.* rồi chạy lại." >&2
 fi
 
 mkdir -p "$DIST"
@@ -130,4 +127,12 @@ echo ""
 echo "Đã tạo bản phát hành $TAG:"
 ls -lh "$DIST/signet-$VERSION.tar.gz"*
 echo ""
+# Reconciler chỉ nhận chữ ký SSH (reconcile.verify_signature tắt OpenPGP, X.509): thẻ không ký, ký bằng khóa GPG hay
+# do git tự ký (tag.forceSignAnnotated) đều không lên máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS (#514). Kiểm chính thẻ và
+# báo ngay trước lệnh đẩy thẻ
+if [[ "$(git cat-file tag "$TAG")" != *"-----BEGIN SSH SIGNATURE-----"* ]]; then
+  echo "Cảnh báo: thẻ $TAG KHÔNG KÝ bằng khóa SSH: máy chủ đặt MOC_GITOPS_ALLOWED_SIGNERS sẽ không tự nâng lên bản" \
+       "này. Ký bằng khóa SSH: git config gpg.format ssh && git config user.signingkey ~/.ssh/id_ed25519.pub, gỡ" \
+       "thẻ (git tag -d $TAG), xóa $DIST/signet-$VERSION.* rồi chạy lại." >&2
+fi
 echo "Bước tiếp theo:  git push origin $TAG    # chỉ thẻ này; GitHub Actions tạo Release kèm .tar.gz, SBOM, .sha256"

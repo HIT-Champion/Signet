@@ -19,7 +19,8 @@
 lỗi chứ không ra ghi chú rỗng. Không phát hành lại: release.sh dừng trước khi gắn khi thẻ đã có trên origin hay ở máy,
 không hỏi được origin cũng dừng; máy không có sha256sum (macOS) thì dùng shasum -a 256, thiếu cả hai thì dừng trước khi
 gắn thẻ (#57); có khóa ký (user.signingkey) thì thẻ ký và reconciler bật MOC_GITOPS_ALLOWED_SIGNERS nhận nó, ký
-lỗi thì dừng khi chưa có thẻ, không có khóa thì báo rõ thẻ không ký (#492); release.yml dừng khi thẻ đã có Release,
+lỗi thì dừng khi chưa có thẻ, không có khóa thì báo rõ thẻ không ký (#492), ký bằng khóa GPG cũng báo vì reconciler
+chỉ nhận chữ ký SSH (#514); release.yml dừng khi thẻ đã có Release,
 kể cả nháp (chạy lệnh của bước với gh giả), và
 báo lỗi khi action không tải lên đủ bốn tệp (gói, SBOM, hai .sha256). Trang Release (scripts/release_body.py): dòng chỉ
 gói .tar.gz chính thức và SBOM, phần tóm tắt đầu mục, toàn bộ ghi chép gập trong <details>, dòng tiếp nối nối lại.
@@ -277,6 +278,23 @@ class NoReReleaseTest(unittest.TestCase):
                     else:
                         with self.assertRaises(reconcile.ReconcileError):
                             reconcile.verify_signature(git, "v0.2.0", str(signers), tag=True)
+
+    @unittest.skipUnless(shutil.which("gpg") and shutil.which("gpgconf"), "cần gpg")
+    def test_gpg_signed_tag_is_reported(self) -> None:
+        # khóa ký là khóa GPG (thường dùng ký commit trên GitHub): thẻ có chữ ký PGP mà reconciler chỉ nhận SSH, nên
+        # phải báo như thẻ không ký (#514)
+        home = self.repo.parent / "gnupg"
+        home.mkdir(mode=0o700)
+        self.addCleanup(subprocess.run, ["gpgconf", "--homedir", str(home), "--kill", "gpg-agent"], check=False)
+        env = {**GIT_ENV, "GNUPGHOME": str(home)}
+        subprocess.run(["gpg", "--batch", "--passphrase", "", "--quick-gen-key", "Phat hanh <ph@example.org>",
+                        "ed25519", "sign", "never"], env=env, check=True, capture_output=True)
+        self.git("config", "user.signingkey", "ph@example.org")
+        with mock.patch.dict(GIT_ENV, {"GNUPGHOME": str(home)}):
+            proc = self.release()
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("-----BEGIN PGP SIGNATURE-----", self.git("cat-file", "tag", "v0.2.0"))
+        self.assertIn("thẻ v0.2.0 KHÔNG KÝ bằng khóa SSH", proc.stderr)
 
     def test_signing_error_stops_before_tagging(self) -> None:
         # chương trình ký lỗi (khóa hỏng, ssh-agent không có khóa…): không để lại thẻ không ký thay cho thẻ ký
