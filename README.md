@@ -140,7 +140,9 @@ AI trong Signet chỉ **gợi ý**, người quyết định; mặc định mọ
 Cả bốn chạy được **không cần mô hình ngôn ngữ**, nên CI, máy yếu, máy không có Internet đều chạy. Mô hình cục bộ
 (Ollama, Qwen3 1,7B, chạy trên CPU) viết trích yếu và câu trả lời: `make ai-model` rồi `make up-ai`. Riêng bước viết
 câu trả lời có thể gọi API ngoài chuẩn OpenAI thay Ollama (`MOC_ASK_API=openai`, tắt mặc định, #430); khi bật, câu hỏi
-và tối đa 4 đoạn văn bản làm căn cứ, đã che thông tin cá nhân, rời máy chủ. Số đo và giới hạn từng tác tử:
+và tối đa 4 đoạn văn bản làm căn cứ, đã che thông tin cá nhân, rời máy chủ. Bước nhúng (tìm theo nghĩa) cũng chuyển
+được ra API ngoài (`MOC_EMBED_API=openai`, tắt mặc định, #498); khi bật, mọi đoạn văn bản không hạn chế trong chỉ mục,
+đã che, rời máy chủ. Số đo và giới hạn từng tác tử:
 [`docs/danh-gia-ai.md`](docs/danh-gia-ai.md).
 
 ### Ảnh chụp màn hình

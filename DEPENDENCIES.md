@@ -472,5 +472,11 @@ demo của đội, hoặc là lựa chọn của đơn vị cài đặt:
   Khi bật, tên, phiên bản và giấy phép của mô hình phía đích do đơn vị chọn và tự chịu trách nhiệm. Gói phát hành và
   bản tự cài giữ mặc định, dùng Ollama tại chỗ; bản online của đội bật API này (`MOC_ASK_API=openai`, mô hình
   `gpt-6-luna-wd`, không phải mô hình nguồn mở), xem mục Chạy thử của [`README.md`](README.md).
+- **API nhúng chuẩn OpenAI (#498):** tắt mặc định, độc lập với API viết câu trả lời. Cùng giao thức mở (`/embeddings`),
+  đích có thể là vLLM, llama.cpp của đơn vị hay Azure AI Foundry, dịch vụ đám mây. Khi bật, mọi đoạn văn bản không hạn
+  chế trong chỉ mục của trợ lý, câu hỏi và trích yếu văn bản đến, đã che thông tin cá nhân, rời máy
+  ([`docs/van-hanh.md`](docs/van-hanh.md), mục Nhúng qua API ngoài); mô hình phía đích do đơn vị chọn và tự chịu trách
+  nhiệm. Gói phát hành và bản tự cài giữ mặc định, nhúng bằng Qwen3-Embedding trong Ollama tại chỗ; bản online (v1.4.0,
+  kiểm ngày 02/11/2026) cũng nhúng tại chỗ, chỉ bước viết câu trả lời đi API ngoài.
 - **Nơi tải về:** image từ Docker Hub, Quay.io; trọng số mô hình từ thư viện của Ollama, nguồn gốc là Hugging Face (mục
   Trí tuệ nhân tạo).

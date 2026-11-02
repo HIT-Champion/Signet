@@ -140,8 +140,10 @@ CI chạy đường không mô hình (tìm theo từ khóa, trả lời bằng c
 chế mà ra nguồn bị cấm thì CI đỏ. Đường có mô hình (Ollama, Qwen3) chỉ được kiểm bằng test đơn vị với mô hình giả và lần
 đo tay ở trên; chưa có bước CI nào gọi mô hình thật. Tùy chọn, tắt mặc định (#430): `MOC_ASK_API=openai` cho riêng bước
 viết câu trả lời đi tới một máy chủ nói chuẩn OpenAI (vLLM, llama.cpp tự chạy, hoặc dịch vụ đám mây). Khi đó câu hỏi
-và tối đa 4 đoạn căn cứ, đã che như trên, rời máy chủ tới nơi đặt API; tìm theo nghĩa vẫn ở Ollama, `svc-files` vẫn
-kiểm từng câu với đoạn nguồn ([`van-hanh.md`](../van-hanh.md) mục Trợ lý hỏi đáp qua API ngoài).
+và tối đa 4 đoạn căn cứ, đã che như trên, rời máy chủ tới nơi đặt API; `svc-files` vẫn kiểm từng câu với đoạn nguồn.
+Tìm theo nghĩa vẫn ở Ollama, trừ khi bật thêm `MOC_EMBED_API=openai` (#498, cũng tắt mặc định): khi đó mọi đoạn văn bản
+không hạn chế trong chỉ mục, đã che, cũng rời máy chủ để nhúng ([`van-hanh.md`](../van-hanh.md) mục Trợ lý hỏi đáp qua
+API ngoài).
 
 **Bằng chứng:** `make demo-hoi-dap`, `make do-hoi-dap` (thoát 1 khi có nguồn bị cấm), `make demo-che-pii`,
 `make do-che-pii`; `services/svc-files/README.md` (bảng số đo); [`docs/danh-gia-ai.md`](../danh-gia-ai.md) (CI không bật
