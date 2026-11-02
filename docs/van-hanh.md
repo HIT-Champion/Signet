@@ -350,10 +350,14 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   `vX.Y.Z` mới nhất có trên `main` thay cho đầu nhánh. Commit trên `main` chưa gắn thẻ, bản thử `-rc`, thẻ chưa vào
   `main` đều không tự lên. Đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì kiểm chữ ký của thẻ (`git verify-tag`), vì commit gộp
   trên `main` do GitHub ký OpenPGP: thẻ phải ký bằng khóa SSH trong danh sách. `make release`
-  (`scripts/release.sh`) ký thẻ (`git tag -s`) khi người phát hành đặt khóa ký như trên (`gpg.format ssh`,
-  `user.signingkey`), không đặt thì vẫn gắn thẻ không ký và báo rõ: reconciler không nhận thẻ đó, bản cũ chạy tiếp
-  (#492). Thẻ đến `v1.4.0` gắn trước khi có bước này nên không ký. Không đặt thì ai đẩy được thẻ `v*` lên GitHub là
-  đưa được bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
+  (`scripts/release.sh`) ký thẻ (`git tag -s`) khi người phát hành có khóa ký. Trước lần phát hành đầu, đặt khóa SSH
+  trên máy người phát hành như trên: `git config gpg.format ssh` và `git config user.signingkey ~/.ssh/id_ed25519.pub`
+  (thiếu `gpg.format ssh` thì git ký bằng GPG). Thẻ không có chữ ký SSH thì reconciler không nhận, bản cũ chạy tiếp:
+  không đặt khóa (vẫn gắn thẻ, không ký), ký bằng khóa GPG (thẻ ký được nhưng máy chủ không nâng), hay git tự ký vì
+  `tag.forceSignAnnotated`. Cả ba trường hợp `release.sh` đều cảnh báo ngay trước dòng "Bước tiếp theo" (lệnh đẩy
+  thẻ); khi đó gỡ thẻ (`git tag -d vX.Y.Z`), xóa `dist/signet-X.Y.Z.*`, đặt khóa SSH rồi chạy lại (#492, #514). Thẻ
+  đến `v1.4.0` gắn trước khi có bước này nên không ký. Không đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì ai đẩy được thẻ `v*`
+  lên GitHub là đưa được bản lên máy chủ: giới hạn bằng ruleset cho thẻ.
 
 ```bash
 # bản thật: mỗi bản phát hành trên main tự nâng, có sao lưu, lỗi thì tự lùi

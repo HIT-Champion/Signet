@@ -403,10 +403,15 @@ echo "MOC_GITOPS_ALLOWED_SIGNERS=/etc/moc/allowed_signers" >> /opt/moc/.env
   tags and tags not yet on `main` are never applied. With `MOC_GITOPS_ALLOWED_SIGNERS` set, the tag's signature is
   checked (`git verify-tag`), because merge commits on `main` carry GitHub's OpenPGP signature: the tag must be signed
   with an SSH key on the list. `make release` (`scripts/release.sh`) signs the tag (`git tag -s`) when the release
-  manager has set a signing key as above (`gpg.format ssh`, `user.signingkey`); without one it still tags, unsigned,
-  and says so: the reconciler does not accept that tag and the old version keeps running (#492). Tags up to `v1.4.0`
-  were made before this step and are unsigned. Without it, anyone who can push a `v*` tag to GitHub can put a
-  version on the server: restrict that with a ruleset on tags.
+  manager has a signing key. Before the first release, set an SSH key on the release manager's machine as above:
+  `git config gpg.format ssh` and `git config user.signingkey ~/.ssh/id_ed25519.pub` (without `gpg.format ssh`, git
+  signs with GPG). The reconciler rejects any tag without an SSH signature, and the old version keeps running: no key
+  set (the tag is still made, unsigned), a GPG key (the tag is signed but the server does not upgrade), or git signing
+  on its own because of `tag.forceSignAnnotated`. In all three cases `release.sh` warns right before the "Bước tiếp
+  theo" (next step) line that pushes the tag; then delete the tag (`git tag -d vX.Y.Z`), remove `dist/signet-X.Y.Z.*`,
+  set an SSH key and run it again (#492, #514). Tags up to `v1.4.0` were made before this step and are unsigned.
+  Without `MOC_GITOPS_ALLOWED_SIGNERS`, anyone who can push a `v*` tag to GitHub can put a version on the server:
+  restrict that with a ruleset on tags.
 
 ```bash
 # production: every release on main upgrades the site, with a backup and automatic rollback
