@@ -24,7 +24,7 @@ test('thanh trên: tên ngắn của đơn vị nếu có, không thì tên đ�
   assert.deepEqual(tenantNames({ name: ' Trường Kinh tế ', short_name: null }), {
     full: 'Trường Kinh tế', short: 'Trường Kinh tế',
   })
-  // lõi trước #466 không có cột: chỉ có name
+  // hàng không có khóa short_name (riêng hàm này; câu GraphQL của thanh trên thì cần cột của #466, ra cùng bản)
   assert.deepEqual(tenantNames({ name: 'Trường Kinh tế' }), { full: 'Trường Kinh tế', short: 'Trường Kinh tế' })
   assert.deepEqual(tenantNames({ name: 'Trường Kinh tế', short_name: '  ' }).short, 'Trường Kinh tế')
   for (const row of [null, undefined, {}, { name: null, short_name: null }]) {
