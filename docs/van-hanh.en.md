@@ -44,10 +44,11 @@ python3 scripts/moc.py tenant check KTCK     # do the Organization, its members 
   to each unit so that the certificate can say which unit issued the document; `svc-files` creates it in the vault the
   first time the unit issues a document.
 - `--short-name` (optional, #466): a short name for narrow places of the interface, stored in
-  `core.tenants.short_name`; without it `--name` is used. To rename a unit, run `tenant create` again with the same
-  `--code` and the new `--name` (and `--short-name`); running it again without `--short-name` keeps the old short name.
-  Known limitation: a signing certificate issued before the rename is not reissued, so documents issued afterwards
-  still name the old unit as the signer (#520).
+  `core.tenants.short_name`, such as the office app's top bar (hovering shows the full name, #521); without it `--name`
+  is used, never cut short automatically. To rename a unit, run `tenant create` again with the same `--code` and the
+  new `--name` (and `--short-name`); running it again without `--short-name` keeps the old short name. Known
+  limitation: a signing certificate issued before the rename is not reissued, so documents issued afterwards still
+  name the old unit as the signer (#520).
 - If the internal wiki is on, also run `python3 scripts/moc.py wiki sync` so that the new unit gets its own space
   (section Internal wiki); until then, people of the new unit can only read the wiki's start page.
 

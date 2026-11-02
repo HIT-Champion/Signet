@@ -35,10 +35,11 @@ python3 scripts/moc.py tenant check KTCK     # Organization, thành viên, danh 
   hóa gắn với đơn vị — lý do ở [`docs/mo-hinh-du-lieu.md`](mo-hinh-du-lieu.md) §1. Riêng khóa ký số văn bản đi
   (F4.5, minh họa) là của từng đơn vị, để chứng thư nói được đơn vị nào phát hành; `svc-files` tự tạo nó trong két ở
   lần phát hành đầu của đơn vị.
-- `--short-name` (tùy chọn, #466): tên ngắn cho chỗ hẹp của giao diện, ghi vào `core.tenants.short_name`; không khai
-  thì dùng `--name`. Đổi tên đơn vị: chạy lại `tenant create` cùng `--code` với `--name` (và `--short-name`) mới;
-  chạy lại mà không khai `--short-name` thì giữ tên ngắn cũ. Hạn chế đã biết: chứng thư ký số cấp trước khi đổi tên
-  chưa được cấp lại, nên văn bản phát hành sau đó vẫn ghi người ký là tên cũ (#520).
+- `--short-name` (tùy chọn, #466): tên ngắn cho chỗ hẹp của giao diện, ghi vào `core.tenants.short_name`, vd thanh
+  trên cùng của Văn phòng điện tử (rê chuột thấy tên đầy đủ, #521); không khai thì dùng `--name`, không tự cắt chuỗi.
+  Đổi tên đơn vị: chạy lại `tenant create` cùng `--code` với `--name` (và `--short-name`) mới; chạy lại mà không khai
+  `--short-name` thì giữ tên ngắn cũ. Hạn chế đã biết: chứng thư ký số cấp trước khi đổi tên chưa được cấp lại, nên
+  văn bản phát hành sau đó vẫn ghi người ký là tên cũ (#520).
 - Đã bật wiki nội bộ thì chạy thêm `python3 scripts/moc.py wiki sync` để đơn vị mới có không gian riêng (mục Wiki
   nội bộ); chưa chạy thì người của đơn vị mới chỉ đọc được trang đầu của wiki.
 

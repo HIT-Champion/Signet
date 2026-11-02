@@ -36,8 +36,9 @@ bản tự cài xem [README](../../README.md#chạy-thử), mục Chạy thử.
 4. Vào được thì thanh bên trái là menu, mỗi vai trò thấy một bộ mục khác nhau. Trên máy tính, thanh bên chỉ hiện biểu
    tượng, rê chuột vào thì mở ra kèm tên mục; trên điện thoại, bấm nút menu ở góc trên. Cuối thanh bên có **Xác thực
    văn bản**, **Trạng thái hệ thống**, rồi tên, vai trò của bạn và nút đăng xuất (biểu tượng mũi tên ra khỏi khung, rê
-   chuột vào hiện chữ "Đăng xuất"). Thanh trên cùng ghi tên đơn vị và trang đang mở, ngày hôm nay, nút **Góp ý**,
-   chuông thông báo và nút đổi ngôn ngữ **EN** / **VI**.
+   chuột vào hiện chữ "Đăng xuất"). Thanh trên cùng ghi tên đơn vị (tên ngắn nếu đơn vị có, vd "Trường CNTT & TT";
+   rê chuột vào thấy tên đầy đủ) và trang đang mở, ngày hôm nay, nút **Góp ý**, chuông thông báo và nút đổi ngôn ngữ
+   **EN** / **VI**.
 
 Mã bị từ chối thường do đồng hồ điện thoại lệch: bật giờ tự động. Sai 10 lần thì tài khoản bị tạm khóa.
 
