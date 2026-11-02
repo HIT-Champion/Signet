@@ -16,6 +16,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trang Hỏi đáp có lịch sử trò chuyện: nhiều cuộc, lưu trong trình duyệt theo tài khoản, đăng xuất là xóa (#504).
 
 ### Đã sửa đổi
+- Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
+  ký là Hiệu trưởng. Đơn vị có thêm tên ngắn `short_name` cho chỗ hẹp, đặt bằng `moc tenant create --short-name` (#466).
 - Trang đăng nhập: logo nổi bật hơn, bố cục mềm và cân đối hơn, vừa màn hình điện thoại và laptop (#480).
 - Trợ lý hỏi đáp: lúc chờ tìm và chờ soạn câu trả lời hiện logo Signet chuyển động thay vòng xoay (#499).
 - Trợ lý hỏi đáp: mọi câu trả lời do mô hình viết, kể cả đếm văn bản, việc của tôi, câu ngoài phạm vi, không tìm
@@ -40,6 +42,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trợ lý hỏi đáp dùng mô hình chọn loại câu hỏi và hiểu câu nối tiếp trước khi tìm, bộ quy tắc chỉ còn là dự phòng (#496).
 - Trang Danh mục ứng dụng không còn đứng ở "Đang tải…" khi máy chủ chưa cài wiki nội bộ (#496).
 - Trang Xác thực văn bản và Trạng thái hệ thống có nút về trang chủ; logo ở thanh trên cũng về trang chủ (#494).
+- Trình dựng form: khung khai báo `app.yaml`, nội dung tệp và dữ liệu xem trước cuộn được bằng bàn phím (#516).
 
 ## [1.4.0] - 2026-10-31
 

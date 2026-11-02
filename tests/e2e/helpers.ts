@@ -29,6 +29,9 @@ const SHOTS = process.env.MOC_E2E_SCREENSHOTS ?? 'test-results/screens'
 // một tệp tải lên đúng lúc đó chờ tới khi nạp xong, lâu hơn nhiều so với hạn 15 giây mặc định của expect (#287)
 export const SCAN_TIMEOUT = 60_000
 
+// Tiêu chí axe-core cho mọi lần quét trợ năng (#246, #250): WCAG 2.0, 2.1 mức A, AA và tiêu chí mới của 2.2 mức AA
+export const AXE_TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
+
 // Tệp PDF một trang có lớp chữ (Helvetica, chỉ ASCII) để tải lên: ClamAV quét như tệp thật, svc-files đọc được chữ
 // để tìm theo nội dung (F2.7)
 export function textPdf(...lines: string[]): Buffer {

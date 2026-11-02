@@ -63,7 +63,7 @@ ISSUERS = (("Phòng Đào tạo", "ĐT-ĐH"), ("Phòng Công tác sinh viên", "
            ("Công ty Cổ phần Công nghệ Mẫu", "CTD"))
 SUBJECTS = ("tổ chức thi kết thúc học phần học kỳ I năm học 2026–2027",
             "rà soát chương trình đào tạo ngành Kế toán theo chuẩn đầu ra mới",
-            "xét cấp học bổng khuyến khích học tập cho sinh viên khoa Kinh tế",
+            "xét cấp học bổng khuyến khích học tập cho sinh viên Trường Kinh tế",
             "báo cáo số liệu tuyển sinh đại học chính quy năm 2026",
             "cử giảng viên tham gia hội thảo kinh tế số và chuyển đổi xanh",
             "kiểm kê tài sản, thiết bị cuối năm tài chính 2026",
@@ -76,7 +76,7 @@ SUBJECTS = ("tổ chức thi kết thúc học phần học kỳ I năm học 20
             "triển khai khảo sát ý kiến người học về hoạt động giảng dạy",
             "xây dựng kế hoạch giảng dạy học kỳ hè năm học 2026–2027",
             "tổ chức sinh hoạt công dân đầu khóa cho sinh viên khóa mới",
-            "lập dự toán ngân sách năm 2027 của khoa Kinh tế")
+            "lập dự toán ngân sách năm 2027 của Trường Kinh tế")
 URGENCY = ("normal",) * 6 + ("khan", "thuong_khan")
 
 # Dòng sai cố ý — số thứ tự dòng dữ liệu (1-based) → mã lỗi mong đợi (và lỗi theo trường khi Action báo)

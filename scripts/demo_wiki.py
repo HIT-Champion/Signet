@@ -18,9 +18,9 @@
 
 Đi đúng đường của trình duyệt, qua cổng APISIX: /wiki/doku.php?do=login → plugin oauth của DokuWiki chuyển sang
 Keycloak → mật khẩu (văn thư thêm mã TOTP) → Keycloak chuyển về /wiki/doku.php kèm mã, wiki tự đổi mã lấy token bằng
-client bí mật `wiki` rồi đọc nhóm (đơn vị) ở userinfo. Giảng viên Khoa CNTT viết trang trong không gian đơn vị mình;
-văn thư Khoa Kinh tế đã đăng nhập vẫn không đọc, không sửa được trang đó, sơ đồ trang của văn thư không liệt kê nó;
-chiều ngược lại cũng vậy. Người chưa đăng nhập bị đưa sang trang đăng nhập Keycloak. Tài khoản wiki do plugin tạo ở
+client bí mật `wiki` rồi đọc nhóm (đơn vị) ở userinfo. Giảng viên Trường CNTT & TT viết trang trong không gian đơn vị
+mình; văn thư Trường Kinh tế đã đăng nhập vẫn không đọc, không sửa được trang đó, sơ đồ trang của văn thư không liệt kê
+nó; chiều ngược lại cũng vậy. Người chưa đăng nhập bị đưa sang trang đăng nhập Keycloak. Tài khoản wiki do plugin tạo ở
 lần đăng nhập đầu từ dữ liệu Keycloak, nhóm là mã đơn vị.
 
 --sau-khoi-phuc: chỉ đăng nhập lại và đọc trang của lần chạy trước — bước kiểm sau moc backup restore trong CI.
@@ -44,7 +44,8 @@ from demo_ca_nhan import Browser, DemoFailed, ok, say
 from moc_env import ENV, PUBLIC_URL, REALM, ROOT, HTTPError, _otp_counter, request, totp_at
 
 WIKI = f"{PUBLIC_URL}{wiki.BASE}"
-WRITER, CLERK = "giangvienktpm", "vanthukt"      # seed/users.csv: giảng viên Khoa CNTT; văn thư Khoa Kinh tế (TOTP)
+# seed/users.csv: giảng viên Trường CNTT & TT; văn thư Trường Kinh tế (TOTP)
+WRITER, CLERK = "giangvienktpm", "vanthukt"
 TENANT_CNTT = "c300d5bb-028f-44cc-ba10-7b5277a4225d"
 PAGE = "so-tay"
 MARKER = "Trang viết bằng màn demo wiki nội bộ"   # chữ thường, không có cú pháp DokuWiki: hiện y nguyên trong HTML
@@ -161,9 +162,9 @@ def run() -> None:
         raise DemoFailed(f"/wiki/health.php trả {status} {body[:80]!r} — chạy make wiki-up trước")
     ns = units()
     cntt, kt = ns["CNTT"], ns["KT"]
-    ok(f"health.php: ok; không gian Khoa CNTT {cntt}, Khoa Kinh tế {kt}")
+    ok(f"health.php: ok; không gian Trường CNTT & TT {cntt}, Trường Kinh tế {kt}")
 
-    say(2, f"{WRITER} (giảng viên Khoa CNTT) đăng nhập wiki: chuyển sang Keycloak, quay về đã đăng nhập")
+    say(2, f"{WRITER} (giảng viên Trường CNTT & TT) đăng nhập wiki: chuyển sang Keycloak, quay về đã đăng nhập")
     writer = login(WRITER)
     groups = wiki_users().get(WRITER, [])
     if TENANT_CNTT not in groups:
@@ -178,7 +179,8 @@ def run() -> None:
         raise DemoFailed(f"sau khi lưu, trang {cntt}:{PAGE} không có nội dung vừa viết ({page.path})")
     ok(f"đã lưu, mở lại thấy đúng nội dung (lần {tag})")
 
-    say(4, f"{CLERK} (văn thư Khoa Kinh tế, mật khẩu + TOTP) đăng nhập; không đọc, không sửa được trang của Khoa CNTT")
+    say(4, f"{CLERK} (văn thư Trường Kinh tế, mật khẩu + TOTP) đăng nhập; không đọc, không sửa được trang của"
+           " Trường CNTT & TT")
     clerk = login(CLERK)
     for action in ("", "?do=edit"):
         seen = open_page(clerk, f"{WIKI}{cntt}:{PAGE}{action}")
@@ -186,11 +188,11 @@ def run() -> None:
             raise DemoFailed(f"{CLERK} mở {cntt}:{PAGE}{action} mà không bị từ chối")
     if in_index(clerk, f"{cntt}:{PAGE}") or not in_index(writer, f"{cntt}:{PAGE}"):
         raise DemoFailed(f"sơ đồ trang: {CLERK} thấy, hoặc {WRITER} không thấy {cntt}:{PAGE}")
-    ok(f"xem, sửa trang của Khoa CNTT: \"{DENIED}\"; sơ đồ trang của {CLERK} không liệt kê trang đó")
-    save(clerk, f"{kt}:{PAGE}", f"====== Sổ tay Khoa Kinh tế ======\n\nGhi chú lần {tag}.\n", f"demo wiki {tag}")
+    ok(f"xem, sửa trang của Trường CNTT & TT: \"{DENIED}\"; sơ đồ trang của {CLERK} không liệt kê trang đó")
+    save(clerk, f"{kt}:{PAGE}", f"====== Sổ tay Trường Kinh tế ======\n\nGhi chú lần {tag}.\n", f"demo wiki {tag}")
     seen = open_page(writer, f"{WIKI}{kt}:{PAGE}")
     if tag in seen.body or DENIED not in seen.body:
-        raise DemoFailed(f"{WRITER} đọc được {kt}:{PAGE} của Khoa Kinh tế")
+        raise DemoFailed(f"{WRITER} đọc được {kt}:{PAGE} của Trường Kinh tế")
     ok(f"{CLERK} viết được trong {kt}; chiều ngược lại {WRITER} cũng bị từ chối ở trang đó")
 
     say(5, "Người chưa đăng nhập mở trang đó: bị đưa sang trang đăng nhập Keycloak, không thấy nội dung")
