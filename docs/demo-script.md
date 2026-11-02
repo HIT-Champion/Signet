@@ -151,7 +151,8 @@ gửi mô hình và trong nhật ký (`make demo-che-pii`, F4.4) là bằng ch�
    `-127 °C` (ngoài dải); kho 3 đồng hồ đứng (`--frozen-clock`, trùng `observedAt`); phòng đọc gửi số đo cũ hơn
    `MOC_OT_STALE_MIN` + 20 phút (`--late`, mất tín hiệu); phòng xử lý đồng hồ nhanh 30 phút (`--clock-ahead`, giờ đo
    ở tương lai — broker vừa nhận nên không mất tín hiệu). Văn thư gọi Action `otSensorMap`: đúng cờ từng cảm biến,
-   phòng máy chủ vượt ngưỡng; văn thư Khoa Kinh tế không thấy cảm biến của Khoa CNTT; quản trị đơn vị không có Action.
+   phòng máy chủ vượt ngưỡng; văn thư Trường Kinh tế không thấy cảm biến của Trường CNTT & TT; quản trị đơn vị không có
+   Action.
 
 Trên giao diện (`chuyenviendt`): chuông thông báo "Cảnh báo nhiệt độ…", mục Văn bản đi có dự thảo, dòng thời gian
 ghi "Cảm biến … đo 41 °C, vượt ngưỡng 35 °C — hệ thống dựng dự thảo". Mục "Sơ đồ cảm biến" (`/cam-bien`, văn thư,
@@ -399,19 +400,20 @@ vụ chạy trên cùng nền (tách đơn vị, kiểm dịch, sổ kiểm toá
 
 **Lệnh in ra 7 bước:**
 
-1. `chuyenviendt` (Khoa CNTT) đọc danh sách đơn vị trong hệ thống (không có đơn vị mình), soạn công văn gửi Khoa
-   Kinh tế.
+1. `chuyenviendt` (Trường CNTT & TT) đọc danh sách đơn vị trong hệ thống (không có đơn vị mình), soạn công văn gửi
+   Trường Kinh tế.
 2. Trình → `totruongdt` duyệt → `truongkhoa` ký → `vanthu` phát hành. In số ký hiệu, mã xác thực, SHA-256.
-3. Đợi văn bản đến ở Khoa Kinh tế (thường vài giây, tối đa 90 giây): `received`, cùng số ký hiệu, nơi ban hành là
-   tên Khoa CNTT, đúng một tệp chính. `vanthukt` tải tệp về: SHA-256 trùng bản phát hành. `vanthukt` có thông báo
-   văn bản đến mới; bên gửi thấy dòng liên thông `delivered` và giờ chuyển.
+3. Đợi văn bản đến ở Trường Kinh tế (thường vài giây, tối đa 90 giây): `received`, cùng số ký hiệu, nơi ban hành
+   là tên Trường Công nghệ thông tin và Truyền thông, đúng một tệp chính. `vanthukt` tải tệp về: SHA-256 trùng bản
+   phát hành. `vanthukt` có thông báo văn bản đến mới; bên gửi thấy dòng liên thông `delivered` và giờ chuyển.
 4. Văn bản đến mang mã xác thực và băm của bên gửi; cổng xác thực (không đăng nhập) tra theo mã → "khớp", tra theo
    SHA-256 của tệp nhận được → "khớp".
-5. `vanthukt` vào sổ → số đến trong sổ của Khoa Kinh tế; `truongkhoakt` có việc cho ý kiến chỉ đạo. Khoa CNTT
-   không đọc được văn bản đến đó.
+5. `vanthukt` vào sổ → số đến trong sổ của Trường Kinh tế; `truongkhoakt` có việc cho ý kiến chỉ đạo. Trường
+   CNTT & TT không đọc được văn bản đến đó.
 6. Sổ kiểm toán: `truongkhoa` thấy các dòng `office.dispatches` (tạo lúc phát hành, chuyển xong); `truongkhoakt`
-   thấy văn bản đến, vào sổ, bản sao tệp (người thực hiện `service`) và không đọc được dòng nào của Khoa CNTT.
-7. Dự thảo hạn chế chọn Khoa Kinh tế → CSDL từ chối (`documents_restricted_local`).
+   thấy văn bản đến, vào sổ, bản sao tệp (người thực hiện `service`) và không đọc được dòng nào của Trường
+   CNTT & TT.
+7. Dự thảo hạn chế chọn Trường Kinh tế → CSDL từ chối (`documents_restricted_local`).
 
 **Trên giao diện:**
 
@@ -736,9 +738,11 @@ người ngoài kiểm được ai ký, tệp có bị sửa sau khi ký hay kh�
    gian riêng bước phát hành (cấp số, dựng PDF, ký bằng khóa trong két, tự kiểm chữ ký, ClamAV, lưu); lần ký đầu của
    đơn vị thì báo két vừa sinh khóa, CA vừa cấp chứng thư.
 3. Tải bản phát hành: SHA-256 bằng `content_sha256`; tệp có `/ByteRange`, `/ETSI.CAdES.detached`, chữ ký phủ tới byte
-   cuối. `/api/verify/<mã>` có `signature`: chuẩn `PAdES-B-B`, ký bởi "Khoa Công nghệ thông tin" (CN tối đa 64 byte
+   cuối. `/api/verify/<mã>` có `signature`: chuẩn `PAdES-B-B`, ký bởi tên đơn vị trong chứng thư (CN tối đa 64 byte
    UTF-8: tên kèm "Trường Đại học Công nghiệp" dài hơn nên chỉ còn tên đơn vị), CA, số sê-ri, giờ ký (tự ghi, không có
-   dấu thời gian tin cậy), `illustrative: true`. psql `core.file_signatures`: khóa `moc-ky-so-<đơn vị>`, phiên bản, cùng
+   dấu thời gian tin cậy), `illustrative: true`. Bản cài mới ký là "Trường Công nghệ thông tin và Truyền thông"; bản
+   online và dữ liệu nâng từ v1.4.0 vẫn là "Khoa Công nghệ thông tin", vì chứng thư cấp trước khi đổi tên chưa được
+   cấp lại (#520). psql `core.file_signatures`: khóa `moc-ky-so-<đơn vị>`, phiên bản, cùng
    số sê-ri.
 4. `python -m svc_files.signing verify` trong svc-files (tệp qua stdin): in nguyên các dòng — "Chữ ký hợp lệ — PKI nội
    bộ Signet (MẪU), chỉ minh họa…", ký bởi, CA, số sê-ri, giờ ký, phủ toàn bộ tệp — thoát 0.
@@ -761,8 +765,8 @@ phát hành vào: "khớp từng byte" như trước.
 CA nội bộ không nằm trong danh sách tin cậy công cộng; đó là hành vi đúng):
 
 1. `vanthu` tải bản phát hành ở màn văn bản. Mở bằng Adobe Acrobat Reader hoặc Okular: thấy chữ ký chứng nhận của
-   "Khoa Công nghệ thông tin", lý do "Phát hành văn bản <số ký hiệu>", trạng thái chưa tin
-   cậy.
+   đơn vị (tên như ở bước 3 trên: bản online còn tên cũ, #520), lý do "Phát hành văn bản <số ký hiệu>", trạng thái
+   chưa tin cậy.
 2. Lấy chứng thư CA: bấm "Tải chứng thư CA (minh họa)" trong khối chữ ký số ở `/xac-thuc/<mã>` (tệp `signet-ca.pem`,
    trang in kèm vân tay SHA-256; dùng tên tệp này ở bước 3), hoặc trong thư mục mã nguồn hay thư mục cài:
    `docker compose exec -T openbao wget -qO- http://127.0.0.1:8200/v1/pki/ca/pem > moc-ca-noi-bo-MAU.pem` — so vân tay

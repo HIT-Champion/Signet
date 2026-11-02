@@ -21,9 +21,9 @@ số đếm và tên văn bản trên ảnh khác với máy của bạn.
 Việc mọi vai trò đều làm (hộp việc, thông báo, tìm kiếm, hỏi đáp, không gian cá nhân, góp ý, đổi ngôn ngữ):
 [Việc chung](viec-chung.md).
 
-Các tài khoản mẫu ở trên thuộc Khoa CNTT. `vanthukt` (văn thư) và `truongkhoakt` (lãnh đạo) thuộc Khoa Kinh tế, dùng để
-thử tách đơn vị: mỗi bên chỉ thấy văn bản của khoa mình. Mật khẩu: bản online gửi kèm hồ sơ dự thi; bản tự cài xem
-[README](../../README.md#chạy-thử), mục Chạy thử.
+Các tài khoản mẫu ở trên thuộc Trường CNTT & TT. `vanthukt` (văn thư) và `truongkhoakt` (lãnh đạo) thuộc Trường Kinh
+tế, dùng để thử tách đơn vị: mỗi bên chỉ thấy văn bản của đơn vị mình. Mật khẩu: bản online gửi kèm hồ sơ dự thi;
+bản tự cài xem [README](../../README.md#chạy-thử), mục Chạy thử.
 
 ## Đăng nhập
 
@@ -36,8 +36,9 @@ thử tách đơn vị: mỗi bên chỉ thấy văn bản của khoa mình. M�
 4. Vào được thì thanh bên trái là menu, mỗi vai trò thấy một bộ mục khác nhau. Trên máy tính, thanh bên chỉ hiện biểu
    tượng, rê chuột vào thì mở ra kèm tên mục; trên điện thoại, bấm nút menu ở góc trên. Cuối thanh bên có **Xác thực
    văn bản**, **Trạng thái hệ thống**, rồi tên, vai trò của bạn và nút đăng xuất (biểu tượng mũi tên ra khỏi khung, rê
-   chuột vào hiện chữ "Đăng xuất"). Thanh trên cùng ghi tên đơn vị và trang đang mở, ngày hôm nay, nút **Góp ý**,
-   chuông thông báo và nút đổi ngôn ngữ **EN** / **VI**.
+   chuột vào hiện chữ "Đăng xuất"). Thanh trên cùng ghi tên đơn vị (tên ngắn nếu đơn vị có, vd "Trường CNTT & TT";
+   rê chuột vào thấy tên đầy đủ) và trang đang mở, ngày hôm nay, nút **Góp ý**, chuông thông báo và nút đổi ngôn ngữ
+   **EN** / **VI**.
 
 Mã bị từ chối thường do đồng hồ điện thoại lệch: bật giờ tự động. Sai 10 lần thì tài khoản bị tạm khóa.
 

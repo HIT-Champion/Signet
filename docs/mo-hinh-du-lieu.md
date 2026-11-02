@@ -38,11 +38,12 @@ create table core.tenants (                 -- cơ quan, đơn vị dùng hệ t
   id          uuid primary key default gen_random_uuid(),
   code        text not null unique,          -- viết tắt dùng trong ký hiệu văn bản, vd 'KCNTT'
   name        text not null,
+  short_name  text,                          -- tên ngắn cho chỗ hẹp: 'Trường CNTT & TT'; NULL = dùng name (#466)
   org_ident   text unique,                   -- mã định danh 13 ký tự theo QCVN 102 (tùy chọn)
   -- in trên văn bản đi theo thể thức NĐ 30/2020; quản trị đơn vị sửa được
   parent_name text,                          -- cơ quan chủ quản: 'Trường Đại học …'
   place_name  text,                          -- địa danh trước ngày tháng: 'Hà Nội'
-  head_title  text,                          -- chức vụ người đứng đầu ở phần ký: 'Trưởng khoa'
+  head_title  text,                          -- chức vụ người đứng đầu ở phần ký: 'Hiệu trưởng'
   sample_data boolean not null default false, -- đơn vị mẫu do make seed nạp; số đo F4.6 ghi rõ (§2.5)
   created_at  timestamptz not null default now()
 );

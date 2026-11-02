@@ -71,7 +71,7 @@ Dữ liệu sai trả `422 {"errors": {"trường": "mã"}}`, với mã như `sc
 
 ## Kịch bản với tài khoản mẫu
 
-Tài khoản trong `seed/users.csv`, đơn vị Khoa CNTT:
+Tài khoản trong `seed/users.csv`, đơn vị Trường CNTT & TT:
 
 1. `giangvienktpm` (giảng viên Bộ môn KTPM) gửi đề nghị dạy bù.
 2. `truongbmktpm` (trưởng Bộ môn KTPM) thấy việc và đồng ý. `totruongdt` thuộc phòng khác nên không thấy.

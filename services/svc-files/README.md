@@ -770,10 +770,12 @@ của Signet cấp (CN "CA nội bộ Signet - MẪU, chỉ minh họa"), CA nà
   lần ký. Policy của svc-files không có `transit/export`, `transit/backup`.
 - **Chứng thư.** CA gốc một tầng dựng trong `setup()` của `platform/openbao/start.sh`. Phiên bản khóa chưa có chứng thư thì:
   CSR do chính transit ký (`transit/keys/<khóa>/csr`) → `pki/sign/moc-van-thu` với CN "<đơn vị>, <cơ quan chủ quản>"
-  (quá 64 byte UTF-8 thì chỉ tên đơn vị: chữ có dấu tốn 2–3 byte, "Khoa Công nghệ thông tin, Trường Đại học Công
-  nghiệp" là 67 byte) → kiểm chứng thư mang đúng khóa công khai của transit → gắn chuỗi lá + CA vào
+  (quá 64 byte UTF-8 thì chỉ tên đơn vị: chữ có dấu tốn 2–3 byte, "Trường Công nghệ thông tin và Truyền thông, Trường
+  Đại học Công nghiệp" là 92 byte, "Trường Kinh tế, Trường Đại học Công nghiệp" là 58 byte nên giữ cả hai) → kiểm
+  chứng thư mang đúng khóa công khai của transit → gắn chuỗi lá + CA vào
   phiên bản khóa (`set-certificate`). Chứng thư lá sống 1 năm, KU DigitalSignature + ContentCommitment, EKU Document
-  Signing. Hai lần phát hành đầu của một đơn vị chạy song song vẫn chỉ tạo một khóa, xin một chứng thư.
+  Signing. Hai lần phát hành đầu của một đơn vị chạy song song vẫn chỉ tạo một khóa, xin một chứng thư. CN lấy tên
+  đơn vị lúc xin chứng thư: đổi tên đơn vị sau đó thì chữ ký vẫn mang tên cũ tới khi chứng thư được cấp lại (#520).
 - **Luồng `/internal/issue`**: dựng PDF → ký → tự kiểm → SHA-256 → ClamAV → lưu → thêm `core.files` và
   `core.file_signatures` trong **một** mutation. Băm trả svc-workflow, `content_sha256`, sự kiện `issued`, sổ kiểm
   toán, bản liên thông (chép nguyên byte), cổng xác thực đều theo bản đã ký — svc-workflow không đổi. Mã QR mã hóa
@@ -1209,9 +1211,9 @@ lặp lại không thành hàng chục MB trong kho; 3 lô chưa xong mỗi đơ
 vai trò được tạo lô, đặc tả cột, `process`, `abandon`) đăng ký trong `app.py`; giá trị mới trong `Kind` của
 `imports/api.py`.
 
-**Demo**: `make demo-nap-lo` (văn thư Khoa Kinh tế `vanthukt`): 200 dòng NDJSON + zip, dòng EICAR bị chặn và không vào
-kho, dòng có tệp bị Action từ chối được gỡ tệp, gửi lại không đổi số văn bản và số tệp, gửi lại cùng khóa nhận lô cũ,
-5 dòng CSV có vào sổ.
+**Demo**: `make demo-nap-lo` (văn thư Trường Kinh tế `vanthukt`): 200 dòng NDJSON + zip, dòng EICAR bị chặn và không
+vào kho, dòng có tệp bị Action từ chối được gỡ tệp, gửi lại không đổi số văn bản và số tệp, gửi lại cùng khóa nhận lô
+cũ, 5 dòng CSV có vào sổ.
 
 Chưa làm: màn "Nhập lô" trong `apps/office`; chạy tiếp sau khi khởi động lại, giữ dòng khi hai tiến trình cùng chạy mới
 kiểm bằng test đơn vị (và câu GraphQL của chúng trên CSDL thật, `db/tests/test_import_jobs.py`), chưa thử trên hệ
