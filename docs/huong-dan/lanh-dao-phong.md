@@ -49,7 +49,8 @@ thế nào: [`demo-script.md`](../demo-script.md), mục "Nóng → lạnh".
 Chỉ có khi đơn vị đã cài ứng dụng Đơn nghỉ phép. Bạn chỉ nhận đơn của người trong phòng mình.
 
 1. Mở **Ứng dụng**, ở thẻ **Đơn nghỉ phép** bấm **Mở**. Phần **Việc cần duyệt** chỉ hiện khi có đơn đang chờ.
-2. Ở từng đơn, chọn **Quyết định** là Đồng ý hoặc Từ chối, ghi **Ghi chú** nếu cần, rồi bấm **Gửi quyết định**.
+2. Mỗi đơn ghi **Người gửi** và nội dung đơn. Chọn **Quyết định** là Đồng ý hoặc Từ chối, ghi **Ghi chú** nếu cần,
+   rồi bấm **Gửi quyết định**.
 3. Người gửi thấy quyết định và ghi chú ở phần **Đơn của tôi**.
 
 Danh sách đơn tự làm mới 30 giây một lần, không xóa ghi chú bạn đang gõ.

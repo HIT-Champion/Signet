@@ -49,8 +49,8 @@ Ba phần, chuyển bằng thanh trên cùng:
   Trạng thái là một trong: chờ trưởng bộ môn, bộ môn đã đồng ý chờ khoa, đã duyệt, bộ môn không đồng ý, khoa không
   duyệt.
 - **Việc cần duyệt**: chỉ hiện khi có việc. Trưởng bộ môn thấy đề nghị của giảng viên trong bộ môn. Lãnh đạo khoa
-  thấy đề nghị bộ môn đã đồng ý, kèm ý kiến của trưởng bộ môn. Danh sách tự làm mới mỗi 30 giây mà không xóa ghi chú
-  đang gõ.
+  thấy đề nghị bộ môn đã đồng ý, kèm ý kiến của trưởng bộ môn. Mỗi thẻ ghi "Người đề nghị: …" theo `initiatorName`
+  của API (#506); không có tên thì bỏ dòng đó. Danh sách tự làm mới mỗi 30 giây mà không xóa ghi chú đang gõ.
 
 Trợ năng và ngôn ngữ (vi/en, lưu chung khóa `moc.locale`) như Đơn nghỉ phép; màu "Lịch hạn" và phông Be Vietnam Pro
 như Không gian cá nhân (`apps/ca-nhan`).

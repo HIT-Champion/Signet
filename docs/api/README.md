@@ -343,7 +343,7 @@ người dùng lấy từ claim của token, không lấy từ dữ liệu gửi
 | `GET /api/workflow/{app}/forms/{formKey}` | `200`: JSON Schema của form, đúng tệp manifest khai |
 | `POST /api/workflow/{app}/processes/{processKey}` `{"data": {…}}` | `201 {"id"}`: kiểm theo form của sự kiện bắt đầu rồi bắt đầu quy trình; lõi tự đặt biến `tenantId`, `departmentId`, `initiator` |
 | `GET /api/workflow/{app}/processes` | `200 [{id, processKey, startedAt, endedAt, data}]`: đơn người gọi đã gửi, mới nhất trước; `endedAt` là `null` khi chưa xong; `data` gồm dữ liệu đơn và các bước đã xong |
-| `GET /api/workflow/{app}/tasks` | `200 [{id, name, formKey, processKey, processId, createdAt, dueAt, data}]`: việc giao cho người gọi hoặc nhóm của người gọi, cùng đơn vị, cũ nhất trước; `data` là dữ liệu đã ghi vào quy trình |
+| `GET /api/workflow/{app}/tasks` | `200 [{id, name, formKey, processKey, processId, createdAt, dueAt, initiatorName, data}]`: việc giao cho người gọi hoặc nhóm của người gọi, cùng đơn vị, cũ nhất trước; `data` là dữ liệu đã ghi vào quy trình; `initiatorName` là họ tên người gửi đơn theo danh bạ `core.users` của đơn vị, `null` khi không tìm được (tài khoản lạ, đã khóa, đơn không có người gửi, danh bạ tạm lỗi) — không trả id người gửi (#506) |
 | `POST /api/workflow/{app}/tasks/{taskId}` `{"data": {…}}` | `204`: kiểm theo form của việc, nhận việc rồi hoàn thành |
 
 ```bash

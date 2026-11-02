@@ -389,7 +389,7 @@ ghi thành biến, giữ kiểu (chuỗi, long, double, boolean).
 | `GET /api/workflow/<tên>/forms/<formKey>` | `200`: JSON Schema của form, đúng tệp manifest khai (bản mới nhất) |
 | `POST /api/workflow/<tên>/processes/<processKey>` `{"data": {…}}` | `201 {"id"}`; kiểm theo form của sự kiện bắt đầu; lõi tự đặt `tenantId`, `departmentId` (rỗng nếu người gửi không thuộc phòng nào), `initiator` từ token |
 | `GET /api/workflow/<tên>/processes` | Đơn người này đã gửi, mới nhất trước: `[{id, processKey, startedAt, endedAt, data}]` — `data` gồm dữ liệu đơn và dữ liệu các bước đã xong (vd `quyetDinh`, `ghiChu`) |
-| `GET /api/workflow/<tên>/tasks` | Việc của ứng dụng giao cho người này (`assignee`) hoặc cho một nhóm của người này, cùng đơn vị, cũ nhất trước: `[{id, name, formKey, processKey, processId, createdAt, dueAt, data}]` |
+| `GET /api/workflow/<tên>/tasks` | Việc của ứng dụng giao cho người này (`assignee`) hoặc cho một nhóm của người này, cùng đơn vị, cũ nhất trước: `[{id, name, formKey, processKey, processId, createdAt, dueAt, initiatorName, data}]` — `initiatorName`: họ tên người gửi đơn theo danh bạ `core.users`, `null` khi không tìm được (tài khoản lạ, đã khóa, không có người gửi, danh bạ tạm lỗi); không trả id người gửi (#506) |
 | `POST /api/workflow/<tên>/tasks/<taskId>` `{"data": {…}}` | `204`: kiểm theo form của việc, nhận việc rồi hoàn thành |
 
 Thân yêu cầu tối đa 64 KB, lớn hơn → `413 too_large` (#323). Lỗi kiểm dữ liệu: `422 {"errors": {trường: mã}}` (gửi tên
@@ -426,7 +426,7 @@ Giới hạn:
   của Flowable.
 - "Đơn của tôi" đọc lịch sử theo các `processKey` trong bản cài mới nhất; mỗi truy vấn tối đa 500 dòng, chưa phân trang.
 - Gỡ không xóa gì khỏi Flowable; chưa có lệnh dọn lịch sử quy trình của ứng dụng đã gỡ.
-- API không trả tên người gửi đơn (chỉ dữ liệu form); không hủy được đơn đã gửi.
+- Không hủy được đơn đã gửi.
 
 ## 2. Ứng dụng nhận gì từ lõi
 
@@ -582,5 +582,6 @@ cùng đơn vị Khoa CNTT: chuyên viên `giangvienktpm` và trưởng bộ mô
 9. Gỡ: trang, container, client mất; API của ứng dụng thôi trả `200`; lịch sử đơn còn trong động cơ quy trình.
 10. `git status` trước và sau giống hệt.
 
-Giới hạn của ứng dụng mẫu: việc duyệt chỉ có nội dung đơn, không có tên người gửi (API chung không trả); một bước
+Thẻ việc cần duyệt ghi "Người gửi: …" (Đổi, bù lịch giảng: "Người đề nghị: …") lấy từ `initiatorName` của API chung
+(#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: một bước
 duyệt, không ủy quyền, không hủy đơn đã gửi.
