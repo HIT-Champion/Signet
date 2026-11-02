@@ -109,8 +109,9 @@ def create_app(
         from .office.api import Office
         office = Office.build(settings, hasura, flowable, notifier, files=files, ot=ot)
     parts: list[Part] = [office] if office is not None else []
-    # quy trình của ứng dụng cắm bằng manifest (#301, /api/workflow qua APISIX): luôn bật, không theo cờ Văn phòng
-    parts.append(AppWorkflow.build(settings, flowable))
+    # quy trình của ứng dụng cắm bằng manifest (#301, /api/workflow qua APISIX): luôn bật, không theo cờ Văn phòng;
+    # Hasura để đọc tên người gửi đơn trong danh bạ (#506)
+    parts.append(AppWorkflow.build(settings, flowable, hasura=hasura))
     # kênh cá nhân SMS, Zalo (#365): Action xem, bật, tắt luôn có (chưa cấu hình kênh nào thì danh sách rỗng); vòng
     # liên kết Zalo chỉ khi có bot
     channels = Channels.build(settings, hasura, router)

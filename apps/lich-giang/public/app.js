@@ -22,8 +22,8 @@
 
 import { signIn, signOut } from './auth.js'
 import {
-  FORM_BO_MON, FORM_DON, FORM_KHOA, LOI, docThan, docTraLoi, doiChieu, duong, ngayGio, quyetDinh, sapXepDon, tenNguoi,
-  trangThai, yeuCau,
+  FORM_BO_MON, FORM_DON, FORM_KHOA, LOI, docThan, docTraLoi, doiChieu, duong, ngayGio, nguoiGui, quyetDinh, sapXepDon,
+  tenNguoi, trangThai, yeuCau,
 } from './don.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { mountForm, summary } from './schema-form.js'
@@ -158,7 +158,11 @@ function dungTheViec(task, forms, draft) {
   const sentAt = t('review.sentAt', { time: ngayGio(task.createdAt) })
   const h2 = make('h2', { textContent: tieuDe(rows) || sentAt })
   h2.tabIndex = -1
-  li.append(h2, make('p', { className: 'gio', textContent: sentAt }), bangDon(rows))
+  li.append(h2)
+  // người duyệt cần biết đề nghị của ai (#506); lõi không trả tên thì bỏ dòng
+  const name = nguoiGui(task)
+  if (name) li.append(make('p', { className: 'gio', textContent: t('review.from', { name }) }))
+  li.append(make('p', { className: 'gio', textContent: sentAt }), bangDon(rows))
   // bước của khoa: lãnh đạo khoa đọc ý kiến của trưởng bộ môn trước khi quyết định
   if (task.formKey === FORM_KHOA) li.append(...ketQuaDuyet(forms, task.data, [forms.boMon]))
   if (task.dueAt) {

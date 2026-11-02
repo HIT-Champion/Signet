@@ -22,7 +22,8 @@
   (``additionalProperties: false``) nên client không ghi đè được;
 - ``GET  processes``: đơn người này đã gửi; ``data``: dữ liệu form của đơn và của các bước đã xong (vd quyết định);
 - ``GET  tasks``: việc của ứng dụng này mà người này được giao hoặc thuộc nhóm ứng viên, cùng thuê ước; ``data``: dữ
-  liệu form đã ghi vào quy trình tới lúc đó;
+  liệu form đã ghi vào quy trình tới lúc đó; ``initiatorName``: tên người gửi đơn theo danh bạ ``core.users``, không
+  tìm được thì ``null`` (#506) — không trả id người gửi;
 - ``POST tasks/{taskId}`` ``{"data": {…}}``: kiểm theo form của việc, nhận rồi hoàn thành → 204.
 
 Lỗi kiểm: 422 ``{"errors": {trường: mã}}``, mã như ``schemas/README.md`` cộng ``x-moc-range`` (apps/forms.py). Lỗi
@@ -51,6 +52,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..config import Settings
 from ..flowable import FlowableClient, FlowableError, Task
+from ..hasura import Actor, HasuraClient, HasuraError
+from ..notify import load_people
 from .auth import AppUser, AuthError, TokenVerifier
 from .bpmn import NAME
 from .bundle import INDEX, deployment_prefix, form_resource
@@ -126,23 +129,25 @@ class AppWorkflow:
     """Phần "quy trình của ứng dụng" gắn vào svc-workflow theo khuôn ``parts.Part`` — luôn bật, không phụ thuộc
     ``MOC_OFFICE_ENABLED``."""
 
-    def __init__(self, flowable: FlowableClient, verifier: TokenVerifier | None) -> None:
+    def __init__(self, flowable: FlowableClient, verifier: TokenVerifier | None,
+                 hasura: HasuraClient | None = None) -> None:
         self.flowable = flowable
         self.verifier = verifier
+        self.hasura = hasura                    # danh bạ core.users: tên người gửi đơn của việc (#506)
         self._index: dict[str, dict[str, Any] | None] = {}
         self._forms: dict[tuple[str, str], AppForm | None] = {}
         self._deployment_of: dict[str, str | None] = {}
 
     @classmethod
     def build(cls, settings: Settings, flowable: FlowableClient, *, verifier: TokenVerifier | None = None,
-              env: Mapping[str, str] = os.environ) -> Self:
+              hasura: HasuraClient | None = None, env: Mapping[str, str] = os.environ) -> Self:
         """issuer, JWKS như x-oidc của docker-compose.yml: iss là URL công khai của realm, khóa lấy qua mạng nội bộ.
         Đặt MOC_OIDC_ISSUER, MOC_OIDC_JWKS_URL để đổi; không có MOC_PUBLIC_URL thì API trả 503 (chưa cấu hình)."""
         issuer = env.get("MOC_OIDC_ISSUER") or (f"{settings.public_url}/realms/{settings.realm}"
                                                 if settings.public_url else "")
         jwks = (env.get("MOC_OIDC_JWKS_URL")
                 or f"{settings.keycloak_url}/realms/{settings.realm}/protocol/openid-connect/certs")
-        return cls(flowable, verifier or (TokenVerifier(issuer, jwks) if issuer else None))
+        return cls(flowable, verifier or (TokenVerifier(issuer, jwks) if issuer else None), hasura)
 
     def jobs(self) -> list[Coroutine[Any, Any, None]]:
         return []                    # gói quy trình do moc app install triển khai, không có việc nền
@@ -255,16 +260,29 @@ class AppWorkflow:
         for query in queries:
             for task in await self.flowable.query_tasks(query):
                 found[task.id] = task
-        out = []
-        for task in sorted(found.values(), key=lambda t: t.created_at):
-            if not task.process_key.startswith(f"{app}.") or task.variables.get("tenantId") != str(user.tenant_id):
-                continue
-            out.append({
-                "id": task.id, "name": task.name, "formKey": task.form_key, "processKey": task.process_key,
-                "processId": task.process_instance_id, "createdAt": task.created_at,
-                "dueAt": task.due_at, "data": app_data(task.variables),
-            })
-        return out
+        kept = [t for t in sorted(found.values(), key=lambda t: t.created_at)
+                if t.process_key.startswith(f"{app}.") and t.variables.get("tenantId") == str(user.tenant_id)]
+        # initiator là biến hệ thống (app_data bỏ đi) và chỉ là id: người duyệt cần tên người gửi, không cần id
+        names = await self.names(user, {t.variables.get("initiator") for t in kept} - {None, ""})
+        return [{
+            "id": task.id, "name": task.name, "formKey": task.form_key, "processKey": task.process_key,
+            "processId": task.process_instance_id, "createdAt": task.created_at, "dueAt": task.due_at,
+            "initiatorName": names.get(task.variables.get("initiator")), "data": app_data(task.variables),
+        } for task in kept]
+
+    async def names(self, user: AppUser, ids: set[str]) -> dict[str, str]:
+        """id → tên trong danh bạ ``core.users`` của thuê ước (đồng bộ từ Keycloak, directory.py), một lần hỏi cho
+        cả danh sách như thông báo lấy tên người làm (notify.load_people). Người đã khóa, chưa đồng bộ thì không có
+        tên; danh bạ lỗi thì cũng vậy — thiếu tên không làm hỏng danh sách việc."""
+        if self.hasura is None or not ids:
+            return {}
+        try:
+            people = await load_people(self.hasura, Actor(user.user_id, user.tenant_id, "service", None))
+        except HasuraError as exc:
+            log.warning(json.dumps({"event": "app.workflow.directory_failed", "error": str(exc)[:300]},
+                                   ensure_ascii=False))
+            return {}
+        return {uid: people[uid].full_name for uid in ids if uid in people}
 
     async def _owned(self, user: AppUser, app: str, task_id: str) -> Task:
         task = await self.flowable.task(task_id)

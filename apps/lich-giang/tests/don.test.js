@@ -23,7 +23,7 @@ import { test } from 'node:test'
 
 import {
   API, FORM_BO_MON, FORM_DON, FORM_KHOA, LOI, QUY_TRINH, docThan, docTraLoi, doiChieu, duong, ngayGio, quyetDinh,
-  sapXepDon, sapXepViec, tenNguoi, trangThai, yeuCau,
+  nguoiGui, sapXepDon, sapXepViec, tenNguoi, trangThai, yeuCau,
 } from '../public/don.js'
 import { t } from '../public/i18n.js'
 
@@ -190,4 +190,11 @@ test('các cặp chữ/nền của style.css đạt WCAG AA (4,5:1)', () => {
   for (const fg of ['stone-500', 'stone-600']) assert.ok(contrast(v[fg], '#ffffff') >= 4.5, `${fg} trên nền trắng`)
   assert.ok(contrast(v.focus, '#ffffff') >= 3, 'viền tiêu điểm')
   assert.ok(contrast(v['input-edge'], '#ffffff') >= 3, 'viền ô nhập')
+})
+
+test('tên người gửi của việc cần duyệt lấy từ initiatorName của lõi; thiếu, rỗng hay sai kiểu thì rỗng (#506)', () => {
+  assert.equal(nguoiGui({ id: 't1', initiatorName: ' Vũ Thị Mai ' }), 'Vũ Thị Mai')
+  for (const task of [{ id: 't1' }, { initiatorName: null }, { initiatorName: '  ' }, { initiatorName: 7 }, null]) {
+    assert.equal(nguoiGui(task), '')
+  }
 })

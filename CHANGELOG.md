@@ -14,6 +14,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trợ lý hỏi đáp nhúng được qua API ngoài chuẩn OpenAI (cả Azure AI Foundry) bằng `MOC_EMBED_API=openai`; mặc định
   vẫn Ollama (#498).
 - Trang Hỏi đáp có lịch sử trò chuyện: nhiều cuộc, lưu trong trình duyệt theo tài khoản, đăng xuất là xóa (#504).
+- Việc cần duyệt của ứng dụng ngành có tên người gửi đề nghị (`initiatorName`) (#506).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
@@ -27,6 +28,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   hết báo "không tìm thấy" khi hỏi cả kho (#503).
 - Đổi, bù lịch giảng: màu, phông như Văn phòng điện tử; form hai cột trên màn rộng; thẻ đề nghị có tiêu đề, ý kiến
   các cấp tách khối riêng (#505).
+- Thẻ việc cần duyệt của Đổi, bù lịch giảng và Đơn nghỉ phép ghi tên người gửi đề nghị (#506).
 - Thanh trên của Văn phòng điện tử hiện tên ngắn của đơn vị (Trường CNTT & TT) nếu có, rê chuột thấy tên đầy đủ (#466).
 
 ### Đã sửa lỗi

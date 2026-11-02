@@ -147,6 +147,13 @@ function claims(token) {
   }
 }
 
+/** Tên người gửi của một việc cần duyệt: `initiatorName` lõi tra từ danh bạ (#506); lõi cũ, người đã khóa hay chưa
+ * đồng bộ thì không có tên — trả chuỗi rỗng, trang bỏ dòng đó. */
+export function nguoiGui(task) {
+  const name = task?.initiatorName
+  return typeof name === 'string' ? name.trim() : ''
+}
+
 /** Tên người dùng trong access token (claim name, không thì preferred_username) — chỉ để chào, không để phân quyền. */
 export function tenNguoi(token) {
   const c = claims(token)
