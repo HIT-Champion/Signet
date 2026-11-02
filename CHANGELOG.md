@@ -14,6 +14,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trợ lý hỏi đáp nhúng được qua API ngoài chuẩn OpenAI (cả Azure AI Foundry) bằng `MOC_EMBED_API=openai`; mặc định
   vẫn Ollama (#498).
 - Trang Hỏi đáp có lịch sử trò chuyện: nhiều cuộc, lưu trong trình duyệt theo tài khoản, đăng xuất là xóa (#504).
+- Việc cần duyệt của ứng dụng ngành có tên người gửi đề nghị (`initiatorName`) (#506).
 
 ### Đã sửa đổi
 - Trang đăng nhập: logo nổi bật hơn, bố cục mềm và cân đối hơn, vừa màn hình điện thoại và laptop (#480).
