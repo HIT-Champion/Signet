@@ -33,12 +33,13 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app_fakes import APP, BPMN, DON, DUYET, AppFlowable, bundle_zip, form_bytes
-from conftest import DEPT_DT, DEPT_KTPM, OTHER, TENANT
+from conftest import DEPT_DT, DEPT_KTPM, OTHER, TENANT, FakeHasura
 from svc_workflow.apps import deploy
 from svc_workflow.apps.api import MAX_BODY, AppWorkflow, rest_variables
 from svc_workflow.apps.auth import HASURA_CLAIMS, AppUser, AuthError, TokenVerifier, default_role
 from svc_workflow.apps.bundle import check_bundle
 from svc_workflow.config import Settings
+from svc_workflow.hasura import HasuraError
 
 ISSUER = "https://signet.example/realms/moc"
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -96,9 +97,23 @@ def fl() -> AppFlowable:
     return f
 
 
+SENDER = "Nguyễn Văn An"
+
+
 @pytest.fixture
-def part(fl) -> AppWorkflow:
-    return AppWorkflow(fl, TokenVerifier(ISSUER, "unused", keys=StaticKeys(KEY.public_key())))
+def people() -> FakeHasura:
+    """Danh bạ core.users của thuê ước: người gửi đơn ở các test là u-staff (token STAFF), thêm một người đã khóa."""
+    return FakeHasura(users={
+        "u-staff": {"id": "u-staff", "department_id": str(DEPT_DT), "role": "staff", "enabled": True,
+                    "full_name": SENDER},
+        "u-da-nghi": {"id": "u-da-nghi", "department_id": str(DEPT_DT), "role": "staff", "enabled": False,
+                      "full_name": "Trần Văn Bình"},
+    })
+
+
+@pytest.fixture
+def part(fl, people) -> AppWorkflow:
+    return AppWorkflow(fl, TokenVerifier(ISSUER, "unused", keys=StaticKeys(KEY.public_key())), people)
 
 
 @pytest.fixture
@@ -328,13 +343,48 @@ def test_my_processes_hold_the_request_then_the_decision(client, fl):
 def test_tasks_show_the_request_to_the_managers_of_the_senders_department_only(client, fl):
     pid = start(client)
     fl.add_task("t-1", pid, groups=[f"t:{TENANT}:d:{DEPT_DT}:manager"], due="2026-10-28T09:30:00.000+07:00")
-    tasks = client.get(f"{API}/tasks", headers=MANAGER).json()
-    assert tasks == [{"id": "t-1", "name": "Duyệt đơn nghỉ", "formKey": f"{APP}.duyet", "processKey": f"{APP}.don",
-                      "processId": pid, "createdAt": "2026-10-26T09:30:00.000+07:00",
-                      "dueAt": "2026-10-28T09:30:00.000+07:00", "data": REQ}]
+    r = client.get(f"{API}/tasks", headers=MANAGER)
+    assert r.json() == [{"id": "t-1", "name": "Duyệt đơn nghỉ", "formKey": f"{APP}.duyet",
+                         "processKey": f"{APP}.don", "processId": pid, "createdAt": "2026-10-26T09:30:00.000+07:00",
+                         "dueAt": "2026-10-28T09:30:00.000+07:00", "initiatorName": SENDER, "data": REQ}]
+    assert "u-staff" not in r.text                       # tên người gửi, không phải id
     for who in (OTHER_MANAGER, STAFF, DIRECTOR, OTHER_TENANT):
         assert client.get(f"{API}/tasks", headers=who).json() == []
     assert all(q["processDefinitionKeyLike"] == f"{APP}.%" for q in fl.queries)
+
+
+def test_task_names_the_sender_from_the_directory_in_one_lookup(client, fl, people):
+    asked: list[tuple[str, uuid.UUID, str]] = []
+    real = people.as_service
+
+    async def counting(actor: Any, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        asked.append((query.split()[1], actor.tenant_id, actor.role))
+        return await real(actor, query, variables)
+
+    people.as_service = counting
+    assert client.get(f"{API}/tasks", headers=MANAGER).json() == [] and asked == []   # không có việc: không hỏi
+    pids = [start(client), start(client), start(client, headers=auth(token("u-chua-dong-bo"))),
+            start(client, headers=auth(token("u-da-nghi")))]
+    fl.instances["p-thieu"] = {"id": "p-thieu", "processDefinitionId": f"{APP}.don:1:dep-1", "endTime": None,
+                               "startTime": "x", "variables": {"tenantId": str(TENANT)}}     # đơn không có initiator
+    for n, pid in enumerate([*pids, "p-thieu"]):
+        fl.add_task(f"t-{n}", pid, groups=[f"t:{TENANT}:d:{DEPT_DT}:manager"],
+                    created=f"2026-10-26T09:3{n}:00.000+07:00")
+    r = client.get(f"{API}/tasks", headers=MANAGER)
+    assert [t["initiatorName"] for t in r.json()] == [SENDER, SENDER, None, None, None]
+    assert asked == [("People", TENANT, "service")]      # một lần hỏi cho cả danh sách, đúng thuê ước
+    for raw in ('"initiator"', "u-staff", "u-chua-dong-bo", "u-da-nghi"):
+        assert raw not in r.text
+
+
+def test_directory_down_leaves_the_name_empty_not_the_task_list(client, fl, people):
+    async def down(actor: Any, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        raise HasuraError("Không gọi được Hasura")
+
+    people.as_service = down
+    fl.add_task("t-1", start(client), groups=[f"t:{TENANT}:d:{DEPT_DT}:manager"])
+    r = client.get(f"{API}/tasks", headers=MANAGER)
+    assert r.status_code == 200 and [(t["id"], t["initiatorName"]) for t in r.json()] == [("t-1", None)]
 
 
 def test_assigned_task_is_seen_by_the_assignee(client, fl):
