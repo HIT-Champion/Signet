@@ -17,7 +17,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { readFileSync } from 'node:fs'
 import { expect, test, type Locator } from '@playwright/test'
-import { PASSWORD, TOTP_SECRET, shot, signIn } from './helpers'
+import { AXE_TAGS, PASSWORD, TOTP_SECRET, shot, signIn } from './helpers'
 
 // Trình dựng form (/ung-dung/dung-form, #303 bước 1b): quản trị đơn vị mở trang từ Danh mục ứng dụng, khai một form
 // ba trường (chữ, ngày không trước hôm nay, danh sách chọn), tên biến và khóa form tự suy từ nhãn; phần kiểm theo
@@ -25,9 +25,6 @@ import { PASSWORD, TOTP_SECRET, shot, signIn } from './helpers'
 // báo lỗi, điền đủ thì ra dữ liệu sẽ gửi; tệp tải về đúng tên, đúng nội dung đang hiện. Không gọi API nào: form chỉ
 // vào lõi khi cài bằng moc app install (svc-workflow kiểm lại lúc đó). Chuyên viên không có nút, mở thẳng đường dẫn
 // thì thấy câu chỉ quản trị dùng được. Hai ảnh (dung-form-*) dùng cho tài liệu, chép từ artifact e2e-anh của CI.
-
-// như tests/e2e/tro-nang.spec.ts
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']
 
 test('trình dựng form: khai trường, xem trước, tải tệp JSON Schema; chỉ quản trị đơn vị', async ({ browser }) => {
   test.skip(!PASSWORD || !TOTP_SECRET, 'đặt MOC_DEMO_PASSWORD, MOC_DEMO_TOTP_SECRET (make e2e tự đọc từ .env)')
@@ -92,10 +89,12 @@ test('trình dựng form: khai trường, xem trước, tải tệp JSON Schema;
   expect(sent).toEqual({ noiDungCuocHop: 'Họp bộ môn tháng 11', ngayHop: '2030-01-15', phong: 'phong-b' })
   await shot(admin, 'dung-form-2-xem-truoc')
 
-  // trợ năng của chính trang này (trang cần vai quản trị, tro-nang.spec.ts không quét): khung sửa đang mở, lỗi và dữ
-  // liệu của phần xem trước đang hiện
+  // trợ năng của chính trang này (trang cần vai quản trị, tro-nang.spec.ts không quét): khung sửa đang mở, dữ liệu
+  // của phần xem trước và nội dung tệp đang hiện — các khung mã cuộn được phải nhận tiêu điểm bàn phím
+  await admin.getByText('Xem nội dung tệp').click()
+  await expect(admin.getByTestId('fb-json')).toBeVisible()
   await admin.emulateMedia({ reducedMotion: 'reduce' })
-  const { violations } = await new AxeBuilder({ page: admin }).withTags(TAGS).analyze()
+  const { violations } = await new AxeBuilder({ page: admin }).withTags(AXE_TAGS).analyze()
   const where = (v: (typeof violations)[number]) => v.nodes.slice(0, 3).map((n) => n.target.join(' ')).join(' | ')
   expect(violations.map((v) => `${v.id}: ${v.help} — ${where(v)}`)).toEqual([])
 

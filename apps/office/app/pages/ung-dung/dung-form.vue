@@ -529,16 +529,19 @@ watch([file, locale, preview], render, { flush: 'post' })
           >
             {{ t('formBuilder.download', { file: fileName }) }}
           </button>
-          <h3 class="moc-subtitle mt-5">{{ t('formBuilder.manifest') }}</h3>
+          <!-- khung mã cuộn được (dòng dài hơn cột) nhận tiêu điểm để cuộn bằng phím, như bảng cuộn ở trang khác -->
+          <h3 id="fb-manifest-title" class="moc-subtitle mt-5">{{ t('formBuilder.manifest') }}</h3>
           <pre
             class="mt-2 overflow-x-auto rounded-lg bg-stone-50 p-3 font-mono text-xs text-stone-800"
-            data-testid="fb-manifest"
+            tabindex="0" role="region" aria-labelledby="fb-manifest-title" data-testid="fb-manifest"
           >{{ manifest }}</pre>
           <details class="mt-4">
-            <summary class="cursor-pointer text-sm font-medium text-stone-800">{{ t('formBuilder.showJson') }}</summary>
+            <summary id="fb-json-title" class="cursor-pointer text-sm font-medium text-stone-800">
+              {{ t('formBuilder.showJson') }}
+            </summary>
             <pre
               class="mt-2 max-h-96 overflow-auto rounded-lg bg-stone-50 p-3 font-mono text-xs text-stone-800"
-              data-testid="fb-json"
+              tabindex="0" role="region" aria-labelledby="fb-json-title" data-testid="fb-json"
             >{{ file }}</pre>
           </details>
         </section>
@@ -552,9 +555,10 @@ watch([file, locale, preview], render, { flush: 'post' })
           </p>
           <div ref="preview" class="mt-4" />
           <div v-if="sent" class="mt-4" data-testid="fb-sent">
-            <h3 class="moc-subtitle">{{ t('formBuilder.previewData') }}</h3>
+            <h3 id="fb-sent-title" class="moc-subtitle">{{ t('formBuilder.previewData') }}</h3>
             <pre
               class="mt-2 overflow-x-auto rounded-lg bg-stone-50 p-3 font-mono text-xs text-stone-800"
+              tabindex="0" role="region" aria-labelledby="fb-sent-title"
             >{{ sent }}</pre>
           </div>
         </section>
