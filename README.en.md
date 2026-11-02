@@ -300,12 +300,12 @@ Google Authenticator). Real accounts in these roles set up TOTP with a QR code o
 
 | Account | Role | Sees |
 |---|---|---|
-| `vanthu` | Clerk, Faculty of IT | Receives and registers; numbers and issues outgoing documents; every document of the faculty |
-| `truongkhoa` | Dean | Instruction inbox, signs off outgoing documents; executive dashboard; every document of the faculty |
+| `vanthu` | Clerk, School of ICT (Trường CNTT & TT) | Receives and registers; numbers and issues outgoing documents; every document of the unit |
+| `truongkhoa` | Head of the school (Hiệu trưởng) | Instruction inbox, signs off outgoing documents; executive dashboard; every document of the unit |
 | `totruongdt`, `truongbmktpm` | Head of Training, Head of the Software Engineering department | Documents assigned to their team or department; assigns work; reviews drafts |
 | `chuyenviendt`, `giamkhao`, `giangvienktpm` | Officer, lecturers | Documents assigned to them; drafts and submits outgoing documents |
-| `quantri` | Unit administrator | The faculty's audit log; cannot read document contents |
-| `vanthukt`, `truongkhoakt` | Faculty of Economics | Only Faculty of Economics documents |
+| `quantri` | Unit administrator | The unit's audit log; cannot read document contents |
+| `vanthukt`, `truongkhoakt` | School of Economics (Trường Kinh tế) | Only School of Economics documents |
 
 Judges can try it quickly as `giamkhao` (an officer, no TOTP needed): the inbox already holds an urgent letter to
 handle and a reply draft the team head sent back for changes.

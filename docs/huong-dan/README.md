@@ -21,9 +21,9 @@ số đếm và tên văn bản trên ảnh khác với máy của bạn.
 Việc mọi vai trò đều làm (hộp việc, thông báo, tìm kiếm, hỏi đáp, không gian cá nhân, góp ý, đổi ngôn ngữ):
 [Việc chung](viec-chung.md).
 
-Các tài khoản mẫu ở trên thuộc Khoa CNTT. `vanthukt` (văn thư) và `truongkhoakt` (lãnh đạo) thuộc Khoa Kinh tế, dùng để
-thử tách đơn vị: mỗi bên chỉ thấy văn bản của khoa mình. Mật khẩu: bản online gửi kèm hồ sơ dự thi; bản tự cài xem
-[README](../../README.md#chạy-thử), mục Chạy thử.
+Các tài khoản mẫu ở trên thuộc Trường CNTT & TT. `vanthukt` (văn thư) và `truongkhoakt` (lãnh đạo) thuộc Trường Kinh
+tế, dùng để thử tách đơn vị: mỗi bên chỉ thấy văn bản của đơn vị mình. Mật khẩu: bản online gửi kèm hồ sơ dự thi;
+bản tự cài xem [README](../../README.md#chạy-thử), mục Chạy thử.
 
 ## Đăng nhập
 

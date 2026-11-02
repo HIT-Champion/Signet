@@ -13,8 +13,8 @@ Một bản cài phục vụ nhiều đơn vị (khoa, phòng, trường thành 
 một đơn vị bằng một lệnh trên máy chủ, chạy lại được (đã có thì giữ nguyên, chỉ thêm phần còn thiếu):
 
 ```bash
-python3 scripts/moc.py tenant create --code KTCK --name "Khoa Cơ khí" \
-    --parent-name "Trường Đại học Công nghiệp" --place-name "Hà Nội" --head-title "Trưởng khoa" \
+python3 scripts/moc.py tenant create --code KTCK --name "Trường Cơ khí – Ô tô" --short-name "Trường CK – ÔT" \
+    --parent-name "Trường Đại học Công nghiệp" --place-name "Hà Nội" --head-title "Hiệu trưởng" \
     --department "VP=Văn phòng khoa" --department "ĐT=Tổ Đào tạo" \
     --admin quantrick --admin-name "Lê Văn Cường" --admin-email quantri@ck.example.edu.vn --dry-run
 # bỏ --dry-run để làm thật; rồi:
@@ -35,6 +35,10 @@ python3 scripts/moc.py tenant check KTCK     # Organization, thành viên, danh 
   hóa gắn với đơn vị — lý do ở [`docs/mo-hinh-du-lieu.md`](mo-hinh-du-lieu.md) §1. Riêng khóa ký số văn bản đi
   (F4.5, minh họa) là của từng đơn vị, để chứng thư nói được đơn vị nào phát hành; `svc-files` tự tạo nó trong két ở
   lần phát hành đầu của đơn vị.
+- `--short-name` (tùy chọn, #466): tên ngắn cho chỗ hẹp của giao diện, ghi vào `core.tenants.short_name`; không khai
+  thì dùng `--name`. Đổi tên đơn vị: chạy lại `tenant create` cùng `--code` với `--name` (và `--short-name`) mới;
+  chạy lại mà không khai `--short-name` thì giữ tên ngắn cũ. Hạn chế đã biết: chứng thư ký số cấp trước khi đổi tên
+  chưa được cấp lại, nên văn bản phát hành sau đó vẫn ghi người ký là tên cũ (#520).
 - Đã bật wiki nội bộ thì chạy thêm `python3 scripts/moc.py wiki sync` để đơn vị mới có không gian riêng (mục Wiki
   nội bộ); chưa chạy thì người của đơn vị mới chỉ đọc được trang đầu của wiki.
 
@@ -522,8 +526,8 @@ GD&ĐT về giáo dục đại học, bản Công báo (`seed/du-lieu-mo/cong-ba
   rồi báo ở `GET /api/status` (khóa `open_data`: `ok`, `stale` khi quá `max_age_days`, `broken` khi thiếu tệp hay sai
   băm) và trang `/trang-thai`. Nguồn ngừng hoạt động thì Signet vẫn dùng bản chụp gần nhất, trang trạng thái cho biết
   dữ liệu đã bao nhiêu ngày.
-- **Nạp:** `make seed` nạp mỗi tệp thành một văn bản đến của Khoa CNTT qua API nạp lô (CSV + zip, ClamAV, như văn
-  thư nạp tay), loại "Thông tư" (migration `1792281604000_document_type_tt`). Bản cài đã có dữ liệu mẫu thì chạy
+- **Nạp:** `make seed` nạp mỗi tệp thành một văn bản đến của Trường CNTT & TT qua API nạp lô (CSV + zip, ClamAV,
+  như văn thư nạp tay), loại "Thông tư" (migration `1792281604000_document_type_tt`). Bản cài đã có dữ liệu mẫu thì chạy
   riêng `python3 scripts/moc.py du-lieu-mo nap`; chạy lại không tạo trùng. Trang văn bản nhận ra văn bản từ nguồn công
   khai nhờ SHA-256 của tệp đính kèm trùng với manifest; trợ lý hỏi đáp trích được như mọi văn bản đến.
 - **Kiểm:** `make du-lieu-mo` (`python3 scripts/moc.py du-lieu-mo kiem`) so băm, in tuổi dữ liệu; thoát 1 khi bản

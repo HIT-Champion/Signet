@@ -17,8 +17,8 @@ A unit is added with one command on the server, and the command can be run again
 parts are added):
 
 ```bash
-python3 scripts/moc.py tenant create --code KTCK --name "Khoa Cơ khí" \
-    --parent-name "Trường Đại học Công nghiệp" --place-name "Hà Nội" --head-title "Trưởng khoa" \
+python3 scripts/moc.py tenant create --code KTCK --name "Trường Cơ khí – Ô tô" --short-name "Trường CK – ÔT" \
+    --parent-name "Trường Đại học Công nghiệp" --place-name "Hà Nội" --head-title "Hiệu trưởng" \
     --department "VP=Văn phòng khoa" --department "ĐT=Tổ Đào tạo" \
     --admin quantrick --admin-name "Lê Văn Cường" --admin-email quantri@ck.example.edu.vn --dry-run
 # drop --dry-run to do it for real; then:
@@ -43,6 +43,11 @@ python3 scripts/moc.py tenant check KTCK     # do the Organization, its members 
   §1. The one exception is the key that digitally signs outgoing documents (F4.5, demonstration only), which belongs
   to each unit so that the certificate can say which unit issued the document; `svc-files` creates it in the vault the
   first time the unit issues a document.
+- `--short-name` (optional, #466): a short name for narrow places of the interface, stored in
+  `core.tenants.short_name`; without it `--name` is used. To rename a unit, run `tenant create` again with the same
+  `--code` and the new `--name` (and `--short-name`); running it again without `--short-name` keeps the old short name.
+  Known limitation: a signing certificate issued before the rename is not reissued, so documents issued afterwards
+  still name the old unit as the signer (#520).
 - If the internal wiki is on, also run `python3 scripts/moc.py wiki sync` so that the new unit gets its own space
   (section Internal wiki); until then, people of the new unit can only read the wiki's start page.
 

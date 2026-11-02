@@ -1,6 +1,7 @@
 # Hướng dẫn cho văn thư
 
-Vai trò `clerk`. Tài khoản mẫu: `vanthu` (Khoa CNTT), `vanthukt` (Khoa Kinh tế). Đăng nhập cần mã xác thực hai bước.
+Vai trò `clerk`. Tài khoản mẫu: `vanthu` (Trường CNTT & TT), `vanthukt` (Trường Kinh tế). Đăng nhập cần mã xác
+thực hai bước.
 Văn thư thấy mọi văn bản của đơn vị mình, trừ văn bản hạn chế không được cấp quyền xem.
 
 Menu gồm: Hộp việc, Văn bản đến, Tiếp nhận văn bản, Văn bản đi, Sổ đăng ký, Hồ sơ công việc (chỉ xem), Sơ đồ cảm biến,

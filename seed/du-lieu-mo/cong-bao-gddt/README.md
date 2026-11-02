@@ -33,8 +33,8 @@ Giấy phép của các tệp PDF trong REUSE.toml: `LicenseRef-VN-SHTT-Dieu-15`
 - `make du-lieu-mo-lay` (`python3 scripts/du_lieu_mo.py lay cong-bao-gddt`): đọc lại bốn trang, tải lại PDF. Chỉ thay
   bản chụp khi mọi tệp tải xong và khớp manifest; lỗi thì giữ bản cũ. Đổi bản chụp đi qua PR.
 - `make du-lieu-mo`: so SHA-256 với manifest, in tuổi dữ liệu. Quá 400 ngày thì trang trạng thái báo dữ liệu cũ.
-- `make seed` nạp bốn thông tư thành văn bản đến của Khoa CNTT (văn thư `vanthu`) qua API nạp lô, loại "Thông tư".
-  Không cần Internet. Trợ lý hỏi đáp trích được các văn bản này như mọi văn bản đến.
+- `make seed` nạp bốn thông tư thành văn bản đến của Trường CNTT & TT (văn thư `vanthu`) qua API nạp lô, loại
+  "Thông tư". Không cần Internet. Trợ lý hỏi đáp trích được các văn bản này như mọi văn bản đến.
 
 Danh sách văn bản ở `VAN_BAN` trong `scripts/nguon_cong_bao_gddt.py`. Thêm văn bản: thêm một dòng ở đó, chạy lại lệnh
 lấy, giữ tổng dưới 3 MB.

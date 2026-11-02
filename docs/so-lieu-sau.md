@@ -81,9 +81,9 @@ một văn bản đi. Ghi số đó kèm ngày, đơn vị vào tài liệu này
 
 ## 4. Dữ liệu mẫu
 
-`make seed` nạp hai đơn vị mẫu (Khoa Công nghệ thông tin, Khoa Kinh tế) — cột `core.tenants.sample_data` là `true`;
-đơn vị thêm sau (`moc tenant create`) là `false`. Khi đơn vị có cờ này, trang Số đo, trang Góp ý và lệnh `make` đều
-ghi rõ số tính trên dữ liệu mẫu. Lý do:
+`make seed` nạp hai đơn vị mẫu (Trường Công nghệ thông tin và Truyền thông, Trường Kinh tế) — cột
+`core.tenants.sample_data` là `true`; đơn vị thêm sau (`moc tenant create`) là `false`. Khi đơn vị có cờ này, trang
+Số đo, trang Góp ý và lệnh `make` đều ghi rõ số tính trên dữ liệu mẫu. Lý do:
 
 - Kịch bản seed đi hết các bước (tiếp nhận, vào sổ, giao, phân công) liền nhau trong vài giây, nên (a) ra vài giây —
   không phải nhịp làm việc của người.

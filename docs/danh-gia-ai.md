@@ -206,8 +206,8 @@ loại (`loai`). 19 câu tra cứu văn bản (`van_ban`) giữ nguyên từ tr�
   `do-hoi-dap` đếm bằng `office_documents_aggregate` đúng bộ lọc đó, bằng token người hỏi, so cả số lẫn bộ lọc trợ lý
   đọc từ câu.
 
-3 câu trên văn bản thật của nguồn công khai A (#446), người hỏi là văn thư Khoa CNTT; `make seed` nạp các thông tư
-này thành văn bản đến, đáp án là số ký hiệu + trang của tệp PDF bản Công báo:
+3 câu trên văn bản thật của nguồn công khai A (#446), người hỏi là văn thư Trường CNTT & TT; `make seed` nạp các
+thông tư này thành văn bản đến, đáp án là số ký hiệu + trang của tệp PDF bản Công báo:
 
 - 2 câu `cong_khai`, tìm như câu `van_ban`: "Thí sinh được đăng ký tối đa bao nhiêu nguyện vọng?" (06/2026/TT-BGDĐT,
   tr. 18), "Thông tư số 10/2020/TT-BGDĐT hết hiệu lực từ ngày nào?" (58/2026/TT-BGDĐT, tr. 5);

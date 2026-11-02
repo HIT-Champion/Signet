@@ -1,8 +1,8 @@
 # Hướng dẫn cho lãnh đạo đơn vị
 
-Vai trò `director`: thủ trưởng, cấp phó của đơn vị. Tài khoản mẫu: `truongkhoa` (Khoa CNTT), `truongkhoakt` (Khoa Kinh
-tế). Đăng nhập cần mã xác thực hai bước. Lãnh đạo đơn vị thấy mọi văn bản của đơn vị mình, trừ văn bản hạn chế mà
-mình không tạo và không được cấp quyền xem.
+Vai trò `director`: thủ trưởng, cấp phó của đơn vị. Tài khoản mẫu: `truongkhoa` (Trường CNTT & TT), `truongkhoakt`
+(Trường Kinh tế). Đăng nhập cần mã xác thực hai bước. Lãnh đạo đơn vị thấy mọi văn bản của đơn vị mình, trừ văn bản
+hạn chế mà mình không tạo và không được cấp quyền xem.
 
 Menu gồm: Hộp việc, Văn bản đến, Văn bản đi, Sổ đăng ký, Hồ sơ công việc (chỉ xem), Sơ đồ cảm biến, Tìm kiếm, Hỏi đáp,
 Điều hành, Số đo, Phả hệ số liệu, Tự chẩn đoán, Sổ kiểm toán, Ứng dụng, Góp ý. Phần dùng chung:

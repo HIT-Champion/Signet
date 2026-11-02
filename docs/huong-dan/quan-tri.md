@@ -1,7 +1,7 @@
 # Hướng dẫn cho quản trị đơn vị
 
-Vai trò `tenant_admin`, thường là cán bộ CNTT của đơn vị. Tài khoản mẫu: `quantri` (Khoa CNTT). Đăng nhập cần mã xác
-thực hai bước.
+Vai trò `tenant_admin`, thường là cán bộ CNTT của đơn vị. Tài khoản mẫu: `quantri` (Trường CNTT & TT). Đăng nhập cần
+mã xác thực hai bước.
 
 Quản trị đơn vị không đọc nội dung văn bản. Vì vậy menu không có Hộp việc, Văn bản đến, Văn bản đi, Hồ sơ công việc,
 Sổ đăng ký. Chuông thông báo vẫn có: cảnh báo vận hành của hệ thống (Alertmanager) gửi về chuông của quản trị đơn vị

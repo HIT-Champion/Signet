@@ -288,12 +288,12 @@ TOTP bằng mã QR ở lần đăng nhập đầu.
 
 | Tài khoản | Vai trò | Thấy gì |
 |---|---|---|
-| `vanthu` | Văn thư Khoa CNTT | Tiếp nhận, vào sổ; cấp số, phát hành văn bản đi; mọi văn bản của khoa |
-| `truongkhoa` | Lãnh đạo khoa | Hộp việc chỉ đạo, ký duyệt văn bản đi; dashboard điều hành; mọi văn bản của khoa |
+| `vanthu` | Văn thư Trường CNTT & TT | Tiếp nhận, vào sổ; cấp số, phát hành văn bản đi; mọi văn bản của đơn vị |
+| `truongkhoa` | Hiệu trưởng (lãnh đạo đơn vị) | Hộp việc chỉ đạo, ký duyệt văn bản đi; dashboard điều hành; mọi văn bản của đơn vị |
 | `totruongdt`, `truongbmktpm` | Tổ trưởng Đào tạo, trưởng Bộ môn KTPM | Văn bản giao cho tổ, bộ môn; phân công; duyệt dự thảo |
 | `chuyenviendt`, `giamkhao`, `giangvienktpm` | Chuyên viên, giảng viên | Văn bản được giao cho mình; soạn, trình văn bản đi |
-| `quantri` | Quản trị đơn vị | Sổ kiểm toán của khoa; không đọc nội dung văn bản |
-| `vanthukt`, `truongkhoakt` | Khoa Kinh tế | Chỉ văn bản của Khoa Kinh tế |
+| `quantri` | Quản trị đơn vị | Sổ kiểm toán của đơn vị; không đọc nội dung văn bản |
+| `vanthukt`, `truongkhoakt` | Trường Kinh tế | Chỉ văn bản của Trường Kinh tế |
 
 Ban giám khảo thử nhanh bằng `giamkhao` (chuyên viên, không cần TOTP): hộp việc có sẵn một công văn khẩn chờ xử lý
 và một dự thảo phúc đáp bị tổ trưởng trả lại chờ sửa.
