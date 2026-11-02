@@ -417,6 +417,29 @@ Trình dựng form của Văn phòng điện tử (#303) có bản chép các lu
 quay lui bùng nổ và JSON Schema hợp lệ theo meta-schema. Sửa luật lúc cài thì sửa cả bản trên trình duyệt và tệp ca
 thử, nếu không test hai bên đỏ.
 
+**Form dựng trên trang vào gói ứng dụng thế nào.** Trang Dựng form (`/ung-dung/dung-form`, chỉ `tenant_admin`; cách
+dùng: [`huong-dan/quan-tri.md`](huong-dan/quan-tri.md#dựng-form-cho-ứng-dụng)) không gọi API nào: không có API, quyền
+hay dòng sổ kiểm toán để lưu form thẳng vào lõi (bước 2–3 của #303). Người dùng tải tệp `<khóa>.json` về; người vận
+hành đặt nó vào `apps/<ứng dụng>/forms/`, khai trong `app.yaml` đúng đoạn trang đưa ra, rồi chạy `moc app install`:
+
+```yaml
+workflow:
+  forms:
+    dat-phong.dang-ky-phong-hop: forms/dang-ky-phong-hop.json
+```
+
+Tệp sinh ra là JSON Schema draft 2020-12, `$id` `urn:moc:app:<ứng dụng>:form:<khóa>`, `additionalProperties: false`,
+kèm `x-moc-title`, `x-moc-order`, `x-moc-nfc`, `x-moc-ui` từng trường, `x-moc-date` cho ô ngày và `x-moc-range` khi
+khai "không được trước ngày ở trường…"; ô đánh dấu luôn nằm trong `required` vì luôn gửi có hoặc không. Ô chữ trỏ
+`$defs/line` (một dòng) hoặc `$defs/text` (nhiều dòng): chặn ký tự điều khiển, ký tự vô hình, khoảng trắng đầu và
+cuối, như form nghỉ phép. Trình dựng không cho nhập `pattern` tự do, vì phần ước lượng quay lui chỉ có ở máy chủ. Trần
+của trình dựng: ô một dòng mặc định 200 ký tự, nhiều dòng 2000, đặt tối đa 10000; tối đa 20 dòng hiện. Tên biến tự
+suy từ nhãn tiếng Việt (camelCase không dấu), khóa form và giá trị lựa chọn từ chữ không dấu nối gạch, cắt ở 40 ký
+tự, trùng thì thêm số; từ lần tải tệp đầu ba thứ này giữ nguyên, để quy trình viết theo tệp đó không đổi nghĩa khi
+sửa nhãn hay đổi chỗ trường. Mã: `apps/office/app/pages/ung-dung/dung-form.vue`, `app/utils/formBuilder.ts`; xem
+trước dùng `app/lib/schema-form.js`, bản chép từng byte của `apps/nghi-phep/public/schema-form.js`. e2e
+`tests/e2e/dung-form.spec.ts` dựng một form, kiểm tệp tải về và quét axe trang này.
+
 Giới hạn:
 
 - Chỉ quy trình duyệt: không timer, không nhắc hạn (hạn chỉ hiện ở `dueAt`), không bước tự động, không gửi thư hay gọi
