@@ -36,6 +36,42 @@ chuỗi từ đầu tới cuối là việc của người vận hành máy ch�
 
 Cài và gỡ ứng dụng là việc của người vận hành máy chủ: [`them-ung-dung.md`](../them-ung-dung.md).
 
+## Dựng form cho ứng dụng
+
+Ứng dụng cài thêm (đơn nghỉ phép, đăng ký phòng họp…) khai form bằng một tệp JSON Schema. Trang **Dựng form** giúp
+viết tệp đó mà không cần gõ JSON: khai các trường, xem trước, rồi tải tệp về. Chỉ quản trị đơn vị thấy trang này; vai
+trò khác mở thẳng đường dẫn thì gặp câu "Chỉ quản trị đơn vị dùng trang này."
+
+1. Mở **Ứng dụng**, bấm **Dựng form** (trang `/ung-dung/dung-form`).
+2. **Thông tin form**: tên form tiếng Việt và tiếng Anh, **Tên ứng dụng** (đúng `name` trong `app.yaml` của ứng dụng,
+   2–30 ký tự chữ thường, số, gạch nối) và **Khóa form**. Để trống khóa thì trang đặt theo tên form, vd "Đăng ký phòng
+   họp" → `dang-ky-phong-hop`.
+3. **Các trường**: chọn kiểu ô ở cuối trang rồi bấm **Thêm trường**. Có bảy kiểu: Một dòng chữ, Nhiều dòng chữ,
+   Ngày, Số, Danh sách chọn, Chọn một trong vài nút, Ô đánh dấu. Bấm **Sửa** ở một trường để khai nhãn tiếng Việt và
+   tiếng Anh, gợi ý dưới ô, bắt buộc hay không, và phần riêng của từng kiểu: số ký tự tối thiểu, tối đa (ô chữ), chỉ
+   số nguyên, nhỏ nhất, lớn nhất (ô số), không sau hay không trước hôm nay, không trước ngày ở một trường khác (ô
+   ngày), các lựa chọn với nhãn và giá trị lưu (danh sách, nút chọn).
+4. **Tên biến** của trường tự đặt theo nhãn tiếng Việt: bỏ dấu, viết liền, vd "Nội dung cuộc họp" → `noiDungCuocHop`.
+   Từ lần tải tệp đầu, tên biến, khóa form và giá trị lựa chọn giữ nguyên dù sau đó sửa nhãn, để quy trình đã viết
+   theo tệp đó không đổi nghĩa.
+5. Đổi thứ tự bằng nút **Lên**, **Xuống** (dùng được bằng bàn phím); **Xóa** bỏ một trường.
+
+![Trang Dựng form: ba trường, khung sửa trường Phòng; cột phải báo form qua luật lúc cài](../anh/huong-dan/dung-form.png)
+
+6. Cột phải **Kiểm theo luật lúc cài** đếm lỗi theo đúng luật hệ thống dùng khi cài ứng dụng; bấm một lỗi để nhảy tới
+   ô cần sửa. Hết lỗi thì nút **Tải `<khóa>.json`** bật, kèm đoạn khai cho `app.yaml` và **Xem nội dung tệp**.
+7. **Xem trước** hiện form đúng như người dùng sẽ thấy, theo ngôn ngữ đang chọn. **Gửi thử** chỉ kiểm dữ liệu ngay
+   trên trang và hiện **Dữ liệu sẽ gửi**, không gửi đi đâu.
+
+![Khung Xem trước đã điền và bấm Gửi thử: dữ liệu sẽ gửi dạng JSON](../anh/huong-dan/dung-form-xem-truoc.png)
+
+Trang không lưu form lên hệ thống. Tải tệp về rồi chuyển cho người vận hành máy chủ: họ đặt tệp vào
+`apps/<ứng dụng>/forms/`, chép đoạn khai vào `app.yaml` và chạy `moc app install`; lúc đó hệ thống kiểm lại toàn bộ,
+kể cả hai phần trình duyệt không kiểm được
+([`them-ung-dung.md`](../them-ung-dung.md#110-quy-trình-của-ứng-dụng-workflow-301)).
+Bản đang dựng chỉ giữ trong thẻ trình duyệt đang mở, kể cả khi phải đăng nhập lại; rời trang, đóng thẻ hay đăng xuất
+là mất, nên tải tệp về trước khi đi.
+
 ## Tổng hợp góp ý
 
 Mở **Góp ý** trên menu. Phần **Tổng hợp của đơn vị** có điểm trung bình, số góp ý, phân bố theo mức, theo màn hình và

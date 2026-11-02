@@ -85,6 +85,12 @@ Bộ kiểm của module đi từng từ khóa vì CSP không cho
 trị từ khóa sai dạng, `$ref` vòng hay gợi ý hiển thị sai (thiếu trường trong `x-moc-order`, `x-moc-range` không phải
 hai trường ngày) thì báo lỗi ngay lúc nạp.
 
+Không muốn viết tay tệp này thì quản trị đơn vị dựng nó trên trang **Dựng form** của Văn phòng điện tử
+(`/ung-dung/dung-form`): khai trường, xem trước bằng chính `schema-form.js`, kiểm theo luật lúc cài rồi tải tệp về
+đặt vào `forms/` của ứng dụng. Cách dùng:
+[`docs/huong-dan/quan-tri.md`](../docs/huong-dan/quan-tri.md#dựng-form-cho-ứng-dụng); tệp sinh ra gồm gì:
+[`docs/them-ung-dung.md`](../docs/them-ung-dung.md) mục 1.10.
+
 Gợi ý hiển thị, bên kiểm bỏ qua; chữ là chuỗi hoặc `{vi, en}`:
 
 - `x-moc-title` (gốc): tên form.
