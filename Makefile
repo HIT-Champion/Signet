@@ -272,7 +272,7 @@ demo-pha-he: $(ENV_FILE) ## Màn demo (iii) phả hệ + chất lượng: lượ
 demo-it-ot: $(ENV_FILE) ## Màn demo (ii) IT/OT: bật broker NGSI-LD, cảm biến vượt ngưỡng → dự thảo "Báo cáo sự cố" vào luồng văn bản đi (docs/demo-script.md)
 	@python3 scripts/demo.py it-ot
 
-demo-lien-thong: $(ENV_FILE) ## Màn liên thông (F3.12): CNTT phát hành → Khoa Kinh tế tự nhận văn bản đến cùng băm, mã xác thực, vào sổ, chỉ đạo (docs/demo-script.md)
+demo-lien-thong: $(ENV_FILE) ## Màn liên thông (F3.12): CNTT phát hành → Trường Kinh tế tự nhận văn bản đến cùng băm, mã xác thực, vào sổ, chỉ đạo (docs/demo-script.md)
 	@python3 scripts/demo.py lien-thong
 
 demo-doc-van-ban: $(ENV_FILE) ## Màn đọc văn bản đến (F4.1): văn thư tải công văn, tác tử đọc (lớp chữ PDF / OCR) gợi ý số, ngày, cơ quan, loại, trích yếu; vào sổ; văn bản hạn chế không đọc (docs/demo-script.md)

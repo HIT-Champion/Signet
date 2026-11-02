@@ -686,6 +686,7 @@ type core_tenants {
   org_ident: String
   parent_name: String
   place_name: String
+  short_name: String
 }
 
 "Boolean expression to filter rows from the table \"core.tenants\". All fields are combined with a logical 'AND'."
@@ -700,6 +701,7 @@ input core_tenants_bool_exp {
   org_ident: String_comparison_exp
   parent_name: String_comparison_exp
   place_name: String_comparison_exp
+  short_name: String_comparison_exp
 }
 
 "response of any mutation on the table \"core.tenants\""
@@ -719,6 +721,7 @@ input core_tenants_order_by {
   org_ident: order_by
   parent_name: order_by
   place_name: order_by
+  short_name: order_by
 }
 
 "primary key columns input for table: core.tenants"
@@ -742,6 +745,8 @@ enum core_tenants_select_column {
   parent_name
   "column name"
   place_name
+  "column name"
+  short_name
 }
 
 "input type for updating data in table \"core.tenants\""
@@ -768,6 +773,7 @@ input core_tenants_stream_cursor_value_input {
   org_ident: String
   parent_name: String
   place_name: String
+  short_name: String
 }
 
 input core_tenants_updates {

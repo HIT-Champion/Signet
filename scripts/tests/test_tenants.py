@@ -202,8 +202,8 @@ class FakeDB:
 
     def add_tenant(self, code: str, name: str, tid: str | None = None, departments: dict[str, str] | None = None) -> str:
         tid = tid or str(uuid.uuid4())
-        self.tenants[code] = {"id": tid, "code": code, "name": name, "org_ident": None, "parent_name": None,
-                              "place_name": None, "head_title": None}
+        self.tenants[code] = {"id": tid, "code": code, "name": name, "short_name": None, "org_ident": None,
+                              "parent_name": None, "place_name": None, "head_title": None}
         self.departments[code].update(departments or {})
         return tid
 
@@ -233,10 +233,11 @@ class FakeDB:
         if sql is tenants.WRITE_SQL:
             self.writes += 1
             assert v["actor"].startswith("os:")
-            t = self.tenants.setdefault(v["code"], {"id": v["id"], "code": v["code"], "org_ident": None,
-                                                    "parent_name": None, "place_name": None, "head_title": None})
+            t = self.tenants.setdefault(v["code"], {"id": v["id"], "code": v["code"], "short_name": None,
+                                                    "org_ident": None, "parent_name": None, "place_name": None,
+                                                    "head_title": None})
             t["name"] = v["name"]
-            for k in ("org_ident", "parent_name", "place_name", "head_title"):
+            for k in ("short_name", "org_ident", "parent_name", "place_name", "head_title"):
                 if v[k]:
                     t[k] = v[k]
             for d in json.loads(v["departments"]):
@@ -447,6 +448,21 @@ class CreateTest(unittest.TestCase):
                          {"HTTT": "created", "VP": "existing", "ĐT": "existing"})
         cntt = next(o for o in kc.orgs.values() if o["alias"] == "cntt")
         self.assertIn(late, kc.members[cntt["id"]])
+
+    def test_short_name_is_written_then_kept(self) -> None:
+        # tên ngắn cho chỗ hẹp của giao diện (#466): khai thì ghi; chạy lại không khai thì giữ tên ngắn đã có
+        kc, db = seeded()
+        code, out, _ = run_moc(kc, db, "tenant", "create", "--code", "CNTT", "--name", "Khoa Công nghệ thông tin",
+                               "--short-name", "Khoa CNTT", "--admin", "quantri", "--json")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads(out)["tenant"]["status"], "updated")
+        self.assertEqual(db.tenants["CNTT"]["short_name"], "Khoa CNTT")
+        code, out, _ = run_moc(kc, db, "tenant", "create", "--code", "CNTT", "--name", "Khoa Công nghệ thông tin",
+                               "--admin", "quantri", "--json")
+        self.assertEqual(code, 0, out)
+        self.assertEqual(json.loads(out)["tenant"]["status"], "kept")
+        written = [v for v in db.variables if "short_name" in v]           # biến psql của lần ghi WRITE_SQL
+        self.assertEqual((written[-1]["short_name"], db.tenants["CNTT"]["short_name"]), ("", "Khoa CNTT"))
 
     def test_reset_password_of_existing_admin(self) -> None:
         kc, db = seeded()

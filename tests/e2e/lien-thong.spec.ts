@@ -17,18 +17,18 @@
 import { expect, test, type Page } from '@playwright/test'
 import { PASSWORD, TOTP_SECRET, shot, signIn } from './helpers'
 
-// Liên thông văn bản trong hệ thống (F3.12) trên giao diện: chuyên viên Khoa CNTT soạn công văn, tích "Khoa Kinh tế"
-// trong danh sách đơn vị cùng dùng Signet (tên tự vào ô nơi nhận) → trình → tổ trưởng đồng ý → lãnh đạo khoa ký → văn
-// thư CNTT phát hành, thẻ liên thông báo "Đã chuyển" → văn thư Khoa Kinh tế được báo, thấy văn bản đến chip
-// "Liên thông", mở ra có "Nhận từ Khoa Công nghệ thông tin", mã xác thực của bên gửi, tệp cùng SHA-256 với bản phát
-// hành; vào sổ như mọi văn bản đến.
+// Liên thông văn bản trong hệ thống (F3.12) trên giao diện: chuyên viên Trường CNTT & TT soạn công văn, tích "Trường
+// Kinh tế" trong danh sách đơn vị cùng dùng Signet (tên tự vào ô nơi nhận) → trình → tổ trưởng đồng ý → lãnh đạo đơn vị
+// ký → văn thư CNTT phát hành, thẻ liên thông báo "Đã chuyển" → văn thư Trường Kinh tế được báo, thấy văn bản đến chip
+// "Liên thông", mở ra có "Nhận từ Trường Công nghệ thông tin và Truyền thông", mã xác thực của bên gửi, tệp cùng
+// SHA-256 với bản phát hành; vào sổ như mọi văn bản đến.
 
 const tag = Math.random().toString(36).slice(2, 7).toUpperCase()
 const summary = `Về việc phối hợp tổ chức hội thảo khoa học liên khoa (thử ${tag})`
-const body = 'Khoa Công nghệ thông tin đề nghị Khoa Kinh tế cử đại diện tham gia ban tổ chức hội thảo khoa học liên khoa.\n'
+const body = 'Trường Công nghệ thông tin và Truyền thông đề nghị Trường Kinh tế cử đại diện tham gia ban tổ chức hội thảo khoa học liên khoa.\n'
   + 'Danh sách đề nghị gửi về Văn phòng khoa trước ngày 30 tháng 11.'
-const SENDER = 'Khoa Công nghệ thông tin'
-const RECEIVER = 'Khoa Kinh tế'
+const SENDER = 'Trường Công nghệ thông tin và Truyền thông'
+const RECEIVER = 'Trường Kinh tế'
 
 async function openTask(page: Page) {
   await page.goto('/')
@@ -40,7 +40,7 @@ async function openTask(page: Page) {
 test('liên thông văn bản giữa hai khoa trên giao diện', async ({ browser }) => {
   test.skip(!PASSWORD || !TOTP_SECRET, 'đặt MOC_DEMO_PASSWORD, MOC_DEMO_TOTP_SECRET (make e2e tự đọc từ .env)')
 
-  // 1. Chuyên viên soạn, tích Khoa Kinh tế: tên vào ô nơi nhận; bỏ tích thì gỡ, tích lại thì thêm lại
+  // 1. Chuyên viên soạn, tích Trường Kinh tế: tên vào ô nơi nhận; bỏ tích thì gỡ, tích lại thì thêm lại
   const staff = await signIn(browser, 'chuyenviendt')
   await staff.getByRole('link', { name: 'Soạn văn bản đi' }).click()
   await staff.getByLabel('Loại văn bản').selectOption({ label: 'Công văn' })
@@ -82,7 +82,7 @@ test('liên thông văn bản giữa hai khoa trên giao diện', async ({ brows
   const code = (await clerk.getByTestId('verify-code').textContent())!.trim()
   await shot(clerk, '25-da-chuyen-lien-thong')
 
-  // 4. Văn thư Khoa Kinh tế: chuông báo văn bản đến liên thông; danh sách chờ vào sổ có chip "Liên thông"
+  // 4. Văn thư Trường Kinh tế: chuông báo văn bản đến liên thông; danh sách chờ vào sổ có chip "Liên thông"
   const receiver = await signIn(browser, 'vanthukt', { otp: true })
   await receiver.getByTestId('notification-bell').click()
   await expect(receiver.getByRole('button', { name: new RegExp(`Văn bản đến liên thông từ ${SENDER}.*${tag}`) })).toBeVisible()

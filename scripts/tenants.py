@@ -217,6 +217,7 @@ class Spec:
     parent_name: str | None = None
     place_name: str | None = None
     head_title: str | None = None
+    short_name: str | None = None
     org_ident: str | None = None
     departments: list[tuple[str, str]] = field(default_factory=list)
     admin_name: str | None = None
@@ -234,8 +235,9 @@ class Spec:
 
 # --- CSDL -------------------------------------------------------------------------------------------------------------
 
-_TENANT_JSON = """(select json_build_object('id', t.id, 'code', t.code, 'name', t.name, 'org_ident', t.org_ident,
-                                     'parent_name', t.parent_name, 'place_name', t.place_name, 'head_title', t.head_title)
+_TENANT_JSON = """(select json_build_object('id', t.id, 'code', t.code, 'name', t.name, 'short_name', t.short_name,
+                                     'org_ident', t.org_ident, 'parent_name', t.parent_name,
+                                     'place_name', t.place_name, 'head_title', t.head_title)
             from core.tenants t where t.code = :'code')"""
 
 # Một đơn vị theo mã, các phòng của nó, và đơn vị khác đang giữ mã định danh. Biến psql: code, org_ident ('' nếu không có)
@@ -251,15 +253,17 @@ select json_build_object(
 
 # Thêm hoặc cập nhật đơn vị (theo mã: giữ id cũ) và phòng (theo đơn vị + mã) trong một giao dịch; tham số tùy chọn không
 # khai thì giữ giá trị cũ. Không xóa phòng nào. Sửa không đổi giá trị thì trigger không ghi sổ. Biến psql: actor, id (dùng
-# khi đơn vị chưa có), code, name, org_ident, parent_name, place_name, head_title ('' = không khai), departments (JSON)
+# khi đơn vị chưa có), code, name, short_name, org_ident, parent_name, place_name, head_title ('' = không khai),
+# departments (JSON)
 WRITE_SQL = """
 begin;
 set local moc.actor = :'actor';
-insert into core.tenants as t (id, code, name, org_ident, parent_name, place_name, head_title)
-values (:'id', :'code', :'name', nullif(:'org_ident', ''), nullif(:'parent_name', ''), nullif(:'place_name', ''),
-        nullif(:'head_title', ''))
+insert into core.tenants as t (id, code, name, short_name, org_ident, parent_name, place_name, head_title)
+values (:'id', :'code', :'name', nullif(:'short_name', ''), nullif(:'org_ident', ''), nullif(:'parent_name', ''),
+        nullif(:'place_name', ''), nullif(:'head_title', ''))
 on conflict (code) do update set
   name = excluded.name,
+  short_name = coalesce(excluded.short_name, t.short_name),
   org_ident = coalesce(excluded.org_ident, t.org_ident),
   parent_name = coalesce(excluded.parent_name, t.parent_name),
   place_name = coalesce(excluded.place_name, t.place_name),
@@ -724,8 +728,8 @@ def create(spec: Spec, kc: Keycloak, db: Any, *, dry_run: bool = False, wait_s: 
         email_owner = kc.find_by_email(planned_email)
     admin_action, admin = plan_admin(found, tenant_id, spec, org["alias"], email_owner)
 
-    fields = {"name": spec.name, "org_ident": spec.org_ident, "parent_name": spec.parent_name,
-              "place_name": spec.place_name, "head_title": spec.head_title}
+    fields = {"name": spec.name, "short_name": spec.short_name, "org_ident": spec.org_ident,
+              "parent_name": spec.parent_name, "place_name": spec.place_name, "head_title": spec.head_title}
     if before is None:
         tenant_status = "created"
     elif any(v is not None and before.get(k) != v for k, v in fields.items()):
@@ -749,8 +753,9 @@ def create(spec: Spec, kc: Keycloak, db: Any, *, dry_run: bool = False, wait_s: 
         admin_id = admin.get("id")
     else:
         after = db.query(WRITE_SQL, actor=_actor(), id=tenant_id or str(uuid.uuid4()), code=spec.code, name=spec.name,
-                         org_ident=spec.org_ident or "", parent_name=spec.parent_name or "",
-                         place_name=spec.place_name or "", head_title=spec.head_title or "",
+                         short_name=spec.short_name or "", org_ident=spec.org_ident or "",
+                         parent_name=spec.parent_name or "", place_name=spec.place_name or "",
+                         head_title=spec.head_title or "",
                          departments=json.dumps([{"code": c, "name": n} for c, n in spec.departments],
                                                 ensure_ascii=False))
         tenant_id = after["tenant"]["id"]
@@ -980,9 +985,10 @@ def render_create(r: dict[str, Any]) -> None:
 
 def cmd_create(args: argparse.Namespace) -> int:
     spec = Spec(code=args.code, name=args.name, admin=args.admin, parent_name=args.parent_name,
-                place_name=args.place_name, head_title=args.head_title, org_ident=args.org_ident,
-                departments=list(args.department), admin_name=args.admin_name, admin_email=args.admin_email,
-                alias=args.alias, domains=list(args.domain), reset_password=args.reset_password)
+                place_name=args.place_name, head_title=args.head_title, short_name=args.short_name,
+                org_ident=args.org_ident, departments=list(args.department), admin_name=args.admin_name,
+                admin_email=args.admin_email, alias=args.alias, domains=list(args.domain),
+                reset_password=args.reset_password)
     try:
         result = create(spec, connect(), database(), dry_run=args.dry_run, wait_s=max(args.wait, 0))
     except TenantError as exc:

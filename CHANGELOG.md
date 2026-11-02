@@ -17,6 +17,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Việc cần duyệt của ứng dụng ngành có tên người gửi đề nghị (`initiatorName`) (#506).
 
 ### Đã sửa đổi
+- Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
+  ký là Hiệu trưởng. Đơn vị có thêm tên ngắn `short_name` cho chỗ hẹp, đặt bằng `moc tenant create --short-name` (#466).
 - Trang đăng nhập: logo nổi bật hơn, bố cục mềm và cân đối hơn, vừa màn hình điện thoại và laptop (#480).
 - Trợ lý hỏi đáp: lúc chờ tìm và chờ soạn câu trả lời hiện logo Signet chuyển động thay vòng xoay (#499).
 - Trợ lý hỏi đáp: mọi câu trả lời do mô hình viết, kể cả đếm văn bản, việc của tôi, câu ngoài phạm vi, không tìm
