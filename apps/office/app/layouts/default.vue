@@ -126,11 +126,13 @@ onBeforeUnmount(() => {
 })
 
 const { gql } = useApi()
-const tenantName = ref('')
+// tên ngắn ở thanh trên (chỗ hẹp), tên đầy đủ khi rê chuột và cho trình đọc màn hình (#466)
+const tenant = ref({ full: '', short: '' })
 onMounted(async () => {
   try {
-    const data = await gql<{ core_tenants: { name: string }[] }>('{ core_tenants { name } }')
-    tenantName.value = data.core_tenants[0]?.name ?? ''
+    const data = await gql<{ core_tenants: { name: string, short_name: string | null }[] }>(
+      '{ core_tenants { name short_name } }')
+    tenant.value = tenantNames(data.core_tenants[0])
   } catch {
     // tên đơn vị chỉ để hiển thị
   }
@@ -344,7 +346,10 @@ async function logout() {
             </svg>
           </button>
           <p class="sg-crumb">
-            <b :title="tenantName || undefined">{{ tenantName || t('fe.organization') }}</b>
+            <b v-if="tenant.short !== tenant.full" :title="tenant.full">
+              <span aria-hidden="true">{{ tenant.short }}</span><span class="sr-only">{{ tenant.full }}</span>
+            </b>
+            <b v-else :title="tenant.full || undefined">{{ tenant.full || t('fe.organization') }}</b>
             <template v-if="pageLabel">
               <svg
                 width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
