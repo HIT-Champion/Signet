@@ -21,8 +21,8 @@
 
 import { signIn, signOut } from './auth.js'
 import {
-  FORM_DON, FORM_DUYET, LOI, docThan, docTraLoi, doiChieu, duong, ngayGio, sapXepDon, soNgay, tenNguoi, trangThai,
-  yeuCau,
+  FORM_DON, FORM_DUYET, LOI, docThan, docTraLoi, doiChieu, duong, ngayGio, nguoiGui, sapXepDon, soNgay, tenNguoi,
+  trangThai, yeuCau,
 } from './don.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { mountForm, summary } from './schema-form.js'
@@ -149,7 +149,11 @@ function dungTheViec(task, forms, draft) {
   const li = make('li', { className: 'the' })
   const h2 = make('h2', { textContent: t('review.sentAt', { time: ngayGio(task.createdAt) }) })
   h2.tabIndex = -1
-  li.append(h2, bangDon(tomTat(forms.don, task.data), task.data))
+  li.append(h2)
+  // người duyệt cần biết đơn của ai (#506); lõi không trả tên thì bỏ dòng
+  const name = nguoiGui(task)
+  if (name) li.append(make('p', { className: 'gio', textContent: t('review.from', { name }) }))
+  li.append(bangDon(tomTat(forms.don, task.data), task.data))
   if (task.dueAt) {
     li.append(make('p', { className: 'gio', textContent: t('review.due', { time: ngayGio(task.dueAt) }) }))
   }

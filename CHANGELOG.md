@@ -28,6 +28,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   hết báo "không tìm thấy" khi hỏi cả kho (#503).
 - Đổi, bù lịch giảng: màu, phông như Văn phòng điện tử; form hai cột trên màn rộng; thẻ đề nghị có tiêu đề, ý kiến
   các cấp tách khối riêng (#505).
+- Thẻ việc cần duyệt của Đổi, bù lịch giảng và Đơn nghỉ phép ghi tên người gửi đề nghị (#506).
 
 ### Đã sửa lỗi
 - Nâng cấp máy có dữ liệu thật không còn tự lùi vì smoke cần tài khoản mẫu: bỏ smoke khi tắt client `moc-cli`, chọn
