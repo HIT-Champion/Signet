@@ -521,14 +521,14 @@ jobs:
         if: matrix.phan == 'luong-chinh'
         run: make demo-it-ot
 
-      # F3.12: CNTT phát hành văn bản đi có Khoa Kinh tế trong đơn vị nhận → KT tự có văn bản đến cùng hash, cổng xác
+      # F3.12: CNTT phát hành văn bản đi có Trường Kinh tế trong đơn vị nhận → KT tự có văn bản đến cùng hash, cổng xác
       # thực "khớp", vào sổ được; mỗi đơn vị chỉ thấy sổ kiểm toán của mình; văn bản hạn chế không gửi liên thông được
       - name: Liên thông văn bản trong hệ thống (make demo-lien-thong)
         if: matrix.phan == 'luong-chinh'
         run: make demo-lien-thong
 
-      # Cụm ⑤: văn thư Khoa Kinh tế nạp 200 văn bản đến một lần (NDJSON + zip) → đúng số đạt / trùng / lỗi theo các dòng
-      # sai cố ý, tệp EICAR trong zip bị chặn và không vào kho, mỗi văn bản một dòng sổ; gửi lại không nhân đôi
+      # Cụm ⑤: văn thư Trường Kinh tế nạp 200 văn bản đến một lần (NDJSON + zip) → đúng số đạt / trùng / lỗi theo các
+      # dòng sai cố ý, tệp EICAR trong zip bị chặn và không vào kho, mỗi văn bản một dòng sổ; gửi lại không nhân đôi
       - name: Nạp lô văn bản đến (make demo-nap-lo)
         if: matrix.phan == 'luong-chinh'
         run: make demo-nap-lo
@@ -661,8 +661,9 @@ jobs:
         run: make demo-che-pii
 
       # #367: bật profile wiki (dựng image DokuWiki + hai plugin đăng nhập, ghim băm) → client Keycloak `wiki`, quyền
-      # theo đơn vị; giảng viên Khoa CNTT viết trang trong không gian đơn vị mình qua đúng đường trình duyệt (APISIX,
-      # Keycloak, WAF bật); văn thư Khoa Kinh tế (mật khẩu + TOTP) không đọc, không sửa được, chiều ngược lại cũng vậy;
+      # theo đơn vị; giảng viên Trường CNTT & TT viết trang trong không gian đơn vị mình qua đúng đường trình duyệt
+      # (APISIX, Keycloak, WAF bật); văn thư Trường Kinh tế (mật khẩu + TOTP) không đọc, không sửa được, chiều ngược lại
+      # cũng vậy;
       # khách chưa đăng nhập bị đưa sang Keycloak. Trước bước sao lưu: trang này phải còn sau khi khôi phục
       - name: Wiki nội bộ theo đơn vị (make wiki-up, make demo-wiki)
         if: matrix.phan == 'sao-luu'

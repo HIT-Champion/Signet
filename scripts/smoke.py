@@ -23,7 +23,7 @@ viên soạn công văn trả lời, xem trước → trình → tổ trưởng 
 mã QR; người ngoài tra mã và băm ở cổng xác thực không cần đăng nhập. Ký số (F4.5, chỉ minh họa): bản phát hành ký
 PAdES bằng khóa của đơn vị trong két OpenBao, cổng xác thực cho biết ai ký; pyHanko trong svc-files báo hợp lệ, phát
 hiện lớp sửa thêm sau khi ký và một bit bị lật (két khởi tạo trước F4.5 chưa có PKI nội bộ thì bỏ qua).
-Liên thông: công văn gửi Khoa Kinh tế trong hệ
+Liên thông: công văn gửi Trường Kinh tế trong hệ
 thống thành văn bản đến của bên nhận, cùng bản phát hành. Đọc văn bản đến (F4.1): tác tử moc-doc-reader đọc lớp chữ
 PDF văn thư vừa tải lên, gợi ý số ký hiệu, ngày ban hành, loại; tệp hạn chế không bị đọc, đơn vị khác không gọi được,
 mỗi lần đọc một dòng sổ kiểm toán (không OCR ở đây — make demo-doc-van-ban thử cả ảnh). Hỏi đáp (F4.2): trợ lý
@@ -75,7 +75,7 @@ from moc_env import (EICAR, ENV, INCREMENTAL_EDIT, PUBLIC_URL, REALM, ROOT, USER
 
 DEPT_DT = "5cc372aa-304d-4574-896c-4f3e781a2ce7"
 DEPT_KTPM = "7ee31261-b14c-4c42-8e1b-9a7e99935412"
-TENANT_KT = "318da474-60d6-4a90-aa7f-928b31b8fc59"     # Khoa Kinh tế (seed/tenants.sql)
+TENANT_KT = "318da474-60d6-4a90-aa7f-928b31b8fc59"     # Trường Kinh tế (seed/tenants.sql)
 
 passed = 0
 
@@ -685,7 +685,7 @@ def main(argv: list[str] | None = None) -> None:
     print("Cách ly")
     seen = other_tenant.gql("query ($id: uuid!) { office_documents_by_pk(id: $id) { id } }", {"id": doc_id})
     seen["office_documents_by_pk"] is None or fail("đơn vị khác đọc được văn bản")
-    ok("văn thư Khoa Kinh tế không thấy văn bản của Khoa CNTT")
+    ok("văn thư Trường Kinh tế không thấy văn bản của Trường CNTT & TT")
     try:
         request("GET", f"{PUBLIC_URL}/api/files/{file['id']}", headers=other_tenant.auth)
         fail("đơn vị khác tải được tệp")
@@ -770,7 +770,7 @@ def main(argv: list[str] | None = None) -> None:
         signature or fail("két có CA nội bộ mà bản phát hành không có chữ ký số — xem nhật ký svc-files"
                           " (office.document.sign_failed, office.signing.disabled)")
         (signature.get("level"), signature.get("illustrative")) == ("PAdES-B-B", True) and signature.get("signed_at") \
-            and (signature.get("signer") or "").startswith("Khoa Công nghệ thông tin") \
+            and (signature.get("signer") or "").startswith("Trường Công nghệ thông tin và Truyền thông") \
             and "chỉ minh họa" in (signature.get("ca") or "") \
             and b"/ETSI.CAdES.detached" in released and byte_range_end(released) == len(released) \
             or fail(f"bản phát hành chưa có chữ ký PAdES phủ cả tệp, hoặc khối chữ ký ở cổng xác thực sai: {signature}")
@@ -835,14 +835,15 @@ def main(argv: list[str] | None = None) -> None:
             or fail(f"tải khóa ký mốc neo không cần token: HTTP {status}, chưa khớp khóa moc-anchor trong két")
         ok(f"tải khóa công khai ký mốc neo không cần token; vân tay sha256:{expected[:16]}… khớp khóa trong két")
 
-    # F3.12: công văn gửi Khoa Kinh tế trong hệ thống — phát hành xong thì văn thư bên nhận tự có văn bản đến kèm đúng
+    # F3.12: công văn gửi Trường Kinh tế trong hệ thống — phát hành xong thì văn thư bên nhận tự có văn bản đến kèm đúng
     # bản phát hành. svc-workflow chép ngay sau lần phát hành; trượt thì vòng đối soát nền làm lại
     print("Liên thông trong hệ thống")
     sent = staff.gql(
         "mutation ($o: office_documents_insert_input!) { insert_office_documents_one(object: $o) { id } }",
-        {"o": {"type_code": "CV", "recipients": ["Khoa Kinh tế"], "recipient_tenant_ids": [TENANT_KT],
+        {"o": {"type_code": "CV", "recipients": ["Trường Kinh tế"], "recipient_tenant_ids": [TENANT_KT],
                "summary": f"Về việc phối hợp tổ chức hội thảo khoa học liên khoa (kiểm tra {tag})",
-               "body": "Khoa Công nghệ thông tin đề nghị Khoa Kinh tế cử cán bộ tham gia ban tổ chức hội thảo."}},
+               "body": "Trường Công nghệ thông tin và Truyền thông đề nghị Trường Kinh tế cử cán bộ tham gia ban tổ "
+                       "chức hội thảo."}},
     )["insert_office_documents_one"]["id"]
     staff.gql("mutation ($d: uuid!, $s: String!) { submitOutgoing(documentId: $d, signerId: $s) { status } }",
               {"d": sent, "s": signer})
@@ -851,7 +852,7 @@ def main(argv: list[str] | None = None) -> None:
     clerk.complete(clerk.wait_task(sent, "vbdi.phatHanh"), "issue", {"is_public": False})
     source = clerk.gql("query ($id: uuid!) { office_documents_by_pk(id: $id) { status symbol content_sha256 } }",
                        {"id": sent})["office_documents_by_pk"]
-    source["status"] == "issued" or fail(f"công văn gửi Khoa Kinh tế chưa phát hành: {source}")
+    source["status"] == "issued" or fail(f"công văn gửi Trường Kinh tế chưa phát hành: {source}")
     sender = clerk.gql("{ core_tenants { name } }")["core_tenants"][0]["name"]
     arrived_q = """query ($s: uuid!) { office_documents(where: {source_id: {_eq: $s}}) { id direction status symbol
         issuer_name files { role file_id file { sha256 } } } }"""
@@ -859,21 +860,21 @@ def main(argv: list[str] | None = None) -> None:
     while not arrived and time.time() - started < 90:
         arrived = other_tenant.gql(arrived_q, {"s": sent})["office_documents"]
         arrived or time.sleep(2)
-    len(arrived) == 1 or fail(f"sau {time.time() - started:.0f} giây văn thư Khoa Kinh tế chưa có đúng một văn bản đến"
-                              f" từ công văn vừa phát hành: {arrived}")
+    len(arrived) == 1 or fail(f"sau {time.time() - started:.0f} giây văn thư Trường Kinh tế chưa có đúng một văn bản"
+                              f" đến từ công văn vừa phát hành: {arrived}")
     got = arrived[0]
     (got["direction"], got["status"], got["symbol"], got["issuer_name"]) == ("in", "received", source["symbol"], sender) \
         and [(f["role"], (f["file"] or {}).get("sha256")) for f in got["files"]] == [("main", source["content_sha256"])] \
         or fail(f"văn bản đến liên thông chưa đúng (cần received, cùng số ký hiệu, tệp chính cùng băm): {got}")
     seen = clerk.gql("query ($id: uuid!) { office_documents_by_pk(id: $id) { id } }", {"id": got["id"]})
-    seen["office_documents_by_pk"] is None or fail("Khoa CNTT đọc được văn bản đến của Khoa Kinh tế")
+    seen["office_documents_by_pk"] is None or fail("Trường CNTT & TT đọc được văn bản đến của Trường Kinh tế")
     try:
         request("GET", f"{PUBLIC_URL}/api/files/{got['files'][0]['file_id']}", headers=clerk.auth)
-        fail("Khoa CNTT tải được bản sao nằm trong kho của Khoa Kinh tế")
+        fail("Trường CNTT & TT tải được bản sao nằm trong kho của Trường Kinh tế")
     except HTTPError as exc:
         exc.status == 404 or fail(f"tải bản sao của đơn vị khác trả {exc.status}")
-    ok(f"công văn {source['symbol']} gửi Khoa Kinh tế: {time.time() - started:.0f} giây sau phát hành văn thư bên nhận có"
-       " văn bản đến (chờ vào sổ), tệp chính cùng SHA-256 bản phát hành; Khoa CNTT không đọc được văn bản, tệp bên nhận")
+    ok(f"công văn {source['symbol']} gửi Trường Kinh tế: {time.time() - started:.0f} giây sau phát hành văn thư bên nhận có"
+       " văn bản đến (chờ vào sổ), tệp chính cùng SHA-256 bản phát hành; Trường CNTT & TT không đọc được văn bản, tệp bên nhận")
 
     print("Tìm theo nội dung tệp PDF")
     # svc-files đọc lớp chữ ở vòng nền (MOC_TEXT_INTERVAL_S) rồi đồng bộ sang Meilisearch (MOC_SEARCH_SYNC_INTERVAL_S)
@@ -983,12 +984,14 @@ def main(argv: list[str] | None = None) -> None:
             and (got.get("semantic") is True or got["status"] == "no_evidence" and got["sources"] == [] or intro)
 
     other = ask(other_tenant, f"TRANG2{tag} là gì?")
-    withheld(other, paged_id, f"TRANG2{tag}") or fail(f"văn thư Khoa Kinh tế hỏi ra văn bản của Khoa CNTT: {other}")
+    withheld(other, paged_id, f"TRANG2{tag}") \
+        or fail(f"văn thư Trường Kinh tế hỏi ra văn bản của Trường CNTT & TT: {other}")
     sealed_ask = ask(clerk, f"MATKIN{tag} là gì?")
     withheld(sealed_ask, secret_id, f"MATKIN{tag}") \
         or fail(f"hỏi nội dung văn bản hạn chế bằng chính người tạo vẫn có nguồn: {sealed_ask}")
-    ok(f"văn thư Khoa Kinh tế hỏi → {other['status']}, không có văn bản Khoa CNTT; nội dung văn bản hạn chế, hỏi bằng"
-       f" chính người tạo → {sealed_ask['status']}, không có văn bản đó (tìm theo nghĩa: {sealed_ask.get('semantic')})")
+    ok(f"văn thư Trường Kinh tế hỏi → {other['status']}, không có văn bản Trường CNTT & TT; nội dung văn bản hạn chế,"
+       f" hỏi bằng chính người tạo → {sealed_ask['status']}, không có văn bản đó (tìm theo nghĩa:"
+       f" {sealed_ask.get('semantic')})")
     rows = [r.split("|", 3) for r in sql(
         "select actor_kind, actor_id, entity, diff::text from core.audit_log where action = 'assistant.answered'"
         f" and id > {audit_before} order by id").splitlines()]
@@ -1117,7 +1120,7 @@ def main(argv: list[str] | None = None) -> None:
         or fail(f"tệp của văn bản hạn chế không bị chặn đọc: {read_status(clerk, sealed['id'])}")
     read_status(other_tenant, notice["id"]) == (404, "not_found") \
         or fail(f"văn thư đơn vị khác gọi đọc tệp: {read_status(other_tenant, notice['id'])}")
-    ok("tệp hạn chế không bị đọc (409 restricted); văn thư Khoa Kinh tế gọi đọc tệp của Khoa CNTT → 404")
+    ok("tệp hạn chế không bị đọc (409 restricted); văn thư Trường Kinh tế gọi đọc tệp của Trường CNTT & TT → 404")
     rows = director.gql("""query ($f: String!) { core_audit_log(where: {action: {_eq: "intake.suggested"},
         entity_id: {_eq: $f}}) { actor_id actor_kind overview } }""", {"f": notice["id"]})["core_audit_log"]
     [(r["actor_id"], r["actor_kind"]) for r in rows] == [("moc-doc-reader", "agent")] \

@@ -269,9 +269,9 @@ SEED_EVIDENCE = {
     # công văn đi không bị màn nóng → lạnh nộp lưu (thông báo họp giao ban thì có: tệp chuyển ra kho lạnh, chỉ còn
     # đoạn "trích yếu")
     "Về việc cử giảng viên tham dự hội thảo chuyển đổi số trong giáo dục đại học":
-        "Phúc đáp Công văn số 47/KHCN của Phòng Khoa học và Hợp tác quốc tế, Khoa Công nghệ thông tin cử giảng viên "
-        "Vũ Thị Mai, Bộ môn Kỹ thuật phần mềm, tham dự hội thảo và trình bày tham luận về ứng dụng nguồn mở trong "
-        "quản lý văn bản.",
+        "Phúc đáp Công văn số 47/KHCN của Phòng Khoa học và Hợp tác quốc tế, Trường Công nghệ thông tin và Truyền "
+        "thông cử giảng viên Vũ Thị Mai, Bộ môn Kỹ thuật phần mềm, tham dự hội thảo và trình bày tham luận về ứng dụng "
+        "nguồn mở trong quản lý văn bản.",
 }
 
 

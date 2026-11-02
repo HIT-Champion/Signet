@@ -26,7 +26,7 @@ soạn đổi mã đó lấy token của Node-RED ở POST /tu-dong/auth/token. 
   node Function, Template chứa mã JavaScript, HTML, câu GraphQL qua cổng mà WAF không chặn, đọc lại đúng flow đó;
 - không có node exec, file, watch; không cài node từ npm; WebSocket của trình soạn (/tu-dong/comms) bắt tay được
   qua cổng;
-- robot của Khoa CNTT (`moc tu-dong robot add CNTT`) lấy token client_credentials: claim Hasura cố định vai trò
+- robot của Trường CNTT & TT (`moc tu-dong robot add CNTT`) lấy token client_credentials: claim Hasura cố định vai trò
   `tu_dong`, đọc được văn bản của đơn vị, không đọc được nội dung văn bản, danh bạ, thông báo;
 - hai flow mẫu (platform/tu-dong/flow-mau.json) triển khai kèm bí mật của robot: văn thư vào sổ văn bản Hỏa tốc thì
   trưởng khoa nhận đúng một thông báo gắn văn bản (chạy lại flow không báo trùng); flow 07:00 bấm tay gửi trưởng khoa
@@ -60,9 +60,11 @@ from moc_env import (ENV, PUBLIC_URL, REALM, ROOT, USER_AGENT, HTTPError, Sessio
                      totp_at)
 
 ROOT_URL = f"{PUBLIC_URL}{tu_dong.BASE}"
-OPERATOR, OTHER = "quantri", "giangvienktpm"     # seed/users.csv: quản trị Khoa CNTT (TOTP); giảng viên Khoa CNTT
+# seed/users.csv: quản trị Trường CNTT & TT (TOTP); giảng viên cùng đơn vị
+OPERATOR, OTHER = "quantri", "giangvienktpm"
 FLOW_TAB = "moc-demo-tu-dong"
-UNIT = "CNTT"                                    # seed: robot của Khoa CNTT gửi cho trưởng khoa, văn thư nhập văn bản
+# seed: robot của Trường CNTT & TT gửi cho lãnh đạo đơn vị, văn thư nhập văn bản
+UNIT = "CNTT"
 DIRECTOR, CLERK = "truongkhoa", "vanthu"
 CLAIMS = "https://hasura.io/jwt/claims"
 VN = timezone(timedelta(hours=7))                # giờ Việt Nam, UTC+7 quanh năm
@@ -249,7 +251,7 @@ def run() -> None:
     print("Tự động hóa bằng Node-RED — trình soạn ở /tu-dong/, đăng nhập Keycloak, chỉ vai trò operator (#366)")
     tag = uuid.uuid4().hex[:6].upper()
 
-    # dữ liệu mẫu không có tài khoản vận hành nền tảng riêng: màn demo cấp vai trò cho quản trị Khoa CNTT
+    # dữ liệu mẫu không có tài khoản vận hành nền tảng riêng: màn demo cấp vai trò cho quản trị Trường CNTT & TT
     say(1, f"Node-RED sau cổng APISIX: {ROOT_URL}auth/login; client Keycloak `tu-dong`, cấp operator cho {OPERATOR}")
     status, info = api("GET", "auth/login", None)
     if status != 200 or not isinstance(info, dict) or info.get("type") != "strategy":

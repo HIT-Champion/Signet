@@ -588,6 +588,8 @@ def main(argv: list[str] | None = None) -> int:
     tc.add_argument("--code", required=True, type=tenants.code_arg, metavar="MÃ",
                     help="mã viết trong ký hiệu văn bản, vd KTCK (không dấu cách, '/', '-'; tối đa 20 ký tự)")
     tc.add_argument("--name", required=True, type=tenants.text_arg, metavar="TÊN", help='tên đơn vị, vd "Khoa Cơ khí"')
+    tc.add_argument("--short-name", type=tenants.text_arg, metavar="TÊN",
+                    help='tên ngắn cho chỗ hẹp của giao diện, vd "Trường CNTT & TT" (không khai: dùng --name)')
     tc.add_argument("--parent-name", type=tenants.text_arg, metavar="TÊN", help="cơ quan chủ quản in trên văn bản đi")
     tc.add_argument("--place-name", type=tenants.text_arg, metavar="TÊN", help="địa danh trước ngày tháng, vd Hà Nội")
     tc.add_argument("--head-title", type=tenants.text_arg, metavar="TÊN",
