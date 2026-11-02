@@ -43,7 +43,7 @@ hệ thống đang chạy (cần make seed trước). Chỉ dùng thư viện ch
         trình, dự thảo vào luồng văn bản đi; sơ đồ cảm biến kho (/cam-bien) tô màu từng phòng và gắn cờ chất lượng
         (mất tín hiệu, ngoài dải, trùng observedAt, observedAt ở tương lai). (make demo-it-ot)
     python3 scripts/demo.py lien-thong
-        Liên thông văn bản trong hệ thống (F3.12, không thuộc 4 nguyên lý): Khoa CNTT phát hành công văn gửi Khoa
+        Liên thông văn bản trong hệ thống (F3.12, không thuộc 4 nguyên lý): Trường CNTT & TT phát hành công văn gửi Khoa
         Kinh tế; bên nhận tự có văn bản đến cùng tệp (cùng SHA-256), cùng mã xác thực; vào sổ, lãnh đạo có việc chỉ
         đạo; sổ kiểm toán của cả hai đơn vị ghi lại; văn bản hạn chế không gửi được. (make demo-lien-thong)
     python3 scripts/demo.py doc-van-ban
@@ -96,7 +96,7 @@ hệ thống đang chạy (cần make seed trước). Chỉ dùng thư viện ch
         ghi out/so-lieu-sau.json; thoát 1 khi không đủ 5 văn bản để tìm hoặc một lần tìm không ra văn bản cần tìm
         trong 20 kết quả đầu. (make do-so-lieu-sau)
     python3 scripts/demo.py nap-lo
-        Nạp lô văn bản đến qua API (cụm ⑤ Tầng 1): văn thư Khoa Kinh tế gửi 200 văn bản đến một lần (NDJSON + zip tệp
+        Nạp lô văn bản đến qua API (cụm ⑤ Tầng 1): văn thư Trường Kinh tế gửi 200 văn bản đến một lần (NDJSON + zip tệp
         đính kèm, scripts/nap_lo_mau.py); svc-files xử lý nền, mỗi dòng đi đúng đường tiếp nhận lẻ (ClamAV, Action
         receiveIncoming thay mặt văn thư); lỗi từng dòng đúng bảng dòng sai cố ý, tệp EICAR trong zip bị chặn, mỗi văn
         bản một dòng sổ kiểm toán, dòng có tệp bị Action từ chối được gỡ tệp; gửi lại không nhân đôi văn bản hay tệp;
@@ -1145,14 +1145,14 @@ def ot_sensor_map(tenant: str, threshold: float, server_room: float) -> None:
 
     other = Session("vanthukt").gql(OT_MAP)["otSensorMap"]
     if set(want) & {s["id"] for s in other["sensors"]} or server in {s["id"] for s in other["sensors"]}:
-        raise DemoFailed(f"văn thư Khoa Kinh tế thấy cảm biến của Khoa CNTT: {other['sensors']}")
+        raise DemoFailed(f"văn thư Trường Kinh tế thấy cảm biến của Trường CNTT & TT: {other['sensors']}")
     try:
         Session("quantri").gql(OT_MAP)
     except RuntimeError as exc:
         refused = str(exc)
     else:
         raise DemoFailed("quản trị đơn vị gọi được otSensorMap: Action phải chỉ cho các vai trò đọc được văn bản")
-    ok(f"văn thư Khoa Kinh tế chỉ thấy cảm biến của đơn vị mình ({len(other['sensors'])}); quản trị đơn vị không có"
+    ok(f"văn thư Trường Kinh tế chỉ thấy cảm biến của đơn vị mình ({len(other['sensors'])}); quản trị đơn vị không có"
        f" Action này ({refused[:80]}) — trình duyệt không gọi thẳng broker, đọc qua APISIX → Hasura → svc-workflow")
     print(f"\nXem trên giao diện (vanthu): {PUBLIC_URL}/cam-bien")
 
@@ -1176,24 +1176,25 @@ def hexed(bytea: str | None) -> str:
 
 
 def lien_thong() -> None:
-    print("Màn F3.12 · Liên thông văn bản trong hệ thống — Khoa CNTT phát hành công văn gửi Khoa Kinh tế; bên nhận tự có"
+    print("Màn F3.12 · Liên thông văn bản trong hệ thống — Trường CNTT & TT phát hành công văn gửi Trường Kinh tế; bên nhận tự có"
           " văn bản đến cùng tệp, cùng mã xác thực, rồi vào sổ, chỉ đạo như mọi văn bản đến")
     tag = uuid.uuid4().hex[:6].upper()
     staff, manager, director, clerk = (Session(u) for u in ("chuyenviendt", "totruongdt", "truongkhoa", "vanthu"))
     kt_clerk, kt_director = Session("vanthukt"), Session("truongkhoakt")
 
-    say(1, "Chuyên viên CNTT soạn công văn, chọn Khoa Kinh tế trong danh sách đơn vị trong hệ thống")
+    say(1, "Chuyên viên CNTT soạn công văn, chọn Trường Kinh tế trong danh sách đơn vị trong hệ thống")
     units = staff.gql(DISPATCH_UNITS)["office_dispatch_units"]
     own = staff.gql("{ core_tenants { id } }")["core_tenants"][0]["id"]
     kt = next((u for u in units if u["code"] == "KT"), None)
     if kt is None:
-        raise DemoFailed(f"danh sách đơn vị trong hệ thống không có Khoa Kinh tế (mã KT): {units} — chạy make seed")
+        raise DemoFailed(f"danh sách đơn vị trong hệ thống không có Trường Kinh tế (mã KT): {units} — chạy make seed")
     if any(u["id"] == own for u in units):
         raise DemoFailed("danh sách đơn vị nhận có cả đơn vị của người soạn")
     sent = staff.gql(DRAFT, {"o": {
         "type_code": "CV", "recipients": [kt["name"]], "recipient_tenant_ids": [kt["id"]],
         "summary": f"Về việc phối hợp tổ chức hội thảo khoa học liên khoa (demo {tag})",
-        "body": "Khoa Công nghệ thông tin đề nghị Khoa Kinh tế cử cán bộ tham gia ban tổ chức hội thảo.\n"
+        "body": "Trường Công nghệ thông tin và Truyền thông đề nghị Trường Kinh tế cử cán bộ tham gia ban tổ chức "
+                "hội thảo.\n"
                 "Danh sách gửi về Văn phòng khoa trước ngày 15 tháng sau.",
     }})["insert_office_documents_one"]["id"]
     ok(f"danh sách chọn được: {', '.join(u['name'] for u in units)} (không có đơn vị mình); dự thảo gửi {kt['name']}")
@@ -1211,12 +1212,12 @@ def lien_thong() -> None:
     sha, code = hexed(src["content_sha256"]), src["verify_code"]
     ok(f"{src['symbol']} phát hành: mã xác thực {code[:5]}-{code[5:]}, SHA-256 {sha[:16]}…")
 
-    say(3, "Khoa Kinh tế tự nhận văn bản đến — không ai gửi thư điện tử, không ai tải tệp lên lại")
+    say(3, "Trường Kinh tế tự nhận văn bản đến — không ai gửi thư điện tử, không ai tải tệp lên lại")
     # svc-workflow chuyển ngay sau lần phát hành; trượt thì vòng đối soát nền làm lại
     deadline = time.monotonic() + 90
     while not (arrived := kt_clerk.gql(ARRIVED, {"s": sent})["office_documents"]):
         if time.monotonic() > deadline:
-            raise DemoFailed("sau 90 giây Khoa Kinh tế chưa có văn bản đến từ công văn vừa phát hành")
+            raise DemoFailed("sau 90 giây Trường Kinh tế chưa có văn bản đến từ công văn vừa phát hành")
         time.sleep(1)
     took = time.monotonic() - issued_at
     doc = arrived[0]
@@ -1234,7 +1235,7 @@ def lien_thong() -> None:
     deadline = time.monotonic() + 15
     while not (notes := kt_clerk.gql(INCOMING_NOTE, {"d": doc["id"]})["core_notifications"]):
         if time.monotonic() > deadline:
-            raise DemoFailed("văn thư Khoa Kinh tế chưa nhận thông báo văn bản đến mới")
+            raise DemoFailed("văn thư Trường Kinh tế chưa nhận thông báo văn bản đến mới")
         time.sleep(1)
     out = clerk.gql(DISPATCH_OUT, {"d": sent})["office_dispatches"]
     if [r["status"] for r in out] != ["delivered"] or not out[0]["delivered_at"]:
@@ -1254,15 +1255,15 @@ def lien_thong() -> None:
     ok(f"mã {code[:5]}-{code[5:]} (giao diện hiện cạnh văn bản đến) → khớp: {by_code['document']['symbol']} do"
        f" {by_code['document']['issuer_name']} phát hành; tra theo SHA-256 của tệp nhận được cũng khớp")
 
-    say(5, "Văn thư KT vào sổ — văn bản vào luồng văn bản đến bình thường của Khoa Kinh tế")
+    say(5, "Văn thư KT vào sổ — văn bản vào luồng văn bản đến bình thường của Trường Kinh tế")
     number = kt_clerk.gql("mutation ($id: uuid!) { registerIncoming(documentId: $id) { register_number } }",
                           {"id": doc["id"]})["registerIncoming"]["register_number"]
     kt_director.wait_task(doc["id"], "vbden.chiDao")
-    ok(f"số đến {number} trong sổ đến của Khoa Kinh tế; truongkhoakt có việc cho ý kiến chỉ đạo (vbden.chiDao)")
+    ok(f"số đến {number} trong sổ đến của Trường Kinh tế; truongkhoakt có việc cho ý kiến chỉ đạo (vbden.chiDao)")
     if clerk.gql("query ($id: uuid!) { office_documents_by_pk(id: $id) { id } }",
                  {"id": doc["id"]})["office_documents_by_pk"] is not None:
-        raise DemoFailed("Khoa CNTT đọc được văn bản đến của Khoa Kinh tế")
-    ok("Khoa CNTT không đọc được văn bản đến của Khoa Kinh tế — mỗi đơn vị chỉ thấy phần của mình")
+        raise DemoFailed("Trường CNTT & TT đọc được văn bản đến của Trường Kinh tế")
+    ok("Trường CNTT & TT không đọc được văn bản đến của Trường Kinh tế — mỗi đơn vị chỉ thấy phần của mình")
 
     say(6, "Sổ kiểm toán của cả hai đơn vị ghi lại — mỗi lãnh đạo đọc sổ của đơn vị mình")
     ours = director.gql(AUDIT_OF, {"ids": [link[0]["id"]]})["core_audit_log"]
@@ -1270,16 +1271,16 @@ def lien_thong() -> None:
     peek = kt_director.gql(AUDIT_OF, {"ids": [link[0]["id"], sent]})["core_audit_log"]
     if not {("office.dispatches", "insert"), ("office.dispatches", "update")} <= {(r["entity"], r["action"])
                                                                                   for r in ours}:
-        raise DemoFailed(f"sổ Khoa CNTT thiếu dòng liên thông: {ours}")
+        raise DemoFailed(f"sổ Trường CNTT & TT thiếu dòng liên thông: {ours}")
     copied = [r for r in theirs if (r["entity"], r["action"]) == ("core.files", "insert")]
     if not copied or not any((r["entity"], r["action"]) == ("office.documents", "insert") for r in theirs):
-        raise DemoFailed(f"sổ Khoa Kinh tế thiếu văn bản đến hoặc bản sao tệp: {theirs}")
+        raise DemoFailed(f"sổ Trường Kinh tế thiếu văn bản đến hoặc bản sao tệp: {theirs}")
     if peek:
-        raise DemoFailed(f"lãnh đạo Khoa Kinh tế đọc được sổ của Khoa CNTT: {peek}")
-    ok(f"sổ Khoa CNTT: {len(ours)} dòng office.dispatches (tạo trong giao dịch phát hành → delivered),"
+        raise DemoFailed(f"lãnh đạo Trường Kinh tế đọc được sổ của Trường CNTT & TT: {peek}")
+    ok(f"sổ Trường CNTT & TT: {len(ours)} dòng office.dispatches (tạo trong giao dịch phát hành → delivered),"
        f" từ dòng #{ours[0]['id']}")
-    ok(f"sổ Khoa Kinh tế: {len(theirs)} dòng — văn bản đến, vào sổ, bản sao tệp (người thực hiện:"
-       f" {copied[0]['actor_kind']}); lãnh đạo Khoa Kinh tế không đọc được dòng nào của Khoa CNTT")
+    ok(f"sổ Trường Kinh tế: {len(theirs)} dòng — văn bản đến, vào sổ, bản sao tệp (người thực hiện:"
+       f" {copied[0]['actor_kind']}); lãnh đạo Trường Kinh tế không đọc được dòng nào của Trường CNTT & TT")
 
     say(7, "Văn bản hạn chế không gửi được trong hệ thống")
     try:
@@ -1291,7 +1292,7 @@ def lien_thong() -> None:
     except RuntimeError as exc:
         if "documents_restricted_local" not in str(exc):
             raise DemoFailed(f"bị từ chối nhưng không vì ràng buộc documents_restricted_local: {exc}") from exc
-    ok("dự thảo hạn chế chọn Khoa Kinh tế → CSDL từ chối (documents_restricted_local); svc-workflow, svc-files cũng"
+    ok("dự thảo hạn chế chọn Trường Kinh tế → CSDL từ chối (documents_restricted_local); svc-workflow, svc-files cũng"
        " chặn — tệp hạn chế mã hóa theo khóa của đơn vị gửi, không rời đơn vị")
 
     print(f"\nXem trên giao diện (vanthukt): {PUBLIC_URL}/van-ban/{doc['id']} — chip \"Liên thông\", \"Nhận từ"
@@ -2876,7 +2877,8 @@ def ky_so() -> None:
     doc_id, took = issue_outgoing(staff, manager, director, clerk, {
         "type_code": "CV", "recipients": ["Phòng Đào tạo"],
         "summary": f"Về việc báo cáo kết quả tự đánh giá chương trình đào tạo ngành Kỹ thuật phần mềm (demo {tag})",
-        "body": "Khoa Công nghệ thông tin báo cáo kết quả tự đánh giá chương trình đào tạo ngành Kỹ thuật phần mềm.\n"
+        "body": "Trường Công nghệ thông tin và Truyền thông báo cáo kết quả tự đánh giá chương trình đào tạo ngành "
+                "Kỹ thuật phần mềm.\n"
                 "Đề nghị Phòng Đào tạo tổng hợp, báo cáo Ban Giám hiệu.",
     }, public=True)
     doc = clerk.gql(SIGNED_DOC, {"id": doc_id})["office_documents_by_pk"]
@@ -2952,7 +2954,8 @@ def ky_so() -> None:
     secret_id, _ = issue_outgoing(staff, manager, director, clerk, {
         "type_code": "CV", "recipients": ["Phòng Tổ chức cán bộ"], "restricted": True,
         "summary": f"Về việc danh sách đề nghị nâng lương trước hạn năm 2026 (demo {tag})",
-        "body": "Khoa Công nghệ thông tin gửi danh sách đề nghị nâng lương trước hạn năm 2026 (kèm theo).",
+        "body": "Trường Công nghệ thông tin và Truyền thông gửi danh sách đề nghị nâng lương trước hạn năm 2026 "
+                "(kèm theo).",
     }, public=False)
     secret = clerk.gql(SIGNED_DOC, {"id": secret_id})["office_documents_by_pk"]
     if secret["status"] != "issued" or not secret["files"]:
@@ -3339,7 +3342,7 @@ def che_pii() -> None:
 # số đếm, số giờ, văn bản hạn chế không tính; (c) bấm giờ 5 lần tìm lại văn bản đến cũ nhất qua /api/search, lần lượt,
 # không lượt khởi động: độ trễ hệ thống, không gồm thời gian người gõ, đọc; (d) chỉ so sánh định tính. Cột "trước"
 # luôn là "chưa đo" — chưa có đơn vị chạy thử. Cách đo, cách đọc: docs/so-lieu-sau.md.
-SL_ACCOUNT = "truongkhoa"              # lãnh đạo Khoa CNTT của seed (seed/users.csv)
+SL_ACCOUNT = "truongkhoa"              # lãnh đạo Trường CNTT & TT của seed (seed/users.csv)
 SL_RUNS = 5
 SL_POOL = 25                           # số văn bản đến cũ nhất để chọn ra 5 số ký hiệu khác nhau
 SL_LIMIT = 20                          # văn bản cần tìm phải nằm trong 20 kết quả đầu
@@ -3611,7 +3614,7 @@ def nap_lo() -> None:
     want, key, name = nap_lo_mau.expected(), f"demo-nap-lo-{tag}", f"van-ban-den-{tag}.ndjson"
     attached = sum(1 for r in rows if r.get("files"))
 
-    say(1, f"Văn thư Khoa Kinh tế gửi {len(rows)} văn bản đến (NDJSON) kèm zip {attached} tệp đính kèm, có"
+    say(1, f"Văn thư Trường Kinh tế gửi {len(rows)} văn bản đến (NDJSON) kèm zip {attached} tệp đính kèm, có"
            " Idempotency-Key")
     status, headers, job = send_batch(clerk, data, name, archive=archive, key=key)
     if status != 202 or headers.get("location") != f"/api/imports/{job['id']}" or job["total"] != len(rows):
@@ -3629,11 +3632,12 @@ def nap_lo() -> None:
             raise DemoFailed(f"lãnh đạo khoa gửi lô: {exc.status} {error_detail(exc)}") from exc
     try:
         call_json("GET", f"{IMPORTS_URL}/{job['id']}", headers=other.auth)
-        raise DemoFailed("văn thư Khoa CNTT đọc được lô của Khoa Kinh tế")
+        raise DemoFailed("văn thư Trường CNTT & TT đọc được lô của Trường Kinh tế")
     except HTTPError as exc:
         if exc.status != 404:
-            raise DemoFailed(f"văn thư Khoa CNTT đọc lô: {exc.status} {error_detail(exc)}") from exc
-    ok("truongkhoakt gửi lô → 403 forbidden (chỉ văn thư nạp lô); vanthu (Khoa CNTT) đọc lô → 404, như lô không có")
+            raise DemoFailed(f"văn thư Trường CNTT & TT đọc lô: {exc.status} {error_detail(exc)}") from exc
+    ok("truongkhoakt gửi lô → 403 forbidden (chỉ văn thư nạp lô); vanthu (Trường CNTT & TT) đọc lô → 404, như lô"
+       " không có")
 
     say(3, "svc-files xử lý nền theo mẻ — văn thư hỏi trạng thái tới khi xong")
     started = time.monotonic()
@@ -3849,7 +3853,7 @@ def log_tap_trung() -> None:
     doc_id, took = issue_outgoing(staff, manager, director, clerk, {
         "type_code": "CV", "recipients": ["Phòng Đào tạo"],
         "summary": f"Về việc tổng hợp nhật ký hệ thống theo mã yêu cầu (demo {tag})",
-        "body": "Khoa Công nghệ thông tin gửi Phòng Đào tạo kết quả thử log tập trung.",
+        "body": "Trường Công nghệ thông tin và Truyền thông gửi Phòng Đào tạo kết quả thử log tập trung.",
     }, public=False, request_id=rid)
     sent = time.monotonic()
     ok(f"X-Request-Id {rid}: APISIX giữ mã client gửi và trả lại ở header; phát hành xong trong {took:.1f} giây")
@@ -4427,8 +4431,8 @@ QT_CLIENT = f"app-{QT_NAME}"
 QT_CALLBACK = f"{PUBLIC_URL}/nghi-phep/dang-nhap"
 QT_API = f"{PUBLIC_URL}/api/workflow/nghi-phep"
 QT_PROCESS, QT_FORM_DON, QT_FORM_DUYET = "nghi-phep.don", "nghi-phep.don", "nghi-phep.duyet"
-# seed/users.csv, Khoa CNTT: giảng viên và trưởng Bộ môn KTPM cùng phòng; tổ trưởng Đào tạo là trưởng phòng khác của
-# cùng đơn vị (scripts/tests/test_nghi_phep.py kiểm theo tệp seed)
+# seed/users.csv, Trường CNTT & TT: giảng viên và trưởng Bộ môn KTPM cùng phòng; tổ trưởng Đào tạo là trưởng phòng
+# khác của cùng đơn vị (scripts/tests/test_nghi_phep.py kiểm theo tệp seed)
 QT_STAFF, QT_MANAGER, QT_OTHER = "giangvienktpm", "truongbmktpm", "totruongdt"
 # Dữ liệu sai và mã lỗi lõi phải trả, trùng ca thử dùng chung apps/nghi-phep/forms/*.cases.json (test kiểm)
 QT_BAD_RANGE = {"denNgay": "x-moc-range"}
@@ -4737,7 +4741,7 @@ LG_MANIFEST = "apps/lich-giang/app.yaml"
 LG_NAME, LG_PATH = "lich-giang", "/lich-giang/"
 LG_PROCESS = "lich-giang.don"
 LG_FORMS = {"lich-giang.don": "don", "lich-giang.bo-mon": "bo-mon", "lich-giang.khoa": "khoa"}
-# seed/users.csv, Khoa CNTT: giảng viên, trưởng Bộ môn KTPM; lãnh đạo khoa; tổ trưởng Đào tạo (trưởng phòng khác)
+# seed/users.csv, Trường CNTT & TT: giảng viên, trưởng Bộ môn KTPM; lãnh đạo khoa; tổ trưởng Đào tạo (trưởng phòng khác)
 LG_STAFF, LG_HEAD, LG_DEAN, LG_OTHER = "giangvienktpm", "truongbmktpm", "truongkhoa", "totruongdt"
 
 

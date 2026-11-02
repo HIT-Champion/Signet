@@ -191,7 +191,7 @@ def run() -> None:
             or ns.get("x-hasura-tenant-id") != TENANT_CNTT or not ns.get("x-hasura-user-id")):
         raise DemoFailed(f"token của {CLIENT}: azp {claims.get('azp')}, claim Hasura {sorted(ns)}")
     ok(f"{CLIENT}: Keycloak chuyển thẳng về {BASE}dang-nhap kèm mã (SSO), đổi mã bằng code_verifier → token azp "
-       f"{CLIENT}, vai trò staff, đơn vị Khoa CNTT")
+       f"{CLIENT}, vai trò staff, đơn vị Trường CNTT & TT")
     code, _, _ = browser.authorize(CLIENT, CALLBACK, None)
     try:
         exchange(CLIENT, CALLBACK, code, "sai-" + verifier)
@@ -242,7 +242,7 @@ def run() -> None:
         raise DemoFailed(f"tải về: {status}, {len(got)} byte (gửi {len(content)})")
     ok(f"200, {len(got)} byte, SHA-256 khớp; {header(headers, 'Content-Disposition')[:60]}")
 
-    say(6, f"{OTHER} (cùng Khoa CNTT) không với tới được tệp và mục của {OWNER}")
+    say(6, f"{OTHER} (cùng Trường CNTT & TT) không với tới được tệp và mục của {OWNER}")
     other = Session(OTHER)
     if any(i["file_id"] == stored["id"] for i in other.gql(QUERY_ITEMS)["personal_items"]):
         raise DemoFailed(f"{OTHER} thấy mục của {OWNER}")

@@ -26,7 +26,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from conftest import ADMIN_SECRET, INSERT_DOC, GraphQLError, Service, gql_raw, outgoing, received, sql
+from conftest import ADMIN_SECRET, INSERT_DOC, GraphQLError, Service, SQLError, gql_raw, outgoing, received, sql
 
 NUMBER = """
 mutation ($id: uuid!, $code: String!) {
@@ -259,3 +259,21 @@ def test_tenant_admin_edits_letterhead_but_no_one_else_does(world):
     for user in (world.clerk_a, world.director_a):
         assert "errors" in user.raw(update, {"id": world.tenant_a}), user.role
     assert world.admin_a.gql(update, {"id": world.tenant_b})["update_core_tenants_by_pk"] is None
+
+
+def test_short_name_reads_like_name_and_only_the_operator_sets_it(world):
+    # #466: tên ngắn cho chỗ hẹp của giao diện — mọi vai trò của đơn vị đọc được như name; quản trị đơn vị không sửa
+    # được (người vận hành đặt bằng `moc tenant create --short-name`); chuỗi trắng bị CSDL từ chối
+    sql(f"update core.tenants set short_name = 'ĐV Thử' where id = '{world.tenant_a}'")
+    try:
+        query = "query ($id: uuid!) { core_tenants_by_pk(id: $id) { name short_name } }"
+        for user in (world.staff_a1, world.clerk_a, world.director_a, world.admin_a):
+            assert user.gql(query, {"id": world.tenant_a})["core_tenants_by_pk"]["short_name"] == "ĐV Thử", user.role
+        assert world.staff_a1.gql(query, {"id": world.tenant_b})["core_tenants_by_pk"] is None
+        update = """mutation ($id: uuid!) { update_core_tenants_by_pk(pk_columns: {id: $id},
+                    _set: {short_name: "Khác"}) { id } }"""
+        assert "errors" in world.admin_a.raw(update, {"id": world.tenant_a})
+        with pytest.raises(SQLError):
+            sql(f"update core.tenants set short_name = '  ' where id = '{world.tenant_a}'")
+    finally:
+        sql(f"update core.tenants set short_name = null where id = '{world.tenant_a}'")

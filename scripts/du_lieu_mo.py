@@ -67,7 +67,7 @@ TEXT_KEYS = ("source", "name", "publisher", "home_url", "reuse_basis", "fetched_
 # tên trơn hoặc một tầng thư mục con (câu trích trich/*.txt của ngay-nghi-le); không phần nào bắt đầu bằng "."
 FILE_NAME = re.compile(r"(?:[a-z0-9][a-z0-9._-]{0,99}/)?[a-z0-9][a-z0-9._-]{0,99}")
 SHA256 = re.compile(r"[0-9a-f]{64}")
-CLERK = "vanthu"                # văn thư Khoa CNTT của đơn vị mẫu (seed/users.csv)
+CLERK = "vanthu"                # văn thư Trường CNTT & TT của đơn vị mẫu (seed/users.csv)
 # cột của lô văn bản đến (schemas/van-ban-den.json; svc-files imports/parse.py), ``files`` là tên tệp trong zip
 COLUMNS = ("type_code", "symbol", "issuer_name", "issued_on", "summary", "urgency", "files")
 DOC_KEYS = COLUMNS[:5]          # meta có đủ các khóa này thì tệp là một văn bản để nạp
