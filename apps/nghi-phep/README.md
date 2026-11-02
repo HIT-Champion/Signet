@@ -33,7 +33,8 @@ Ba phần, chuyển bằng thanh trên cùng (tiêu điểm về tiêu đề ph�
 - **Đơn của tôi** — mỗi đơn một thẻ: trạng thái (chờ trưởng phòng duyệt, đã duyệt, bị từ chối), nội dung đơn, số
   ngày nghỉ, quyết định và ghi chú của trưởng phòng.
 - **Việc cần duyệt** — chỉ hiện khi có việc: đơn của nhân viên trong phòng, form quyết định từ `forms/duyet.json`.
-  Danh sách tự làm mới mỗi 30 giây mà không xóa ghi chú đang gõ.
+  Mỗi thẻ ghi "Người gửi: …" theo `initiatorName` của API (#506); không có tên thì bỏ dòng đó. Danh sách tự làm mới
+  mỗi 30 giây mà không xóa ghi chú đang gõ.
 
 Trợ năng: mọi ô có nhãn; lỗi gắn vào ô bằng `aria-describedby`, `aria-invalid`; báo kết quả qua vùng `role="status"`,
 lỗi chung qua `role="alert"`; liên kết bỏ qua tới nội dung; nút cao tối thiểu 44 px; màu chữ trên nền đạt tỉ lệ
