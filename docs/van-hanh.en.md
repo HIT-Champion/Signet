@@ -622,7 +622,8 @@ then `docker compose up -d` (recreates `openbao`, `svc-files`). To change the ke
 
 - **What leaves the machine:** only the answer-writing call: the question and at most 4 source passages, **masked**
   first (phone numbers, citizen ID numbers, email addresses, bank account numbers; F4.4). Semantic search (the
-  embedding model) and incoming-document summaries stay in Ollama; without the `ai` profile the assistant searches by
+  embedding model) stays in Ollama unless embedding also goes through an external API (below); incoming-document
+  summaries always stay in Ollama. Without the `ai` profile and without an embedding API the assistant searches by
   keyword and only the writing step uses the API. An open-weight model (Apache-2.0) running locally remains the
   recommended default: sending documents to a cloud service is the unit's own decision about its data.
 - **Same checks:** the output is forced to a JSON Schema (`response_format`), and Signet still checks every sentence
@@ -637,6 +638,44 @@ then `docker compose up -d` (recreates `openbao`, `svc-files`). To change the ke
   403) or model name (404) counts as not ready until the next probe. Log events `office.assist.ai_ready`,
   `office.assist.ai_unavailable` carry `"where": "external"` and the HTTP code, never the key.
 - **Audit log:** the `assistant.answered` row records `model` and `model_where` (`local`: Ollama; `external`: the API).
+
+### Embeddings through an external API
+
+Semantic search can also move from Ollama to an embedding server that speaks the OpenAI API (#498): Azure AI Foundry,
+vLLM, llama.cpp or a cloud service. It is independent of `MOC_ASK_API`: turn on embedding only, writing only, or both.
+Set in `.env`:
+
+```
+MOC_EMBED_API=openai
+MOC_EMBED_API_URL=https://name.openai.azure.com/openai/v1
+MOC_EMBED_API_MODEL=<model name; on Azure, the deployment name>
+MOC_EMBED_API_DIMS=<dimensions, e.g. 1024; empty sends none>
+MOC_EMBED_API_KEY=<key, empty if the server needs none>
+```
+
+then `docker compose up -d`. The key is kept like `MOC_ASK_API_KEY` (above): a `svc-files` secret in the vault; to
+change it, `docker compose up -d` then `docker compose restart svc-files`.
+
+- **What leaves the machine:** more than the writing step. The background loop sends **every passage in the
+  assistant's index** to be embedded, including documents nobody has asked about; on top of that, users' questions,
+  and incoming-document subjects when the assignment agent looks for similar documents (F4.3). All of it is **masked**
+  as above (phone numbers, citizen ID numbers, email addresses, bank account numbers). Restricted documents have no
+  passages in the index, so they never leave. The incoming-document reader (`moc-doc-reader`, which suggests the
+  subject) stays in Ollama.
+- **Re-embedding the store:** `svc-files` names the embedder after the model and the dimensions, so switching from
+  Ollama, changing the model or changing `MOC_EMBED_API_DIMS` drops the old vectors and embeds every passage again;
+  meanwhile passages without a vector are still found by keyword.
+- **Dimensions:** when `MOC_EMBED_API_DIMS` is set it is sent as the `dimensions` parameter and is the dimension
+  stored in Meilisearch; when empty nothing is sent, the dimension is `MOC_AI_EMBED_DIMS`, and it must match what the
+  model returns. A wrong dimension makes `svc-files` log `office.assist.embed_dims_mismatch` and turn embedding off
+  until the variable is fixed and the service restarted; the assistant still searches by keyword.
+- **Model name, URL:** `MOC_EMBED_API_MODEL` is required and does not fall back to `MOC_AI_EMBED_MODEL` (that is the
+  model compose pulls into Ollama); without it, or with a URL that is not `http(s)://`, `svc-files` stops at start-up.
+  An `http://` URL logs `config.warning`, as for the writing step.
+- **Readiness:** `GET {MOC_EMBED_API_URL}/models`, then one sample embedding, at start-up and every 60 seconds; a wrong
+  key or model name (401, 403, 404) counts as not ready until the next probe, while 429, 5xx and timeouts make the
+  background loop retry that batch. Log events `office.assist.ai_ready`, `office.assist.ai_unavailable` (with
+  `"kind": "embed"`) and `office.assist.embed_failed` all carry `"where": "external"`, never the key.
 
 ## System status page
 
@@ -654,8 +693,9 @@ portal and the sidebar after sign-in all link here. While open, the page refresh
   question answering are unavailable for the time being, and the rest still runs. The AI assistant is *Off* when the
   `ai` profile is not on, question answering is turned off, or Ollama does not answer: the page cannot tell these three
   cases apart, so if it shows *Off* while the `ai` profile is on, look at `docker compose logs ollama`. The assistant
-  still searches by keyword. When answers are written through an external API (section below), the component's
-  software reads "API ngoài".
+  still searches by keyword. When answers are written or passages embedded through an external API (section Assistant
+  answers through an external API, above), the component's software reads "API ngoài", or "Ollama, API ngoài" when the
+  other part still runs in Ollama.
 - **What it does not reveal:** only fixed labels and states; no host names, IP addresses, internal URLs, per-component
   versions, user or document counts, or error messages. The specific reason is in the `svc-files` log (event
   `core.status.changed`, written when a component changes state): `docker compose logs svc-files | grep

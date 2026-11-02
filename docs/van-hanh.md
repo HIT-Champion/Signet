@@ -553,8 +553,9 @@ rồi `docker compose up -d` (tạo lại `openbao`, `svc-files`). Đổi khóa 
 `docker compose restart svc-files`.
 
 - **Cái gì rời máy:** chỉ lời gọi viết câu trả lời: câu hỏi và tối đa 4 đoạn văn bản làm căn cứ, **đã che** số điện
-  thoại, CCCD, email, số tài khoản (F4.4). Tìm theo nghĩa (mô hình nhúng) và trích yếu văn bản đến vẫn ở Ollama; không
-  bật profile `ai` thì trợ lý tìm theo từ khóa, chỉ bước viết dùng API. Mô hình mở trọng số (Apache-2.0) chạy tại
+  thoại, CCCD, email, số tài khoản (F4.4). Tìm theo nghĩa (mô hình nhúng) vẫn ở Ollama, trừ khi bật cả nhúng qua API
+  ngoài (mục dưới); trích yếu văn bản đến luôn ở Ollama. Không bật profile `ai` và không nhúng qua API ngoài thì trợ lý
+  tìm theo từ khóa, chỉ bước viết dùng API. Mô hình mở trọng số (Apache-2.0) chạy tại
   chỗ vẫn là mặc định khuyên dùng: gửi văn bản tới dịch vụ đám mây là quyết định của đơn vị về dữ liệu của mình.
 - **Kiểm như cũ:** đầu ra ép theo JSON Schema (`response_format`), máy chủ Signet vẫn kiểm từng câu với đoạn nguồn và
   con số rồi mới gắn trích dẫn; không đạt thì trả câu trích nguyên văn.
@@ -568,6 +569,42 @@ rồi `docker compose up -d` (tạo lại `openbao`, `svc-files`). Đổi khóa 
   sai tên mô hình (404) thì coi như chưa sẵn sàng tới lượt dò sau. Nhật ký: `office.assist.ai_ready`,
   `office.assist.ai_unavailable` có `"where": "external"` và mã HTTP, không có khóa.
 - **Sổ kiểm toán:** dòng `assistant.answered` ghi `model` và `model_where` (`local`: Ollama; `external`: API ngoài).
+
+### Nhúng qua API ngoài
+
+Tìm theo nghĩa cũng chuyển được khỏi Ollama sang một máy chủ nhúng nói chuẩn OpenAI (#498): Azure AI Foundry, vLLM,
+llama.cpp hay dịch vụ đám mây. Độc lập với `MOC_ASK_API`: bật riêng nhúng, riêng bước viết, hoặc cả hai. Đặt trong
+`.env`:
+
+```
+MOC_EMBED_API=openai
+MOC_EMBED_API_URL=https://ten.openai.azure.com/openai/v1
+MOC_EMBED_API_MODEL=<tên mô hình, với Azure là tên deployment>
+MOC_EMBED_API_DIMS=<số chiều, vd 1024; để trống thì không gửi>
+MOC_EMBED_API_KEY=<khóa, để trống nếu máy chủ không đòi>
+```
+
+rồi `docker compose up -d`. Khóa giữ như `MOC_ASK_API_KEY` (mục trên): bí mật của `svc-files` trong két, đổi khóa thì
+`docker compose up -d` rồi `docker compose restart svc-files`.
+
+- **Cái gì rời máy:** nhiều hơn bước viết. Vòng nền gửi **mọi đoạn văn bản trong chỉ mục** của trợ lý đi nhúng, cả
+  văn bản chưa ai hỏi tới; thêm câu hỏi của người dùng và trích yếu văn bản đến khi tác tử gợi ý giao việc tìm văn bản
+  tương tự (F4.3). Tất cả **đã che** số điện thoại, CCCD, email, số tài khoản như trên. Văn bản hạn chế không có đoạn
+  trong chỉ mục nên không bao giờ đi. Tác tử đọc văn bản đến (`moc-doc-reader`, gợi ý trích yếu) vẫn ở Ollama.
+- **Nhúng lại cả kho:** `svc-files` đặt tên embedder theo mô hình và số chiều, nên chuyển từ Ollama sang, đổi mô hình
+  hay đổi `MOC_EMBED_API_DIMS` thì tự bỏ véc-tơ cũ và nhúng lại mọi đoạn; trong lúc đó đoạn chưa có véc-tơ vẫn tìm được
+  theo từ khóa.
+- **Số chiều:** `MOC_EMBED_API_DIMS` có đặt thì gửi làm tham số `dimensions` và là số chiều lưu trong Meilisearch; để
+  trống thì không gửi, số chiều là `MOC_AI_EMBED_DIMS` và phải đúng số chiều mô hình trả. Trả sai số chiều thì
+  `svc-files` ghi `office.assist.embed_dims_mismatch` và tắt nhúng tới khi sửa biến rồi khởi động lại; trợ lý vẫn tìm
+  theo từ khóa.
+- **Tên mô hình, URL:** `MOC_EMBED_API_MODEL` bắt buộc, không lấy `MOC_AI_EMBED_MODEL` (biến đó là mô hình compose kéo
+  về Ollama); thiếu, hoặc URL không dạng `http(s)://`, thì `svc-files` dừng lúc khởi động. URL `http://` thì ghi
+  `config.warning` như bước viết.
+- **Sẵn sàng:** `GET {MOC_EMBED_API_URL}/models` rồi nhúng thử một câu, lúc khởi động và mỗi 60 giây; khóa sai, sai tên
+  mô hình (401, 403, 404) thì coi như chưa sẵn sàng tới lượt dò sau, còn 429, 5xx, quá giờ thì vòng nền thử lại lô đó.
+  Nhật ký: `office.assist.ai_ready`, `office.assist.ai_unavailable` (có `"kind": "embed"`) và
+  `office.assist.embed_failed` đều có `"where": "external"`, không có khóa.
 
 ## Trang trạng thái hệ thống
 
@@ -584,7 +621,8 @@ khi đăng nhập đều có đường tới đây. Trang tự làm mới mỗi 
   thì *Một số thành phần đang gặp sự cố*: văn bản hạn chế và ký số (két), tìm kiếm, hỏi đáp tạm không dùng được, còn
   lại vẫn chạy. Trợ lý AI *Tắt* khi chưa bật profile `ai`, tắt hỏi đáp, hoặc Ollama không trả lời: trang không phân
   biệt được ba trường hợp này, nên *Tắt* mà profile `ai` đang bật thì xem `docker compose logs ollama`. Trợ lý vẫn tìm
-  theo từ khóa. Viết câu trả lời qua API ngoài (mục dưới) thì phần mềm của thành phần ghi "API ngoài".
+  theo từ khóa. Viết câu trả lời hay nhúng qua API ngoài (mục Trợ lý hỏi đáp qua API ngoài ở trên) thì phần mềm của
+  thành phần ghi "API ngoài", hoặc "Ollama, API ngoài" khi phần còn lại vẫn chạy ở Ollama.
 - **Không lộ gì:** chỉ có nhãn cố định và trạng thái; không tên máy, địa chỉ IP, URL nội bộ, phiên bản từng thành phần,
   số người dùng hay số văn bản, thông báo lỗi. Lý do cụ thể nằm trong nhật ký của `svc-files` (sự kiện
   `core.status.changed`, ghi khi một thành phần đổi trạng thái): `docker compose logs svc-files | grep status.changed`.

@@ -149,7 +149,9 @@ is sent out.
 All four work **without a language model**, so they run in CI, on weak machines and offline. A local model (Ollama,
 Qwen3 1.7B, on CPU) writes summaries and answers: `make ai-model`, then `make up-ai`. The answer-writing step alone can
 call an external OpenAI-compatible API instead of Ollama (`MOC_ASK_API=openai`, off by default, #430); when it is on,
-the question and up to 4 supporting passages, with personal data masked, leave the server. Measurements and
+the question and up to 4 supporting passages, with personal data masked, leave the server. Embedding (semantic
+search) can move to an external API too (`MOC_EMBED_API=openai`, off by default, #498); when it is on, every
+non-restricted passage in the index, masked, leaves the server. Measurements and
 limitations of each agent (Vietnamese): [`docs/danh-gia-ai.md`](docs/danh-gia-ai.md).
 
 ### Screenshots
