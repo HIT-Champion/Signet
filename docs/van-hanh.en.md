@@ -4,8 +4,9 @@
 
 *Translator's note: other documents linked from this guide are in Vietnamese unless they have an English version.*
 
-Administrator tasks on a running installation: adding a unit, backup and restore, the secrets vault, GitOps and
-self-healing, monitoring, the system status page, the internal wiki, automation with Node-RED, IT/OT convergence. First
+Administrator tasks on a running installation: adding a unit, staff leaving, backup and restore, incident response, the
+secrets vault, GitOps and self-healing, monitoring, the system status page, the internal wiki, automation with
+Node-RED, IT/OT convergence. First
 install: [README](../README.en.md), section "Building from source"; moving to a server with a domain name and HTTPS:
 [`trien-khai.md`](trien-khai.md). The operations command is `python3 scripts/moc.py …` (the technical codename `moc`
 is kept from the product's former name).
@@ -52,6 +53,24 @@ python3 scripts/moc.py tenant check KTCK     # do the Organization, its members 
 - If the internal wiki is on, also run `python3 scripts/moc.py wiki sync` so that the new unit gets its own space
   (section Internal wiki); until then, people of the new unit can only read the wiki's start page.
 
+## Staff leaving
+
+The operator disables the account in Keycloak (the `/admin` console, opened as in [`trien-khai.md`](trien-khai.md)
+section 7): in Signet's realm, open the person under **Users**, switch off **Enabled** and save; then sign out the
+person's open sessions on the **Sessions** tab. Do not delete the account: a disabled account keeps its name in the
+audit log and on timelines.
+
+- A disabled person cannot sign in again or refresh a token.
+- An access token already issued stays usable until it expires, **at most 300 seconds** (`accessTokenLifespan` in
+  `platform/keycloak/realm/moc-realm.json`): APISIX and the services check the token signature locally against the
+  realm's public keys (JWKS) and do not ask Keycloak on each request. A lower `accessTokenLifespan` cuts access sooner,
+  at the cost of browsers refreshing tokens more often. The 300 seconds are the configured limit, not measured; when an
+  open realtime notification connection gets closed has not been checked either.
+- Within about 15 seconds, `svc-workflow` syncs the directory and marks the person `enabled = false` in `core.users`
+  (this change goes into the audit log). From then on email, SMS and Zalo notifications are not sent to them, and the
+  steps that pick recipients automatically (notifications, assignment suggestions) skip them.
+- Not automatic: the person's unfinished tasks are not handed over; whoever assigned them has to reassign.
+
 ## Backup and restore
 
 `make backup` backs up every database (business data, Keycloak, Flowable), all files (SeaweedFS, including the audit
@@ -89,6 +108,55 @@ python3 scripts/moc.py backup restore 20261020-020000   # restore one specific s
   (Node-RED pauses while it is copied, is stopped before a restore and started again afterwards).
 - A finished backup writes a `system.backed_up` row to the audit log; the system status page shows the time of the
   latest snapshot from that row. If the row cannot be written, the command only warns, and the backup is still usable.
+
+### How much data can be lost, how long a restore takes (RPO, RTO), and the 3-2-1 rule
+
+- **The data you can lose (RPO)** equals the gap between two backups. With a nightly backup as in
+  [`trien-khai.md`](trien-khai.md) section 7, the RPO is at most 24 hours: a restore loses every change made between
+  the latest snapshot and the incident. To lose less, have cron run `backup create` more often; each later run adds
+  only what changed and pauses writes for a few seconds while the databases are dumped.
+- **The time to restore (RTO)** is measured by CI on every run, in
+  job `chay-thu`, phần `sao-luu`, bước "Sao lưu, xóa dữ liệu, khôi phục rồi kiểm lại" (the restore drill). It is the time
+  `backup restore` takes from start until every service is healthy again, printed in the job summary. It is measured
+  on CI's small sample data: real data takes restic longer to copy back, and the figure leaves out the time to notice
+  the incident and decide to restore. For the unit's own figure, rehearse on another machine with the real repository.
+- **The 3-2-1 rule** (three copies of the data, on two kinds of media, one copy outside the unit): Signet makes the
+  second copy itself (the restic repository). The operator does the rest: put the repository on another disk or a NAS
+  (`MOC_BACKUP_DIR`, above) and copy it outside the unit (`rsync`). While the repository shares a disk with the data,
+  or no copy sits outside the unit, the rule is not met. A copy of `.env` (repository key, vault key) must also be kept
+  outside, apart from the repository.
+
+## Incident response
+
+When you suspect an intrusion or ransomware (encrypted files, data changed in odd ways), go through the four steps
+below in order, and write down the time and what was done at each step.
+
+1. **Isolate.** If self-healing or GitOps is on (section GitOps and self-healing), pause the reconciler first
+   (`sudo systemctl stop moc-reconcile.timer`; on a WSL2 machine, disable the `reconcile.py` line in the crontab of the
+   `moc` user), or within a minute it brings back the services you just stopped. Then cut access from the Internet:
+   stop the tunnel (`docker compose stop cloudflared` with the `tunnel` profile) or block the port at the firewall. If
+   you suspect the server itself is taken over, stop everything (`make down`) and unplug the network. Disable the
+   accounts that may have leaked (section Staff leaving). Delete nothing yet: the volumes, the logs and the backup
+   repository are needed in the next steps.
+2. **Scope.** `make audit` recomputes the audit log outside the database and compares it with the anchors: if the
+   chain still matches, rows up to the latest anchor were not changed or deleted behind your back; a broken row is
+   printed. See who did what on the unit administrator's Audit log page, in the centralised logs if they are on
+   (section Centralised logs) and in the alerts (section Monitoring). Run `python3 scripts/moc.py backup list` to pick
+   the last snapshot taken before the incident began.
+3. **Clean.** Reinstall the exact release in use (`make install`, [`trien-khai.md`](trien-khai.md)); with GitOps on,
+   the reconciler puts hand-edited installed files back to the right commit once it runs again. If the server was
+   taken over as root, build a new machine, install the release, copy `.env` from the copy kept off the server and
+   restore there in step 4. Change secrets that may have leaked as in section Secrets vault. **Do not change
+   `MOC_OPENBAO_SEAL_KEY`** (the vault would no longer open) **or `MOC_BACKUP_PASSWORD`** (the existing backup
+   repository could no longer be read).
+4. **Restore.** `python3 scripts/moc.py backup restore <snapshot>` with the snapshot picked in step 2: the command
+   checks that the repository reads back in full, asks again, and only then replaces the data and records the restore
+   in the audit log. Then run `make audit`, check the system status page, reopen access and turn the reconciler back on
+   (`sudo systemctl start moc-reconcile.timer`). Tell users which period of data was lost, from the snapshot to the
+   incident.
+
+After the incident, write a report: when it was found, which snapshot was restored, which period of data was lost,
+the cause. If personal data was involved, report it as the rules on personal data protection require.
 
 ## Secrets vault
 
