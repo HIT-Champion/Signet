@@ -82,7 +82,7 @@ env: ## Sinh .env từ .env.example, thay mọi change_me bằng chuỗi ngẫu 
 	@echo "Đã tạo $(ENV_FILE). Mật khẩu của các tài khoản mẫu là giá trị MOC_DEMO_PASSWORD trong tệp này."
 
 # .env chép tay từ .env.example mà quên sửa: mật khẩu, khóa (cả khóa quản trị Hasura) ai đọc mã nguồn cũng biết
-env-ready: $(ENV_FILE)
+env-ready: $(ENV_FILE) sinh-env
 	@! grep -qE '^[A-Z0-9_]+=change_me' $(ENV_FILE) || { echo "$(ENV_FILE) còn giá trị mẫu change_me:" \
 	  $$(grep -oE '^[A-Z0-9_]+=change_me' $(ENV_FILE) | cut -d= -f1) \
 	  "— đổi thành chuỗi ngẫu nhiên, hoặc xóa $(ENV_FILE) rồi make env" >&2; exit 1; }
@@ -107,7 +107,7 @@ check: ## Kiểm tra tiền điều kiện của môi trường
 build: $(ENV_FILE) ## Dựng image của các dịch vụ do đội viết
 	@$(COMPOSE) build
 
-up: sinh-env env-ready alert-env $(if $(LOGS_ON),logs-env) $(if $(WIKI_ON),wiki-env) $(if $(TU_DONG_ON),tu-dong-env) ## Khởi động lõi (Tầng 1) và Văn phòng điện tử (Tầng 2)
+up: env-ready alert-env $(if $(LOGS_ON),logs-env) $(if $(WIKI_ON),wiki-env) $(if $(TU_DONG_ON),tu-dong-env) ## Khởi động lõi (Tầng 1) và Văn phòng điện tử (Tầng 2)
 	$(if $(wildcard .moc-apps/apps),@python3 scripts/moc.py app sync --files)
 	@$(COMPOSE) up -d --build --wait --wait-timeout 600
 	$(if $(LOGS_ON),@python3 scripts/log_tap_trung.py init)
@@ -137,8 +137,8 @@ logs: ## Theo dõi nhật ký của mọi dịch vụ
 	@$(COMPOSE) logs -f --tail=100
 
 sinh-env: $(ENV_FILE)
-	@# .env sinh trước #566 thiếu mật khẩu, khóa của PostgREST, Studio: sinh như make env, không in giá trị. Chạy trước
-	@# env-ready: thiếu khóa thì compose config của nó hỏng
+	@# .env sinh trước #566 thiếu mật khẩu, khóa của PostgREST, Studio: sinh như make env, không in giá trị. Là điều
+	@# kiện của env-ready (thiếu khóa thì compose config của nó hỏng), nên up, check, *-up đều nối, kể cả khi make -j
 	@for k in MOC_REST_DB_PASSWORD MOC_STUDIO_DB_PASSWORD MOC_STUDIO_META_KEY MOC_STUDIO_JWT_SECRET; do \
 	  grep -q "^$$k=" $(ENV_FILE) || { umask 077 \
 	  && printf '\n# Ứng dụng sinh từ Studio (#566), make up thêm\n%s=change_me\n' "$$k" \
