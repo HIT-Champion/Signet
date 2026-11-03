@@ -2,8 +2,9 @@
 
 **English:** [van-hanh.en.md](van-hanh.en.md)
 
-Các việc của người quản trị trên một bản cài đang chạy: thêm đơn vị, sao lưu và khôi phục, két bí mật, GitOps và tự phục
-hồi, giám sát, trang trạng thái hệ thống, wiki nội bộ, tự động hóa bằng Node-RED, hội tụ IT/OT. Cài lần đầu:
+Các việc của người quản trị trên một bản cài đang chạy: thêm đơn vị, nhân viên nghỉ việc, sao lưu và khôi phục, ứng phó
+sự cố, két bí mật, GitOps và tự phục hồi, giám sát, trang trạng thái hệ thống, wiki nội bộ, tự động hóa bằng Node-RED,
+hội tụ IT/OT. Cài lần đầu:
 [README](../README.md), mục "Cài đặt từ mã nguồn"; lên máy chủ có tên miền và HTTPS: [`trien-khai.md`](trien-khai.md).
 Lệnh vận hành là `python3 scripts/moc.py …` (tên mã kỹ thuật `moc` giữ từ tên cũ của sản phẩm).
 
@@ -43,6 +44,23 @@ python3 scripts/moc.py tenant check KTCK     # Organization, thành viên, danh 
 - Đã bật wiki nội bộ thì chạy thêm `python3 scripts/moc.py wiki sync` để đơn vị mới có không gian riêng (mục Wiki
   nội bộ); chưa chạy thì người của đơn vị mới chỉ đọc được trang đầu của wiki.
 
+## Nhân viên nghỉ việc
+
+Người vận hành khóa tài khoản trong Keycloak (trang quản trị `/admin`, cách mở ở [`trien-khai.md`](trien-khai.md)
+mục 7): trong realm của Signet, mở người đó ở **Users**, tắt **Enabled** rồi lưu; sau đó đăng xuất các phiên đang mở
+của người đó ở tab **Sessions**. Không xóa tài khoản: tài khoản bị khóa vẫn giữ tên trên sổ kiểm toán và dòng thời gian.
+
+- Người đã khóa không đăng nhập lại được, không làm mới được token.
+- Token truy cập đã cấp còn dùng được tới khi hết hạn, **tối đa 300 giây** (`accessTokenLifespan` trong
+  `platform/keycloak/realm/moc-realm.json`): APISIX và các dịch vụ kiểm chữ ký token tại chỗ bằng khóa công khai của
+  realm (JWKS), không hỏi Keycloak ở mỗi yêu cầu. Giảm `accessTokenLifespan` thì mất quyền sớm hơn, đổi lại trình duyệt
+  phải làm mới token thường hơn. 300 giây là giới hạn theo cấu hình, chưa đo bằng thực nghiệm; kết nối thông báo
+  realtime đang mở bị cắt lúc nào cũng chưa kiểm.
+- Sau tối đa một chu kỳ đồng bộ danh bạ (mặc định 15 giây, `MOC_DIRECTORY_SYNC_INTERVAL_S`), `svc-workflow` đánh dấu
+  người đó `enabled = false` trong `core.users` (thay đổi này vào sổ kiểm toán). Từ đó thông báo qua email, SMS, Zalo
+  không gửi cho người đó, và các bước tự chọn người nhận (thông báo, gợi ý giao việc) bỏ qua người đó.
+- Chưa tự động: việc đang dở của người đó không tự chuyển, người giao việc phải giao lại.
+
 ## Sao lưu và khôi phục
 
 `make backup` sao lưu mọi CSDL (dữ liệu nghiệp vụ, Keycloak, Flowable), toàn bộ tệp (SeaweedFS, kể cả các mốc
@@ -77,6 +95,52 @@ python3 scripts/moc.py backup restore 20261020-020000   # khôi phục một lư
   lúc chép, dừng trước khi khôi phục, chạy lại sau).
 - Lượt sao lưu xong ghi dòng `system.backed_up` vào sổ kiểm toán; trang trạng thái hệ thống hiện giờ của lượt gần
   nhất từ dòng đó. Ghi không được thì lệnh chỉ cảnh báo, bản sao lưu vẫn dùng được.
+
+### Mất bao nhiêu dữ liệu, khôi phục mất bao lâu (RPO, RTO) và quy tắc 3-2-1
+
+- **Lượng dữ liệu có thể mất (RPO)** bằng khoảng cách giữa hai lượt sao lưu. Sao lưu hằng đêm như
+  [`trien-khai.md`](trien-khai.md) mục 7 thì RPO tối đa 24 giờ: khôi phục là mất mọi thay đổi từ lượt gần nhất tới lúc
+  sự cố. Muốn mất ít hơn thì cho cron chạy `backup create` dày hơn; lượt sau chỉ thêm phần đã đổi, mỗi lượt tạm dừng
+  ghi vài giây lúc dump CSDL.
+- **Thời gian khôi phục (RTO)**: CI đo ở mỗi lần chạy, tại
+  job `chay-thu`, phần `sao-luu`, bước "Sao lưu, xóa dữ liệu, khôi phục rồi kiểm lại". Đó là thời gian của `backup
+  restore` từ lúc bắt đầu tới khi mọi dịch vụ chạy lại khỏe, in ở phần tóm tắt của job. Số này đo trên dữ liệu mẫu nhỏ
+  của CI: dữ liệu thật nhiều hơn thì restic chép lại lâu hơn, và số đó chưa gồm thời gian phát hiện sự cố, quyết định
+  khôi phục. Muốn có số của đơn vị thì diễn tập trên một máy khác bằng kho sao lưu thật.
+- **Quy tắc 3-2-1** (ba bản dữ liệu, trên hai loại phương tiện, một bản ở ngoài đơn vị): Signet tự làm bản thứ hai (kho
+  restic). Hai phần còn lại do người vận hành: đặt kho trên ổ khác hoặc NAS (`MOC_BACKUP_DIR`, mục trên) và chép kho ra
+  ngoài đơn vị (`rsync`). Kho còn chung ổ với dữ liệu, hoặc chưa có bản ở ngoài đơn vị, thì chưa đạt 3-2-1. Bản chép
+  `.env` (khóa kho, khóa két) cũng phải có ở ngoài, để riêng với kho.
+
+## Ứng phó sự cố
+
+Nghi bị xâm nhập hoặc dính mã độc tống tiền (tệp bị mã hóa, dữ liệu đổi lạ) thì làm lần lượt bốn bước dưới đây; mỗi
+bước ghi lại thời điểm và việc đã làm.
+
+1. **Cách ly.** Đã bật tự phục hồi hay GitOps (mục GitOps và tự phục hồi) thì tạm dừng reconciler trước
+   (`sudo systemctl stop moc-reconcile.timer`; máy WSL2 thì tắt dòng `reconcile.py` trong crontab của người dùng
+   `moc`), nếu không, chỉ sau một phút nó dựng lại dịch vụ vừa dừng. Rồi cắt đường vào từ Internet: dừng đường hầm
+   (`docker compose --profile tunnel stop cloudflared`) hoặc chặn cổng ở tường lửa. Nghi máy chủ đã bị chiếm thì chép
+   log ra máy khác (`docker compose logs --timestamps --no-color > log-su-co.txt`), dừng hẳn bằng `docker compose stop`
+   rồi rút mạng. Đừng dùng `make down`: lệnh đó xóa container, log của container mất theo (trừ khi đã bật Log tập
+   trung). Khóa các tài khoản nghi bị lộ (mục Nhân viên nghỉ việc). Chưa xóa gì: volume, log và kho sao lưu còn cần
+   cho các bước sau.
+2. **Khoanh vùng.** `make audit` tính lại sổ kiểm toán ở ngoài CSDL và so với mốc neo: chuỗi còn khớp thì các dòng tới
+   mốc gần nhất không bị sửa, xóa lén; có dòng hỏng thì lệnh in ra. Xem ai đã làm gì ở trang Sổ kiểm toán của quản trị
+   đơn vị, ở log tập trung nếu đã bật (mục Log tập trung) và ở cảnh báo (mục Giám sát). Chạy
+   `python3 scripts/moc.py backup list` để chọn lượt sao lưu cuối cùng trước lúc sự cố bắt đầu.
+3. **Làm sạch.** Cài lại đúng bản phát hành đang dùng (`make install`, [`trien-khai.md`](trien-khai.md)); đã bật GitOps
+   thì khi chạy lại, reconciler tự đưa tệp đã cài bị sửa tay về đúng commit. Máy chủ bị chiếm quyền root thì dựng máy
+   mới, cài từ bản phát hành, chép `.env` từ bản lưu ngoài máy rồi khôi phục ở bước 4 trên máy mới. Bí mật nghi bị lộ
+   thì đổi theo mục Két bí mật. **Không đổi `MOC_OPENBAO_SEAL_KEY`** (két không mở được nữa) **và
+   `MOC_BACKUP_PASSWORD`** (không đọc được kho sao lưu đã có).
+4. **Khôi phục.** `python3 scripts/moc.py backup restore <lượt>` với lượt đã chọn ở bước 2: lệnh kiểm kho đọc được trọn
+   vẹn, hỏi lại, rồi mới thay dữ liệu và ghi lần khôi phục vào sổ kiểm toán. Sau đó chạy `make audit`, xem trang trạng
+   thái hệ thống, rồi mở lại đường vào và bật lại reconciler (`sudo systemctl start moc-reconcile.timer`; máy WSL2 thì
+   bỏ dấu `#` ở dòng crontab). Báo người dùng khoảng thời gian dữ liệu bị mất, từ lượt sao lưu tới lúc sự cố.
+
+Sau sự cố, lập biên bản: lúc phát hiện, lượt đã khôi phục, khoảng dữ liệu mất, nguyên nhân. Sự cố có đụng tới dữ liệu cá
+nhân thì báo cáo theo quy định về bảo vệ dữ liệu cá nhân.
 
 ## Két bí mật
 
