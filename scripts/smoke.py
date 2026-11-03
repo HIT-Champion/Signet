@@ -1528,10 +1528,13 @@ def main(argv: list[str] | None = None) -> None:
     # Prometheus thu /metrics của svc-files 15 giây một lần: mỗi thành phần khác `off` của /api/status có đúng một dòng
     # moc_component_up = 1. So với /api/status chứ không với một số cố định: smoke cũng chạy trên bản đang nâng cấp
     # (scripts/nang_cap.sh), cấu hình có thể khác. Ngay sau make up Prometheus có thể chưa thu lượt nào: chờ tới 60 giây
+    # Chỉ lấy chuỗi vừa thu (45 giây = 3 lượt): lùi bản thì Prometheus dừng trước khi đánh dấu hết hạn thành phần bản
+    # mới có mà bản cũ không có, truy vấn tức thời còn trả mẫu cũ đó 5 phút (#576)
+    component_up = 'moc_component_up{job="svc-files"}'
     for _ in range(12):
         board = call_json("GET", f"{PUBLIC_URL}/api/status")[0]
         expected = sorted(c["id"] for c in board["components"] if c["status"] != "off")
-        series = prometheus('moc_component_up{job="svc-files"}')
+        series = prometheus(f"{component_up} and (time() - timestamp({component_up}) < 45)")
         if sorted(s["metric"].get("component", "") for s in series) == expected \
                 and all(s["value"][1] == "1" for s in series):
             break

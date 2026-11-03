@@ -66,6 +66,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trình dựng form: khung khai báo `app.yaml`, nội dung tệp và dữ liệu xem trước cuộn được bằng bàn phím (#516).
 - Quy tắc ứng xử (`CODE_OF_CONDUCT.md`, phỏng theo Contributor Covenant) khai đúng giấy phép CC BY 4.0 trong REUSE
   thay vì Apache-2.0 (#528).
+- Lùi bản (`nang_cap.sh lui`) không còn trượt smoke vì Prometheus còn giữ thành phần của bản mới 5 phút: dừng
+  `svc-files` một lượt thu trước khi dừng trang; smoke chỉ so chuỗi vừa thu (#576).
 - Tải tệp không còn trả 503 trên máy ít đĩa: SeaweedFS mở mỗi collection 1 volume thay vì 7, nên kho lưu lạnh không
   lấy hết ô của kho tệp (#579).
 

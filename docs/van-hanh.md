@@ -1110,8 +1110,9 @@ python3 scripts/moc.py tu-dong robot remove CNTT  # gỡ robot; token đã cấp
 
 Profile `studio` (tắt mặc định, #566) thêm **Supabase Studio** và **postgres-meta**: người vận hành nền tảng tạo
 bảng, thêm cột trong schema `sinh` trên giao diện. Dịch vụ `rest` (PostgREST, profile `core`, luôn chạy) sinh ngay
-REST API `/rest/v1/<bảng>` qua cổng, cho người có token Keycloak. Quyết định và khung bảo vệ:
-[`architecture.md`](architecture.md) QĐ-014.
+REST API `/rest/v1/<bảng>` qua cổng, cho người có token Keycloak; người dùng làm việc ở trang `/sinh` (cài bằng
+`moc app install apps/sinh/app.yaml`). Cách dùng và khung bảo vệ: [`them-ung-dung.md`](them-ung-dung.md) mục 8; quyết
+định: [`architecture.md`](architecture.md) QĐ-014.
 
 ```bash
 # bật lâu dài: .env thêm studio vào MOC_EXTRA_PROFILES (vd MOC_EXTRA_PROFILES=tunnel,studio), rồi
@@ -1147,9 +1148,9 @@ ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
   `moc_studio`, `moc_harness`, năm vai trò người dùng) không nằm trong pg_dump: `moc backup restore` tạo lại chúng
   (danh sách cố định, chạy lại được) trước khi khôi phục; mật khẩu và quyền đăng nhập do `rest-init` đặt lại khi khởi
   động. `rest`, `meta` tạm dừng trong lúc dump CSDL.
-- **Tài nguyên.** Bộ thử CI ngày 04/11/2026 (dữ liệu mẫu): `rest` 18 MiB, `studio` 189 MiB, `meta` 106 MiB; trần
-  128 MiB, 512 MiB, 256 MiB. PostgREST có thêm cổng quản trị 3001 (`/ready`) chỉ trong mạng compose, cho
-  `/api/status`.
+- **Tài nguyên.** Đo trong CI ngày 04/11/2026 trên hệ thống đầy đủ, dữ liệu mẫu (#568): `rest` 25 MiB, `studio` 190 MiB,
+  `meta` 114 MiB; trần 128 MiB, 512 MiB, 256 MiB. PostgREST có thêm cổng quản trị 3001 (`/ready`) chỉ trong mạng
+  compose, cho `/api/status`.
 - **Giới hạn.** Bảng, cột tạo trong Studio không nằm trong git, chỉ có dòng DDL trong sổ. Chưa có lệnh xuất riêng
   schema `sinh`: dựng lại trên máy khác bằng `moc backup restore` cả CSDL. Schema `sinh` dùng chung mọi đơn vị. Bảng
   sinh chưa có quy trình duyệt, tệp đính kèm, thông báo.
