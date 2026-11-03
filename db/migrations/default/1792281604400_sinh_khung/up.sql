@@ -195,9 +195,11 @@ begin
       raise exception 'khung: bảng % phải bật trigger %', r.relname, t;
     end if;
   end loop;
-  if not exists (select 1 from pg_attribute where attrelid = bang and attname = 'tenant_id' and not attisdropped) then
-    raise exception 'khung: bảng % thiếu cột tenant_id', r.relname;
-  end if;
+  foreach t in array array['tenant_id', 'created_by', 'created_at'] loop      -- cot_chuan ghi cả ba cột
+    if not exists (select 1 from pg_attribute where attrelid = bang and attname = t and not attisdropped) then
+      raise exception 'khung: bảng % thiếu cột chuẩn %', r.relname, t;
+    end if;
+  end loop;
 end
 $$;
 
@@ -211,7 +213,7 @@ begin
   if current_user = 'moc_harness' or (select rolsuper from pg_roles where rolname = current_user) then return; end if;
   for r in select * from pg_event_trigger_ddl_commands() loop
     s := r.schema_name; bang := null; ten := null;
-    if r.object_type = 'table' then bang := r.objid; end if;
+    if r.object_type in ('table', 'table column') then bang := r.objid; end if;   -- RENAME COLUMN là 'table column'
     if r.object_type = 'policy' then              -- policy, trigger, rule không thuộc schema: lấy schema của bảng
       select c.oid, ns.nspname, p.polname into bang, s, ten from pg_policy p join pg_class c on c.oid = p.polrelid
         join pg_namespace ns on ns.oid = c.relnamespace where p.oid = r.objid;
@@ -257,26 +259,33 @@ begin
 end
 $$;
 
--- Xóa policy đơn vị, trigger hay cột tenant_id của khung (kể cả qua CASCADE) mà bảng còn: hủy lệnh. Xóa cả bảng thì
--- cho, và ghi sổ.
+-- Sau mỗi lệnh xóa: pg_event_trigger_ddl_commands() không trả lệnh DROP nên gac không thấy. Xóa policy đơn vị,
+-- trigger hay cột chuẩn của khung (kể cả qua CASCADE) mà bảng còn, hay xóa cả schema sinh: hủy lệnh. Xóa khác trong
+-- sinh thì cho, ghi sổ và báo PostgREST (bảng đã xóa rời menu /rest/v1/ ngay).
 create function sinh_khung.gac_xoa() returns event_trigger
 language plpgsql set search_path = pg_catalog, pg_temp
 as $$
-declare r record;
+declare r record; doi boolean := false;
 begin
   if current_user = 'moc_harness' or (select rolsuper from pg_roles where rolname = current_user) then return; end if;
-  if exists (select 1 from pg_event_trigger_dropped_objects() where object_type = 'table' and schema_name = 'sinh') then
-    for r in select * from pg_event_trigger_dropped_objects() where object_type = 'table' and schema_name = 'sinh' loop
-      perform sinh_khung.ghi_ddl('DROP TABLE', r.object_identity);
-    end loop;
-    return;
-  end if;
   for r in select * from pg_event_trigger_dropped_objects() loop
-    if r.object_type in ('policy', 'trigger', 'table column') and r.address_names[1] = 'sinh'
-       and r.address_names[3] in ('moc_don_vi', 'moc_cot_chuan', 'moc_so', 'moc_khong_xoa_het', 'tenant_id') then
+    if r.object_type = 'schema' and r.object_identity = 'sinh' then
+      raise exception 'khung: không xóa schema sinh';
+    end if;
+    -- policy, trigger không có schema_name; address_names = {schema, bảng, tên}
+    if coalesce(r.schema_name, r.address_names[1]) is distinct from 'sinh' then continue; end if;
+    if r.object_type in ('policy', 'trigger', 'table column')
+       and r.address_names[3] in ('moc_don_vi', 'moc_cot_chuan', 'moc_so', 'moc_khong_xoa_het',
+                                  'tenant_id', 'created_by', 'created_at')
+       and to_regclass(format('%I.%I', r.address_names[1], r.address_names[2])) is not null then
       raise exception 'khung: không xóa % (%) của khung', r.object_type, r.object_identity;
     end if;
+    if r.original then
+      perform sinh_khung.ghi_ddl(tg_tag, r.object_identity);
+      doi := true;
+    end if;
   end loop;
+  if doi then perform pg_notify('pgrst', 'reload schema'); end if;
 end
 $$;
 create event trigger moc_gac_xoa on sql_drop execute function sinh_khung.gac_xoa();
