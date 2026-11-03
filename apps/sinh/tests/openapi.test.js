@@ -104,6 +104,13 @@ test('schema của bảng: bỏ cột chuẩn, khóa chính, cột json và mả
   const noKey = spec()
   delete noKey.definitions.phong.properties.id
   assert.equal(formSchema(noKey, 'phong').key, null)
+  // khóa ghép: các cột của khóa có ô (người dùng nhập), không sửa được vì PATCH chỉ lọc theo một cột
+  const pair = spec()
+  pair.definitions.phong.properties.ma = { description: 'Mã phòng\n\nNote:\nThis is a Primary Key.<pk/>',
+    format: 'text', type: 'string' }
+  const composite = formSchema(pair, 'phong')
+  assert.equal(composite.key, null)
+  assert.deepEqual(composite.schema['x-moc-order'], ['id', 'ten', 'ma'])
   assert.equal(formSchema(spec(), 'khong_co'), null)
   assert.equal(formSchema(null, 'yeu_cau'), null)
 })

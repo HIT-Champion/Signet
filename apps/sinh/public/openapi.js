@@ -52,7 +52,8 @@ export function apps(spec) {
 /**
  * Schema cho schema-form.js từ definitions.<bảng>: { schema, key } (key: tên cột khóa chính để sửa bằng PATCH, null
  * nếu không có). Không có bảng thì null.
- *  - Bỏ cột chuẩn, khóa chính, cột json/mảng (form không có ô cho chúng).
+ *  - Bỏ cột chuẩn, khóa chính một cột, cột json/mảng (form không có ô cho chúng).
+ *  - Khóa chính nhiều cột: các cột đó là dữ liệu người dùng nhập nên vẫn có ô; key null, tức là không sửa được.
  *  - Bắt buộc: NOT NULL mà không có giá trị mặc định. Có mặc định thì để trống, CSDL tự điền.
  *  - Được để trống (gửi null): cột không bắt buộc, không có mặc định.
  */
@@ -61,7 +62,9 @@ export function formSchema(spec, table) {
   if (!def) return null
   const props = def.properties ?? {}
   const listed = new Set(def.required ?? [])
-  const key = Object.keys(props).find((name) => isKey(props[name])) ?? null
+  const keys = Object.keys(props).filter((name) => isKey(props[name]))
+  // shortcut: PATCH lọc theo một cột, nên khóa ghép thì không sửa; cần thì lọc theo đủ các cột của khóa
+  const key = keys.length === 1 ? keys[0] : null
   const properties = {}
   const required = []
   for (const [name, p] of Object.entries(props)) {

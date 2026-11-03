@@ -18,7 +18,7 @@
 # bằng MỘT lệnh như các ứng dụng khác:
 #   python3 scripts/moc.py app install apps/sinh/app.yaml     (make app-install APP=apps/sinh/app.yaml)
 # Không có máy chủ nghiệp vụ, không bảng riêng, không form viết tay: trang đọc mô tả API PostgREST sinh ở /rest/v1 và
-# dựng menu, danh sách, biểu mẫu từ đó. Bảng, cột, quyền nằm trong schema sinh do khung CSDL của lõi quản (#560).
+# dựng menu, danh sách, biểu mẫu từ đó. Bảng, cột, quyền nằm trong schema sinh do khung CSDL của lõi quản (#562).
 # Container chỉ phục vụ trang tĩnh. Cách dùng: README.md cùng thư mục.
 
 name: sinh

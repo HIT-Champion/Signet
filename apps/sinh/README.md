@@ -31,7 +31,8 @@ quyền nằm trong CSDL: khung CSDL của lõi gắn cách ly đơn vị (RLS),
 | `date` | ô ngày |
 | `uuid` | ô một dòng, kiểm dạng UUID |
 | `json`, `jsonb`, mảng | không có ô (biểu mẫu chưa sửa được kiểu này) |
-| `tenant_id`, `created_by`, `created_at`, khóa chính | không có ô: khung CSDL điền, người gọi không ghi được |
+| `tenant_id`, `created_by`, `created_at`, khóa chính một cột | không có ô: khung CSDL điền, người gọi không ghi được |
+| khóa chính nhiều cột | có ô (người dùng nhập); dòng không có nút Sửa |
 
 - `NOT NULL` không có giá trị mặc định là ô bắt buộc.
 - Cột có giá trị mặc định thì để trống được, CSDL tự điền.
