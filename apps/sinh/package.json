@@ -1,0 +1,17 @@
+{
+  "name": "moc-app-sinh",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Signet — Ứng dụng sinh từ bảng (trang chung cho bảng tạo trong Studio, API /rest/v1 của PostgREST)",
+  "scripts": {
+    "test": "node --test tests/*.test.js"
+  },
+  "dependencies": {
+    "oidc-client-ts": "3.5.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
