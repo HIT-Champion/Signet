@@ -10,6 +10,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 
 ### Đã thêm
 - Cổng `/rest/v1` tới PostgREST cho ứng dụng sinh từ bảng, cần token; dòng "API dữ liệu" trên trang trạng thái (#561).
+- WAF cho `PATCH`, `DELETE` trên `/rest/v1/<bảng>` để sửa, xóa dòng qua PostgREST (luật 10090, #567).
 - Ứng dụng ngành Đổi, bù lịch giảng (`apps/lich-giang`): giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh
   đạo khoa duyệt; cắm bằng `moc app install` (#482).
 - Trợ lý hỏi đáp nhúng được qua API ngoài chuẩn OpenAI (cả Azure AI Foundry) bằng `MOC_EMBED_API=openai`; mặc định
@@ -26,6 +27,10 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   127.0.0.1; `make seed` tạo bảng mẫu "Quản lý yêu cầu" (#566).
 - Phả hệ dữ liệu có lượt nạp nguồn công khai: tệp đối chiếu manifest trên máy chủ, mỗi lượt là một run OpenLineage,
   trang Phả hệ có mục riêng (#445).
+- CI kiểm `/rest/v1` và khung schema `sinh` trên hệ thống dựng thật (WAF bật, token Keycloak của hai đơn vị, bảng tạo
+  qua Studio); OpenAPI thật và RAM lên artifact (#567).
+- Ứng dụng sinh từ bảng (`apps/sinh`): menu, danh sách, biểu mẫu thêm và sửa dựng từ mô tả API mà PostgREST sinh cho
+  bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
@@ -61,6 +66,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trình dựng form: khung khai báo `app.yaml`, nội dung tệp và dữ liệu xem trước cuộn được bằng bàn phím (#516).
 - Quy tắc ứng xử (`CODE_OF_CONDUCT.md`, phỏng theo Contributor Covenant) khai đúng giấy phép CC BY 4.0 trong REUSE
   thay vì Apache-2.0 (#528).
+- Lùi bản (`nang_cap.sh lui`) không còn trượt smoke vì Prometheus còn giữ thành phần của bản mới 5 phút: dừng
+  `svc-files` một lượt thu trước khi dừng trang; smoke chỉ so chuỗi vừa thu (#576).
 
 ## [1.4.0] - 2026-10-31
 

@@ -67,6 +67,9 @@ FAKES = {
         echo "               total        used        free      shared  buff/cache   available"
         echo "Mem:           16000        6000        1000         100        9000   ${FAKE_RAM_MB:-8000}"
     """,
+    "sleep": """
+        echo "sleep $*" >> "$FAKE_LOG"
+    """,
     "systemctl": """
         echo "systemctl $*" >> "$FAKE_LOG"
         [ "${FAKE_TIMER:-off}" = on ]
@@ -317,6 +320,10 @@ class UpgradeTest(unittest.TestCase):
         pulls = [c for c in docker if c.startswith("docker pull")]
         self.assertEqual(pulls, ["docker pull -q cloudflare/cloudflared:2026.10.0"])
         self.assertLess(docker.index(pulls[0]), docker.index("docker compose down"))
+        # svc-files dừng trước một lượt thu: Prometheus đánh dấu hết hạn chuỗi của bản cũ (#576)
+        calls = self.box.calls()
+        self.assertLess(calls.index("docker compose stop svc-files"), calls.index("sleep 20"))
+        self.assertLess(calls.index("sleep 20"), calls.index("docker compose down"))
         # .env của bản cài đứng sau, đè .env của mã nguồn; khóa mới chỉ có ở mã nguồn không làm compose dừng (#566)
         [config] = [c for c in docker if c.endswith(" config --images")]
         self.assertEqual(config.count("--env-file "), 2)

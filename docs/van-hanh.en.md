@@ -107,6 +107,9 @@ python3 scripts/moc.py backup restore 20261020-020000   # restore one specific s
   first and started again afterwards. Snapshots from before the wiki existed leave the current wiki as it is.
 - Node-RED automation (profile `tu-dong`): the `tu_dong_data` volume goes into the same snapshot in the same way
   (Node-RED pauses while it is copied, is stopped before a restore and started again afterwards).
+- Apps generated from tables (`sinh` schema): the tables go into the same snapshot as the business database; their
+  PostgreSQL roles (`authenticator`, `moc_studio`, `moc_harness`, the five user roles) are recreated before a restore,
+  in the same step as the `moc_appdb_*` roles of manifest-installed apps.
 - A finished backup writes a `system.backed_up` row to the audit log; the system status page shows the time of the
   latest snapshot from that row. If the row cannot be written, the command only warns, and the backup is still usable.
 
@@ -1238,6 +1241,62 @@ python3 scripts/moc.py tu-dong robot remove CNTT  # removes it; issued tokens wo
   Import → choose the file; open the tab, fill in `ROBOT_ID`, `ROBOT_SECRET` (secret variables, encrypted with
   `MOC_TU_DONG_SECRET`) in the tab's Environment section; enable the tab, Deploy. One robot per unit: to run them for
   another unit, duplicate the tab and fill in that unit's robot.
+
+## Apps generated from tables (Supabase Studio)
+
+The `studio` profile (off by default, #566) adds **Supabase Studio** and **postgres-meta**: platform operators
+create tables and add columns in the `sinh` schema through a web UI. The `rest` service (PostgREST, `core` profile,
+always on) serves a REST API at `/rest/v1/<table>` right away, through the gateway, to holders of a Keycloak token;
+users work on the `/sinh` page (installed with `moc app install apps/sinh/app.yaml`). How to use it and what the
+harness enforces: [`them-ung-dung.md`](them-ung-dung.md) section 8 (Vietnamese); the decision:
+[`architecture.md`](architecture.md) QĐ-014.
+
+```bash
+# keep it on: add studio to MOC_EXTRA_PROFILES in .env (e.g. MOC_EXTRA_PROFILES=tunnel,studio), then
+make up
+# from the operator's machine (Studio listens only on 127.0.0.1:MOC_STUDIO_PORT, default 3400, on the server):
+ssh -L 3400:127.0.0.1:3400 server    # then open http://localhost:3400
+```
+
+- **Only platform operators use Studio.** Studio connects to the database as `moc_studio`, the owner of every table in
+  `sinh`: row-level security does not filter the table owner, so Studio sees the rows of every unit and can run SQL in
+  `sinh`. Do not give unit administrators the tunnel. Self-hosted Studio has no sign-in of its own: whoever reaches
+  `127.0.0.1:3400` on the server can use it, with the rights of `moc_studio`. `moc_studio` cannot see the `core`,
+  `office` or `personal` schemas.
+- **Not through the gateway.** Studio has no APISIX route; APISIX is still the only public port. `/rest/v1` through
+  APISIX requires a Keycloak token (no token: `401`) and goes through the WAF like every route.
+- **The harness cancels commands that remove its protection.** Disabling RLS, dropping or altering the `moc_don_vi` or
+  `moc_mo` policies, disabling or dropping the harness triggers, dropping or renaming the `tenant_id`, `created_by` or
+  `created_at` columns, `drop schema sinh`, creating views, functions, procedures or rules in `sinh`: the command is
+  cancelled and Studio shows an error starting with `khung:`. That is by design, not an incident.
+- **Every DDL command from Studio, drops included, writes one audit log row** (`action = 'ddl'`, `entity = 'sinh'`, no
+  unit): which command, on which object, when, and by which database role. Through Studio the role is always
+  `moc_studio`: Studio has no login of its own, so the log cannot tell which operator. `make audit` checks those rows
+  too.
+- **No outbound calls.** Studio's AI assistant is off (`OPENAI_API_KEY` empty; it only accepts OpenAI) and telemetry is
+  off (`NEXT_TELEMETRY_DISABLED=1`). The CI test rig on 4 November 2026 saw no outbound connection from Studio.
+- **New keys** in `.env`: `MOC_REST_DB_PASSWORD` (password of `authenticator`, the role PostgREST connects as),
+  `MOC_STUDIO_DB_PASSWORD` (password of `moc_studio`), `MOC_STUDIO_META_KEY` (encrypts the connection string between
+  Studio and postgres-meta), `MOC_STUDIO_JWT_SECRET` (Studio's internal JWT); port `MOC_STUDIO_PORT` (default 3400).
+  `make env` generates them for a new install; `make install` (upgrades included) appends missing lines to the install's
+  `.env`.
+- **Keycloak signing keys.** PostgREST does not fetch keys by itself as Hasura does: the one-shot `rest-init` service
+  runs after Hasura has applied the migrations: it enables login and sets the passwords of `authenticator` and
+  `moc_studio`, then fetches the realm's JWKS into a file that PostgREST reads; `rest` waits for `rest-init` to finish.
+  `rest-init` runs again on every `make up` or upgrade. After rotating the signing key in Keycloak mid-way, run
+  `docker compose up -d --force-recreate rest-init rest` in the install directory; until then tokens signed with the new
+  key get `401` on `/rest/v1`, GraphQL keeps working. There is no automatic reload yet.
+- **Backup.** Tables in `sinh` live in the business database and go into `moc backup` like any table. The new roles
+  (`authenticator`, `moc_studio`, `moc_harness`, the five user roles) are not in pg_dump: `moc backup restore`
+  recreates them (a fixed list, safe to rerun) before a restore; `rest-init` sets their passwords and login again at
+  start-up. `rest` and `meta` pause while the database is dumped.
+- **Resources.** Measured in CI on 4 November 2026 on the full system with sample data (#568): `rest` 25 MiB, `studio`
+  190 MiB, `meta` 114 MiB; limits 128 MiB, 512 MiB, 256 MiB. PostgREST also has an admin port 3001 (`/ready`), inside
+  the compose network only, used by `/api/status`.
+- **Limits.** Tables and columns created in Studio are not in git, only their DDL rows in the audit log; to rebuild on
+  another machine, restore the whole database with `moc backup restore`: there is no export command for the `sinh`
+  schema alone. The `sinh` schema is shared by all units.
+  Generated tables have no approval workflow, attachments or notifications yet.
 
 ## IT/OT convergence
 

@@ -194,6 +194,8 @@ Bảng đầy đủ (phiên bản, giấy phép, trang chủ): [`COPYRIGHT.txt`]
 | [P] | Node-RED | 5.0.8 | Apache-2.0 | Tự động hóa bằng flow, gọi lõi qua robot của đơn vị, tùy chọn (profile `tu-dong`) |
 | [D] | PostgreSQL | 16 | PostgreSQL | CSDL chính, sổ kiểm toán chuỗi băm |
 | [D] | Hasura GraphQL Engine CE | 2.51.0 | Apache-2.0 | GraphQL tự sinh, quyền theo vai trò và đơn vị đến từng dòng |
+| [D] | PostgREST | 14.18 | MIT | REST tự sinh (`/rest/v1`) cho bảng của ứng dụng sinh (schema `sinh`); cách ly đơn vị bằng RLS của khung |
+| [D] | Supabase Studio, postgres-meta | 2026.10.12, 0.100.0 | Apache-2.0 | Người vận hành nền tảng tạo bảng, thêm cột trong `sinh` (profile `studio`, chỉ mở trên máy chủ) |
 | [D] | SeaweedFS | 4.48 | Apache-2.0 | Kho tệp chuẩn S3, kho lạnh khóa ghi cho hồ sơ nộp lưu |
 | [D] | Meilisearch CE | 1.54.3 | MIT | Tìm toàn văn, chỉ mục đoạn của trợ lý hỏi đáp |
 | [I] | Ollama, trọng số Qwen3 | 0.35.1 | MIT; trọng số Apache-2.0 | Mô hình ngôn ngữ cục bộ, tùy chọn (profile `ai`) |
@@ -219,7 +221,7 @@ gián tiếp, được kiểm tự động bằng `make license-audit`.
 | Docker Engine | 24.0 | kèm plugin `docker compose` v2 từ 2.17 và `docker buildx` |
 | GNU Make | 4.0 | điều phối lệnh |
 | Python | 3.10 | chỉ thư viện chuẩn, không cài thêm gì: dữ liệu mẫu, smoke, demo, sao lưu, cài đặt và các lệnh vận hành |
-| RAM | 8 GB | profile mặc định (19 dịch vụ, 18 chạy liên tục) đo được khoảng 4,6 GiB khi chạy bản 1.3.0 (`docker stats`, 31/10/2026; ClamAV 0,9 GiB, lên 1,9 GiB trong khoảng 10 giây mỗi lần nạp lại chữ ký, Meilisearch 0,75 GiB, Keycloak 0,6 GiB, APISIX 0,5 GiB, Hasura 0,4 GiB); bật mô hình AI (profile `ai`, hai mô hình mặc định đã nạp) thêm khoảng 3,2 GiB, nên cần 16 GB |
+| RAM | 8 GB | profile mặc định (19 dịch vụ, 18 chạy liên tục) đo được khoảng 4,6 GiB khi chạy bản 1.3.0 (`docker stats`, 31/10/2026; ClamAV 0,9 GiB, lên 1,9 GiB trong khoảng 10 giây mỗi lần nạp lại chữ ký, Meilisearch 0,75 GiB, Keycloak 0,6 GiB, APISIX 0,5 GiB, Hasura 0,4 GiB). Từ #569 profile mặc định có 21 dịch vụ, 19 chạy liên tục: thêm `rest` (PostgREST, khoảng 25 MiB) và `rest-init` chạy một lần; bật profile `studio` thêm khoảng 300 MiB (đo trong CI ngày 04/11/2026, #568). Bật mô hình AI (profile `ai`, hai mô hình mặc định đã nạp) thêm khoảng 3,2 GiB, nên cần 16 GB |
 | Đĩa trống | 10 GB | image khoảng 5 GB; mô hình AI thêm khoảng 2 GB |
 
 Toàn bộ công cụ dùng để dựng Signet đều là phần mềm nguồn mở. Không cần bất kỳ công cụ nguồn đóng hay tự chế nào.
@@ -307,10 +309,12 @@ và một dự thảo phúc đáp bị tổ trưởng trả lại chờ sửa.
 | <http://localhost:8080/ca-nhan/> | Không gian cá nhân P.A.R.A | Có |
 | <http://localhost:8080/tai-lieu-api/> | Tài liệu API (Swagger UI): đọc API lõi và API Văn phòng điện tử, đăng nhập để gọi thử qua cổng | Không bắt buộc |
 | <http://localhost:8080/bang-tin/> | Bảng tin đơn vị, sau khi cắm bằng `make app-install APP=apps/bang-tin/app.yaml` | Có |
+| <http://localhost:8080/sinh/> | Ứng dụng sinh từ bảng: danh sách, biểu mẫu dựng từ bảng tạo trong Studio, sau khi cắm bằng `make app-install APP=apps/sinh/app.yaml` | Có |
 | <http://localhost:8080/xac-thuc> | Cổng xác thực văn bản: nhập mã hoặc thả tệp PDF; mã của văn bản mẫu ở trang chi tiết văn bản (Văn bản đi, tab Đã phát hành) | Không |
 | <http://localhost:8080/trang-thai> | Trạng thái hệ thống | Không |
 | <http://127.0.0.1:8180/admin> | Quản trị Keycloak, chỉ mở trên máy chủ (tài khoản `KEYCLOAK_ADMIN_*`) | Có |
 | <http://127.0.0.1:3300> | Grafana giám sát cổng API, chỉ mở trên máy chủ (từ xa: đường hầm SSH) | Không |
+| <http://127.0.0.1:3400> | Supabase Studio: người vận hành nền tảng tạo bảng cho ứng dụng sinh, profile `studio`, chỉ mở trên máy chủ (từ xa: đường hầm SSH) | Không |
 
 ## Vận hành và kiểm thử
 
@@ -323,6 +327,7 @@ Các việc của người quản trị trên bản cài đang chạy nằm ở 
 | [Két bí mật](docs/van-hanh.md#két-bí-mật) OpenBao: giới hạn, nâng cấp két cũ để ký số | `make demo-ket-bi-mat` |
 | [GitOps và tự phục hồi](docs/van-hanh.md#gitops-và-tự-phục-hồi): systemd timer hoặc cron, mỗi phút một lượt; theo nhánh `deploy` hoặc theo thẻ phát hành (`MOC_GITOPS_FOLLOW=release`), nâng có sao lưu và tự lùi (`MOC_GITOPS_MODE=nang-cap`); đặt `MOC_GITOPS_ALLOWED_SIGNERS` thì chỉ áp bản đã ký | `make reconcile` |
 | [Giám sát](docs/van-hanh.md#giám-sát) cổng API bằng Prometheus + Grafana | đường hầm SSH tới cổng 3300 |
+| [Ứng dụng sinh từ bảng](docs/van-hanh.md#ứng-dụng-sinh-từ-bảng-supabase-studio): tạo bảng trong Supabase Studio, PostgREST sinh API, trang `/sinh` dựng biểu mẫu | thêm `studio` vào `MOC_EXTRA_PROFILES`, `make up` |
 | [Log tập trung](docs/van-hanh.md#log-tập-trung): Vector + Parseable, tra theo mã yêu cầu `X-Request-Id` | `make logs-up`, `make logs-tra ID=…` |
 | [Hội tụ IT/OT](docs/van-hanh.md#hội-tụ-itot): broker NGSI-LD, cảm biến | `make demo-it-ot` |
 | [Dữ liệu công khai](docs/van-hanh.md#dữ-liệu-công-khai): bản chụp thông tư Bộ GD&ĐT từ Công báo, kiểm SHA-256, tuổi dữ liệu | `make du-lieu-mo` |
