@@ -237,8 +237,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-moc}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
       MOC_REALM: ${MOC_REALM:-moc}
-      MOC_REST_DB_PASSWORD: ${MOC_REST_DB_PASSWORD:?Đặt MOC_REST_DB_PASSWORD trong .env (make install tự thêm)}
-      MOC_STUDIO_DB_PASSWORD: ${MOC_STUDIO_DB_PASSWORD:?Đặt MOC_STUDIO_DB_PASSWORD trong .env (make install tự thêm)}
+      MOC_REST_DB_PASSWORD: ${MOC_REST_DB_PASSWORD:?Đặt MOC_REST_DB_PASSWORD trong .env (make up/install tự thêm)}
+      MOC_STUDIO_DB_PASSWORD: ${MOC_STUDIO_DB_PASSWORD:?Đặt MOC_STUDIO_DB_PASSWORD trong .env (make up/install tự thêm)}
     volumes:
       - ./platform/rest/rest-init.sh:/rest-init.sh:ro
       - rest_jwks:/run/jwks
@@ -289,7 +289,7 @@ services:
       PG_META_DB_NAME: ${POSTGRES_DB:-moc}
       PG_META_DB_USER: moc_studio
       PG_META_DB_PASSWORD: ${MOC_STUDIO_DB_PASSWORD:?}
-      CRYPTO_KEY: ${MOC_STUDIO_META_KEY:?Đặt MOC_STUDIO_META_KEY trong .env (make install tự thêm)}
+      CRYPTO_KEY: ${MOC_STUDIO_META_KEY:?Đặt MOC_STUDIO_META_KEY trong .env (make up/install tự thêm)}
     healthcheck:
       # image không khai healthcheck mà studio chờ meta healthy: máy chủ trả lời HTTP (mã nào cũng được) là đã nghe
       test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/').then(() => process.exit(0), () => process.exit(1))"]
@@ -323,7 +323,7 @@ services:
       SUPABASE_PUBLIC_URL: ${MOC_PUBLIC_URL:?}/rest/v1
       SUPABASE_ANON_KEY: khong-dung           # không có vai trò ẩn danh; Studio chỉ cần biến có giá trị
       SUPABASE_SERVICE_KEY: khong-dung
-      AUTH_JWT_SECRET: ${MOC_STUDIO_JWT_SECRET:?Đặt MOC_STUDIO_JWT_SECRET trong .env (make install tự thêm)}
+      AUTH_JWT_SECRET: ${MOC_STUDIO_JWT_SECRET:?Đặt MOC_STUDIO_JWT_SECRET trong .env (make up/install tự thêm)}
       OPENAI_API_KEY: ""
     healthcheck:
       # image không khai healthcheck; như compose mẫu của Supabase, sẵn sàng khi API của Studio trả 200

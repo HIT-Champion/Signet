@@ -59,7 +59,7 @@ PREFIX ?= /opt/moc
         demo-nap-lo nap-lo-mau du-lieu-mo du-lieu-mo-lay \
         demo-ca-nhan demo-tat-van-phong \
         do-so-lieu-sau \
-        logs-env logs-up logs-down logs-tra demo-log-tap-trung alert-env demo-canh-bao \
+        logs-env logs-up logs-down logs-tra demo-log-tap-trung alert-env sinh-env demo-canh-bao \
         wiki-env wiki-up wiki-down demo-wiki \
         tu-dong-env tu-dong-up tu-dong-down demo-tu-dong \
         reconcile \
@@ -82,7 +82,7 @@ env: ## Sinh .env từ .env.example, thay mọi change_me bằng chuỗi ngẫu 
 	@echo "Đã tạo $(ENV_FILE). Mật khẩu của các tài khoản mẫu là giá trị MOC_DEMO_PASSWORD trong tệp này."
 
 # .env chép tay từ .env.example mà quên sửa: mật khẩu, khóa (cả khóa quản trị Hasura) ai đọc mã nguồn cũng biết
-env-ready: $(ENV_FILE)
+env-ready: $(ENV_FILE) sinh-env
 	@! grep -qE '^[A-Z0-9_]+=change_me' $(ENV_FILE) || { echo "$(ENV_FILE) còn giá trị mẫu change_me:" \
 	  $$(grep -oE '^[A-Z0-9_]+=change_me' $(ENV_FILE) | cut -d= -f1) \
 	  "— đổi thành chuỗi ngẫu nhiên, hoặc xóa $(ENV_FILE) rồi make env" >&2; exit 1; }
@@ -135,6 +135,15 @@ restart: down up ## Khởi động lại toàn bộ hệ thống
 
 logs: ## Theo dõi nhật ký của mọi dịch vụ
 	@$(COMPOSE) logs -f --tail=100
+
+sinh-env: $(ENV_FILE)
+	@# .env sinh trước #566 thiếu mật khẩu, khóa của PostgREST, Studio: sinh như make env, không in giá trị. Là điều
+	@# kiện của env-ready (thiếu khóa thì compose config của nó hỏng), nên up, check, *-up đều nối, kể cả khi make -j
+	@for k in MOC_REST_DB_PASSWORD MOC_STUDIO_DB_PASSWORD MOC_STUDIO_META_KEY MOC_STUDIO_JWT_SECRET; do \
+	  grep -q "^$$k=" $(ENV_FILE) || { umask 077 \
+	  && printf '\n# Ứng dụng sinh từ Studio (#566), make up thêm\n%s=change_me\n' "$$k" \
+	  | ./scripts/gen-env.sh /dev/stdin >> $(ENV_FILE) && echo "Đã thêm $$k (ngẫu nhiên) vào $(ENV_FILE)."; } || exit 1; \
+	done
 
 alert-env: $(ENV_FILE)
 	@# .env sinh trước #284 thiếu token Alertmanager → svc-workflow: sinh như make env, không in giá trị. Dòng có mà
