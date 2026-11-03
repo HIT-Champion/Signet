@@ -93,6 +93,9 @@ python3 scripts/moc.py backup restore 20261020-020000   # khôi phục một lư
   khi có wiki thì giữ nguyên wiki đang có.
 - Tự động hóa Node-RED (profile `tu-dong`): volume `tu_dong_data` vào cùng lượt theo đúng cách đó (Node-RED tạm dừng
   lúc chép, dừng trước khi khôi phục, chạy lại sau).
+- Ứng dụng sinh từ bảng (schema `sinh`): bảng vào cùng lượt với CSDL nghiệp vụ; các vai trò PostgreSQL của nó
+  (`authenticator`, `moc_studio`, `moc_harness`, năm vai trò người dùng) được tạo lại trước khi khôi phục, cùng bước
+  với vai trò `moc_appdb_*` của ứng dụng cài bằng manifest.
 - Lượt sao lưu xong ghi dòng `system.backed_up` vào sổ kiểm toán; trang trạng thái hệ thống hiện giờ của lượt gần
   nhất từ dòng đó. Ghi không được thì lệnh chỉ cảnh báo, bản sao lưu vẫn dùng được.
 
@@ -1102,6 +1105,54 @@ python3 scripts/moc.py tu-dong robot remove CNTT  # gỡ robot; token đã cấp
   ☰ → Import → chọn tệp; mở tab, điền `ROBOT_ID`, `ROBOT_SECRET` (biến bí mật, mã hóa bằng `MOC_TU_DONG_SECRET`)
   trong phần Environment của tab, rồi Deploy. Một đơn vị một robot: muốn chạy cho đơn vị khác thì nhân bản tab,
   điền robot của đơn vị đó.
+
+## Ứng dụng sinh từ bảng (Supabase Studio)
+
+Profile `studio` (tắt mặc định, #566) thêm **Supabase Studio** và **postgres-meta**: người vận hành nền tảng tạo
+bảng, thêm cột trong schema `sinh` trên giao diện. Dịch vụ `rest` (PostgREST, profile `core`, luôn chạy) sinh ngay
+REST API `/rest/v1/<bảng>` qua cổng, cho người có token Keycloak. Quyết định và khung bảo vệ:
+[`architecture.md`](architecture.md) QĐ-014.
+
+```bash
+# bật lâu dài: .env thêm studio vào MOC_EXTRA_PROFILES (vd MOC_EXTRA_PROFILES=tunnel,studio), rồi
+make up
+# từ máy của người vận hành (Studio chỉ nghe 127.0.0.1:MOC_STUDIO_PORT, mặc định 3400, trên máy chủ):
+ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
+```
+
+- **Chỉ người vận hành nền tảng dùng Studio.** Studio nối CSDL bằng vai trò `moc_studio`, chủ các bảng trong `sinh`: RLS
+  không lọc chủ bảng, nên Studio thấy dòng của mọi đơn vị và chạy được SQL trong `sinh`. Không cấp đường hầm cho quản
+  trị đơn vị. Studio tự host không có đăng nhập riêng: ai tới được `127.0.0.1:3400` trên máy chủ là dùng được, ngang
+  quyền `moc_studio`. `moc_studio` không thấy schema `core`, `office`, `personal`.
+- **Không qua cổng.** Studio không có route APISIX; cổng công khai vẫn chỉ có APISIX. `/rest/v1` qua APISIX đòi token
+  Keycloak (không token: `401`), qua WAF như mọi route.
+- **Khung hủy lệnh gỡ bảo vệ.** Tắt RLS, xóa hay sửa policy `moc_don_vi`, `moc_mo`, tắt hay xóa trigger của khung, xóa
+  hay đổi tên cột `tenant_id`, `created_by`, `created_at`, `drop schema sinh`, tạo view, hàm, thủ tục, rule trong
+  `sinh`: lệnh bị hủy, Studio hiện lỗi bắt đầu bằng `khung:`. Đó là đúng thiết kế, không phải sự cố.
+- **Mỗi lệnh DDL ghi một dòng sổ kiểm toán**, kể cả lệnh xóa (`action = 'ddl'`, `entity = 'sinh'`, không thuộc đơn vị
+  nào): lệnh gì, trên đối tượng nào, lúc nào, bởi vai trò CSDL nào. Qua Studio vai trò luôn là `moc_studio`: Studio
+  không có đăng nhập riêng nên sổ không biết người vận hành nào. `make audit` kiểm cả các dòng đó.
+- **Không gọi ra ngoài.** Trợ lý AI của Studio tắt (`OPENAI_API_KEY` rỗng; nó chỉ nhận OpenAI), telemetry tắt
+  (`NEXT_TELEMETRY_DISABLED=1`). Bộ thử CI ngày 04/11/2026 không thấy Studio mở kết nối nào ra ngoài.
+- **Khóa mới** trong `.env`: `MOC_REST_DB_PASSWORD` (mật khẩu `authenticator`, PostgREST nối bằng vai trò này),
+  `MOC_STUDIO_DB_PASSWORD` (mật khẩu `moc_studio`), `MOC_STUDIO_META_KEY` (khóa mã hóa chuỗi kết nối giữa Studio và
+  postgres-meta), `MOC_STUDIO_JWT_SECRET` (JWT nội bộ của Studio); cổng `MOC_STUDIO_PORT` (mặc định 3400). `make env`
+  sinh cho bản cài mới; `make install` (cả khi nâng cấp) thêm các dòng còn thiếu vào `.env` của bản cài.
+- **Khóa ký của Keycloak.** PostgREST không tự tải khóa như Hasura: dịch vụ `rest-init` chạy một lần sau khi Hasura đã
+  áp migration: bật đăng nhập và đặt mật khẩu cho `authenticator`, `moc_studio`, rồi lấy JWKS của realm ghi ra tệp cho
+  PostgREST đọc; `rest` chờ `rest-init` xong mới chạy. `rest-init` chạy lại ở mỗi lần `make up` hay nâng cấp. Đổi khóa
+  ký trong Keycloak giữa chừng thì chạy `docker compose up -d --force-recreate rest-init rest` trong thư mục cài; chưa
+  chạy thì token ký bằng khóa mới bị `/rest/v1` trả `401`, GraphQL vẫn chạy. Chưa tự nạp lại.
+- **Sao lưu.** Bảng trong `sinh` nằm trong CSDL nghiệp vụ, vào `moc backup` như mọi bảng. Vai trò mới (`authenticator`,
+  `moc_studio`, `moc_harness`, năm vai trò người dùng) không nằm trong pg_dump: `moc backup restore` tạo lại chúng
+  (danh sách cố định, chạy lại được) trước khi khôi phục; mật khẩu và quyền đăng nhập do `rest-init` đặt lại khi khởi
+  động. `rest`, `meta` tạm dừng trong lúc dump CSDL.
+- **Tài nguyên.** Bộ thử CI ngày 04/11/2026 (dữ liệu mẫu): `rest` 18 MiB, `studio` 189 MiB, `meta` 106 MiB; trần
+  128 MiB, 512 MiB, 256 MiB. PostgREST có thêm cổng quản trị 3001 (`/ready`) chỉ trong mạng compose, cho
+  `/api/status`.
+- **Giới hạn.** Bảng, cột tạo trong Studio không nằm trong git, chỉ có dòng DDL trong sổ. Chưa có lệnh xuất riêng
+  schema `sinh`: dựng lại trên máy khác bằng `moc backup restore` cả CSDL. Schema `sinh` dùng chung mọi đơn vị. Bảng
+  sinh chưa có quy trình duyệt, tệp đính kèm, thông báo.
 
 ## Hội tụ IT/OT
 

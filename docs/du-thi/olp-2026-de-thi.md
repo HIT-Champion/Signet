@@ -258,6 +258,12 @@ dựng lại Supabase dễ bị xem là "triển khai sản phẩm có sẵn", y
 lõi theo bảng của BTC, với một gateway và một bộ tài liệu API thống nhất, cho thấy rõ phần đóng góp
 của đội.
 
+> **Đính chính 04/11/2026.** Hai lý do đầu vẫn đúng nên vẫn giữ Keycloak và Flowable. Lý do thứ ba không còn đứng: ban
+> giám khảo vòng trường nhận xét thêm một ứng dụng vẫn phải tự viết nhiều. Từ #565, #569, #563 (gộp ngày 04/11/2026),
+> Signet dùng Studio, postgres-meta của Supabase và PostgREST cạnh Hasura để sinh REST API từ bảng; phần của đội là
+> khung gắn đơn vị, RLS và sổ kiểm toán vào mọi bảng sinh ra. Lõi không dựng trên Supabase. Chi tiết:
+> [`../architecture.md`](../architecture.md) QĐ-014.
+
 ### 6.2. Ứng dụng Tầng 2: chọn **[P] Văn phòng điện tử — quản lý văn bản và điều hành**
 
 > Cập nhật 15/10/2026: thay hướng "luồng phê duyệt đề xuất" bằng quản lý văn bản đến / đi theo
