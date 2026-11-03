@@ -74,6 +74,10 @@ Apache APISIX                   3.18.0          Apache-2.0              Cổng A
 PostgreSQL                      16              PostgreSQL License      Cơ sở dữ liệu quan hệ chính               https://www.postgresql.org
 Hasura GraphQL Engine (CE)      v2.51.0         Apache-2.0              Tự sinh API GraphQL, phân quyền cấp       https://github.com/hasura/graphql-engine
                                                                         dòng, Actions, Event Triggers
+PostgREST                       v14.18          MIT                     API REST /rest/v1 tự sinh từ schema sinh  https://github.com/PostgREST/postgrest
+Supabase Studio                 2026.10.12      Apache-2.0              Trình tạo bảng, cột cho người vận hành    https://github.com/supabase/supabase
+                                                                        nền tảng
+postgres-meta                   v0.100.0        Apache-2.0              API quản lý schema mà Studio gọi          https://github.com/supabase/postgres-meta
 Flowable (REST)                 8.0.0           Apache-2.0              Động cơ quy trình BPMN                    https://github.com/flowable/flowable-engine
 SeaweedFS                       4.48            Apache-2.0              Lưu trữ đối tượng chuẩn S3                https://github.com/seaweedfs/seaweedfs
 ClamAV                          1.5.4           GPL-2.0                 Quét mã độc tệp tải lên                   https://www.clamav.net
