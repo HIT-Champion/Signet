@@ -134,7 +134,7 @@ const table = computed(() => rows.value.map((r) => {
     <p v-else-if="!table.length" class="mt-4 text-sm text-stone-500" data-testid="period-close-empty">
       {{ t('periodClose.empty') }}
     </p>
-    <div v-else class="moc-table-scroll mt-4" tabindex="0" role="region" :aria-label="t('periodClose.title')">
+    <div v-else class="moc-scroll mt-4" tabindex="0" role="region" :aria-label="t('periodClose.title')">
       <table class="moc-table" data-testid="period-close-list">
         <thead>
           <tr>
