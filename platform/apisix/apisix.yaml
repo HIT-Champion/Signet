@@ -470,6 +470,12 @@ global_rules:
                 SecRule REQUEST_FILENAME "@rx ^/tu-dong/(?:flows|flow(?:/[^/]+)?|library/.+)$"
                 "id:10081,phase:1,pass,nolog,chain"
               - SecRule REQUEST_FILENAME "!@contains .." "t:none,t:urlDecodeUni,ctl:requestBodyAccess=Off"
+              # Loại trừ 13 — API dữ liệu của ứng dụng sinh (#567): PostgREST sửa dòng bằng PATCH, xóa bằng DELETE,
+              # mà 911100 của CRS chỉ cho GET HEAD POST OPTIONS. Thêm đúng hai phương thức đó, chỉ trên /rest/v1/<bảng>
+              # (một đoạn, không "/", "." sau khi giải mã — không vòng sang route khác); mọi luật khác vẫn soi đủ
+              - >-
+                SecRule REQUEST_FILENAME "@rx ^/rest/v1/[^/.]+$" "id:10090,phase:1,pass,nolog,t:none,t:urlDecodeUni,
+                setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PATCH DELETE'"
               - Include @owasp_crs/*.conf
               # Loại trừ 4 — Host là địa chỉ IP: Signet được mở bằng IP trong mạng nội bộ; dưới APISIX coraza-proxy-wasm
               # thêm Host lần nữa nên luật cộng điểm hai lần (6 ≥ 5) và chặn mọi yêu cầu vào bằng IP
