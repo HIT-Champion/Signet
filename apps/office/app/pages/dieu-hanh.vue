@@ -244,7 +244,7 @@ const outgoingChart = computed(() => ({
       <template v-if="allowed">
         <label class="sr-only" for="board-period">{{ t('board.period') }}</label>
         <select
-          id="board-period" class="input w-40" :value="period" data-testid="board-period"
+          id="board-period" class="input w-auto" :value="period" data-testid="board-period"
           @change="pickPeriod(($event.target as HTMLSelectElement).value)"
         >
           <option v-for="n in PERIODS" :key="n" :value="n">{{ t('board.lastMonths', { n }) }}</option>

@@ -275,6 +275,14 @@ def test_verify_by_code_needs_no_login(client, issued, code):
     }
 
 
+def test_valid_answer_is_json_ld_about_the_qr_url(client, issued):
+    body = client.get("/api/verify/abcde-23456").json()
+    assert body["@id"] == "https://moc.example/xac-thuc/ABCDE23456"     # đúng URL in trong mã QR
+    assert body["@type"] == "schema:DigitalDocument" and body["@context"]["document"] == "@nest"
+    # trường mới của văn bản phải ánh xạ trong @context, hoặc được ghi là cố ý bỏ qua
+    assert set(body["document"]) - {"parent_name", "signature"} <= set(body["@context"])
+
+
 def test_public_documents_show_their_summary(client, hasura, issued):
     hasura.letters[issued]["is_public"] = True
     assert client.get("/api/verify/ABCDE23456").json()["document"]["summary"] == "Về việc họp giao ban tháng 11"

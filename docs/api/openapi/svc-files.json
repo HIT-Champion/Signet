@@ -1089,7 +1089,7 @@
         ],
         "responses": {
           "200": {
-            "description": "valid: văn bản đã phát hành; not_found: không có văn bản nào khớp",
+            "description": "valid: văn bản đã phát hành, câu trả lời là JSON-LD (thêm @context, @id là URL trang xác thực in trong mã QR, @type; khóa ánh xạ sang Dublin Core Terms, schema.org); not_found: không có văn bản nào khớp",
             "content": {
               "application/json": {
                 "schema": {
@@ -1137,7 +1137,7 @@
         ],
         "responses": {
           "200": {
-            "description": "valid: văn bản đã phát hành; not_found: không có văn bản nào khớp",
+            "description": "valid: văn bản đã phát hành, câu trả lời là JSON-LD (thêm @context, @id là URL trang xác thực in trong mã QR, @type; khóa ánh xạ sang Dublin Core Terms, schema.org); not_found: không có văn bản nào khớp",
             "content": {
               "application/json": {
                 "schema": {

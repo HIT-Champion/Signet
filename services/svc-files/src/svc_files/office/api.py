@@ -123,6 +123,26 @@ class VerifyOut(BaseModel):
     document: VerifiedDocument | None = None
 
 
+# JSON-LD của câu trả lời "valid" (#540): @id là URL in trong mã QR, khóa cũ ánh xạ sang Dublin Core Terms, schema.org.
+# "document" là @nest (JSON-LD 1.1) nên các trường trong đó mô tả chính văn bản; result, parent_name, signature không
+# ánh xạ, bộ xử lý JSON-LD bỏ qua.
+VERIFY_CONTEXT = {
+    "@version": 1.1,
+    "dcterms": "http://purl.org/dc/terms/",
+    "schema": "https://schema.org/",
+    "xsd": "http://www.w3.org/2001/XMLSchema#",
+    "document": "@nest",
+    "symbol": "dcterms:identifier",
+    "issued_on": {"@id": "dcterms:issued", "@type": "xsd:date"},
+    "type_name": "dcterms:type",
+    "issuer_name": "dcterms:publisher",
+    "summary": "dcterms:abstract",
+    "sha256": "schema:sha256",
+    "verify_code": "schema:identifier",
+    "status": "schema:creativeWorkStatus",
+}
+
+
 VERIFY_CODE_RE = re.compile(r"[^A-Z2-7]")
 # Sổ đăng ký là việc của văn thư; lãnh đạo đơn vị xem để kiểm (NĐ 30/2020, Điều 16, 22)
 REGISTER_ROLES = {"clerk", "director"}
@@ -594,10 +614,17 @@ def routers(
                 sha256=row["content_sha256"], verify_code=row["verify_code"], status=row["status"],
                 signature=signature,
             ))
-        return JSONResponse(out.model_dump(mode="json"), headers=NO_STORE)
+        body = out.model_dump(mode="json")
+        if row is not None:
+            body = {"@context": VERIFY_CONTEXT, "@id": f"{settings.public_url}/xac-thuc/{row['verify_code']}",
+                    "@type": "schema:DigitalDocument", **body}
+        return JSONResponse(body, headers=NO_STORE)
 
     verify_responses = {
-        200: {"model": VerifyOut, "description": "valid: văn bản đã phát hành; not_found: không có văn bản nào khớp"},
+        200: {"model": VerifyOut, "description": "valid: văn bản đã phát hành, câu trả lời là JSON-LD (thêm @context, "
+                                                 "@id là URL trang xác thực in trong mã QR, @type; khóa ánh xạ "
+                                                 "sang Dublin Core Terms, schema.org); not_found: không có văn bản "
+                                                 "nào khớp"},
         429: {"description": "Vượt giới hạn tra cứu theo địa chỉ IP (APISIX)"},
         503: {"description": "CSDL không sẵn sàng"},
     }

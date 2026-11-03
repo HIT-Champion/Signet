@@ -375,7 +375,7 @@ Trả về:
 
 | Mã | Nghĩa | Nội dung |
 |---|---|---|
-| 200 | valid: văn bản đã phát hành; not_found: không có văn bản nào khớp | `application/json` `VerifyOut` |
+| 200 | valid: văn bản đã phát hành, câu trả lời là JSON-LD (thêm @context, @id là URL trang xác thực in trong mã QR, @type; khóa ánh xạ sang Dublin Core Terms, schema.org); not_found: không có văn bản nào khớp | `application/json` `VerifyOut` |
 | 429 | Vượt giới hạn tra cứu theo địa chỉ IP (APISIX) |  |
 | 503 | CSDL không sẵn sàng |  |
 | 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
@@ -394,7 +394,7 @@ Trả về:
 
 | Mã | Nghĩa | Nội dung |
 |---|---|---|
-| 200 | valid: văn bản đã phát hành; not_found: không có văn bản nào khớp | `application/json` `VerifyOut` |
+| 200 | valid: văn bản đã phát hành, câu trả lời là JSON-LD (thêm @context, @id là URL trang xác thực in trong mã QR, @type; khóa ánh xạ sang Dublin Core Terms, schema.org); not_found: không có văn bản nào khớp | `application/json` `VerifyOut` |
 | 429 | Vượt giới hạn tra cứu theo địa chỉ IP (APISIX) |  |
 | 503 | CSDL không sẵn sàng |  |
 | 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
