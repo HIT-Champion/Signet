@@ -457,6 +457,33 @@ jobs:
           retention-days: 7
           if-no-files-found: ignore
 
+      # Ứng dụng sinh từ bảng (#567): bật Studio, postgres-meta như người vận hành; tạo bảng qua Studio, đọc ghi qua
+      # /rest/v1 với WAF bật và token Keycloak thật của hai đơn vị. OpenAPI thật (cho apps/sinh) và RAM lên artifact
+      - name: Bật Studio và postgres-meta (profile studio)
+        if: matrix.phan == 'e2e'
+        run: $COMPOSE --profile studio up -d --wait studio meta
+
+      - name: /rest/v1 và khung schema sinh trên hệ thống thật (scripts/kiem_sinh.py)
+        if: matrix.phan == 'e2e'
+        run: python3 scripts/kiem_sinh.py
+
+      - name: RAM từng dịch vụ khi bật cả Studio
+        if: matrix.phan == 'e2e' && !cancelled()
+        run: |
+          mkdir -p out/sinh
+          docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' | sort | tee out/sinh/ram.txt
+          awk '{u = $2; sub(/^[0-9.]+/, "", u); f = u == "GiB" ? 1024 : u == "MiB" ? 1 : u == "KiB" ? 1 / 1024 : 0
+               s += $2 * f} END {printf "Tổng: %.0f MiB\n", s}' out/sinh/ram.txt | tee -a out/sinh/ram.txt
+
+      - name: Tải lên OpenAPI thật của /rest/v1 và số đo RAM
+        if: matrix.phan == 'e2e' && !cancelled()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rest-v1-${{ github.run_attempt }}
+          path: out/sinh/
+          retention-days: 7
+          if-no-files-found: ignore
+
       # Ứng dụng thứ hai trên lõi (docs/them-ung-dung.md): Không gian cá nhân P.A.R.A với client Keycloak riêng, SSO
       # với Văn phòng điện tử; tải lên qua svc-files (ClamAV), xếp, chuyển, tải về; người khác không với tới; sổ kiểm
       # toán của lõi ghi từng lần xếp, chuyển
