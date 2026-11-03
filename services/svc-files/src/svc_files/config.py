@@ -170,6 +170,7 @@ class Settings:
     version: str = "dev"                # MOC_VERSION: phiên bản Signet đang chạy (thẻ image)
     gateway_status_url: str = "http://apisix:7085/status/ready"    # máy chủ trạng thái của APISIX, chỉ mạng nội bộ
     workflow_url: str = "http://svc-workflow:8000"                  # /readyz của svc-workflow: Flowable và Hasura
+    rest_ready_url: str = "http://rest:3001/ready"  # máy chủ quản trị của PostgREST (#561), chỉ mạng nội bộ
     status_cache_s: float = 10.0        # lưu đệm kết quả gom cho mọi người gọi: gọi dồn không thành lời gọi vào lõi
     status_timeout_s: float = 3.0       # hạn mỗi lần dò một thành phần, quá thì báo gián đoạn
     # #424: bản chụp nguồn dữ liệu công khai (seed/du-lieu-mo, mount chỉ đọc) — nguồn gốc, tuổi dữ liệu ở khóa
@@ -299,6 +300,7 @@ class Settings:
                 version=env.get("MOC_VERSION", "dev").strip() or "dev",
                 gateway_status_url=env.get("MOC_GATEWAY_STATUS_URL", "http://apisix:7085/status/ready").strip(),
                 workflow_url=env.get("MOC_WORKFLOW_URL", "http://svc-workflow:8000").strip().rstrip("/"),
+                rest_ready_url=env.get("MOC_REST_READY_URL", "http://rest:3001/ready").strip(),
                 status_cache_s=float(env.get("MOC_STATUS_CACHE_S", "10")),
                 status_timeout_s=float(env.get("MOC_STATUS_TIMEOUT_S", "3")),
                 open_data_dir=env.get("MOC_OPEN_DATA_DIR", "/srv/du-lieu-mo").strip(),
@@ -372,7 +374,8 @@ class Settings:
             raise ConfigError("MOC_STATUS_CACHE_S phải ≥ 1")
         if not 0 < self.status_timeout_s <= 10:
             raise ConfigError("MOC_STATUS_TIMEOUT_S phải trong khoảng (0, 10]")
-        for name, url in (("MOC_GATEWAY_STATUS_URL", self.gateway_status_url), ("MOC_WORKFLOW_URL", self.workflow_url)):
+        for name, url in (("MOC_GATEWAY_STATUS_URL", self.gateway_status_url), ("MOC_WORKFLOW_URL", self.workflow_url),
+                          ("MOC_REST_READY_URL", self.rest_ready_url)):
             if url and not url.startswith(("http://", "https://")):
                 raise ConfigError(f"{name} phải là URL http(s)://…, hoặc rỗng để không dò thành phần đó")
         if self.open_data_dir and not self.open_data_dir.startswith("/"):

@@ -317,6 +317,10 @@ class UpgradeTest(unittest.TestCase):
         pulls = [c for c in docker if c.startswith("docker pull")]
         self.assertEqual(pulls, ["docker pull -q cloudflare/cloudflared:2026.10.0"])
         self.assertLess(docker.index(pulls[0]), docker.index("docker compose down"))
+        # .env của bản cài đứng sau, đè .env của mã nguồn; khóa mới chỉ có ở mã nguồn không làm compose dừng (#566)
+        [config] = [c for c in docker if c.endswith(" config --images")]
+        self.assertEqual(config.count("--env-file "), 2)
+        self.assertTrue(config.endswith(f"--env-file {self.box.dest}/.env config --images"), config)
         kept = self.box.dest / ".env.truoc-20261025-191948"
         self.assertEqual(kept.stat().st_mode & 0o777, 0o600)
         self.assertIn(f"{kept} là bản sao .env cũ, có bí mật", proc.stdout)
