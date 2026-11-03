@@ -134,7 +134,7 @@ flowchart LR
     OFF["app-office · Văn phòng điện tử · Nuxt 4<br/>màn hình ở cả bốn không gian [H] [P] [D] [I], bảng ở README"]
     CN["[H] app-ca-nhan<br/>Không gian cá nhân P.A.R.A"]
     TL["[D] app-tai-lieu-api<br/>Tài liệu API · Swagger UI"]
-    APP["ứng dụng cắm bằng manifest (moc app install)<br/>[H] Bảng tin · [P] Nghỉ phép"]
+    APP["ứng dụng cắm bằng manifest (moc app install)<br/>[H] Bảng tin · [P] Nghỉ phép · [D] Ứng dụng sinh (/sinh)"]
     WK["[H] DokuWiki · profile wiki<br/>wiki nội bộ từng đơn vị"]
   end
   subgraph TANG1["Tầng 1 — lõi không giao diện (profile core)"]
@@ -181,9 +181,9 @@ flowchart LR
   GW -->|"/*"| OFF
   GW -->|"/ca-nhan, /ca-nhan/*"| CN
   GW -->|"/tai-lieu-api, /tai-lieu-api/*"| TL
-  GW -->|"/bang-tin/*, /nghi-phep/* — route thêm lúc cài"| APP
+  GW -->|"/bang-tin/*, /nghi-phep/*, /sinh/* — route thêm lúc cài"| APP
   GW -->|"/lich-giang/* — route thêm lúc cài"| T3
-  APP -->|"token, GraphQL: chỉ qua cổng"| GW
+  APP -->|"token, GraphQL, /rest/v1: chỉ qua cổng"| GW
   T3 -->|"token: chỉ qua cổng, API quy trình chung"| GW
   GW -.->|"/tu-dong, /tu-dong/* · WebSocket"| NR
   NR -.->|"OIDC, token robot, GraphQL<br/>(Action notifyFromFlow): chỉ qua cổng"| GW
