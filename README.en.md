@@ -71,7 +71,7 @@ Signet follows the three tiers of the DX-OS brief:
   command without changing any core file ([`docs/them-ung-dung.md`](docs/them-ung-dung.md), Vietnamese).
 - **Tier 3, industry applications** (sales, warehouse, learning, customer relations…): optional in the brief. The
   first one is the teaching schedule change app (`apps/lich-giang`): a lecturer asks, the head of department and then
-  the dean approve on the core workflow engine; it plugs in like the news board, with `moc app install`.
+  the unit director approve on the core workflow engine; it plugs in like the news board, with `moc app install`.
 
 | Space | Tier 2 screens and applications |
 |---|---|
@@ -295,7 +295,7 @@ passages, with personal data masked, leave the machine. Your own installation us
 ([`DEPENDENCIES.md`](DEPENDENCIES.md)).
 
 **Your own installation:** the shared password of the sample accounts is the value of `MOC_DEMO_PASSWORD` in `.env`.
-Clerks, faculty leaders, team and division heads, and unit administrators must use two-factor authentication: after
+Clerks, unit directors, team and division heads, and unit administrators must use two-factor authentication: after
 the password, enter a TOTP code. `make seed` gives these accounts a shared key (`MOC_DEMO_TOTP_SECRET`); `make totp`
 prints the current code and the key, which you can add once to an authenticator app on your phone (FreeOTP, Aegis,
 Google Authenticator). Real accounts in these roles set up TOTP with a QR code on first sign-in.

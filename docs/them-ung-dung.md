@@ -232,12 +232,12 @@ chạy (bước CI ở phần `luong-chinh` của job `chay-thu`).
 `make demo-cai-ung-dung` (cần `make seed`): `--dry-run` không đổi gì; cài; mở `/bang-tin/` qua APISIX; đăng nhập Văn
 phòng điện tử rồi vào Bảng tin không hỏi lại mật khẩu; câu GraphQL của trang chạy trên bảng của ứng dụng; Danh mục ứng
 dụng của chuyên viên có Bảng tin, chuyên viên không đọc được băm manifest; văn thư vào sổ một văn bản đến thường và một
-văn bản hạn chế → lãnh đạo khoa thấy tin của văn bản thường, văn bản hạn chế không có trong luồng sự kiện; từ trong
+văn bản hạn chế → lãnh đạo đơn vị thấy tin của văn bản thường, văn bản hạn chế không có trong luồng sự kiện; từ trong
 container `app-bang-tin` chỉ mở được kết nối tới `apisix:9080` (Keycloak, Hasura, PostgreSQL, svc-files: không),
 `POST /su-kien/bang-tin` ở cổng công khai trả 404; cài lại không tạo gì mới (cùng container, `.moc-apps/` không đổi
-một byte; băm manifest lãnh đạo khoa thấy = `sha256sum apps/bang-tin/app.yaml`, lúc cài, lúc cập nhật không đổi); gỡ →
+một byte; băm manifest lãnh đạo đơn vị thấy = `sha256sum apps/bang-tin/app.yaml`, lúc cài, lúc cập nhật không đổi); gỡ →
 route, client, trigger, container mất, dữ liệu còn, tệp chạy APISIX giống hệt tệp lõi, Danh mục ứng dụng: chuyên viên
-không còn thấy Bảng tin, lãnh đạo khoa thấy "Đã gỡ"; cuối cùng `git status` trước và sau giống hệt và
+không còn thấy Bảng tin, lãnh đạo đơn vị thấy "Đã gỡ"; cuối cùng `git status` trước và sau giống hệt và
 `git diff --stat` trống.
 
 ### 1.9. Giới hạn và rủi ro

@@ -89,9 +89,9 @@ gửi mô hình và trong nhật ký (`make demo-che-pii`, F4.4) là bằng ch�
 
 - *Bất kỳ ai*: mở trang xác thực, nhập mã tra cứu của văn bản vừa nộp lưu → vẫn "Văn bản có thật, do đơn vị dưới
   đây phát hành".
-- *Lãnh đạo khoa*: **Sổ kiểm toán** → tab **Văn bản**, dòng "Nộp lưu hồ sơ" kèm ký hiệu hồ sơ, băm gói, số văn bản,
+- *Lãnh đạo đơn vị*: **Sổ kiểm toán** → tab **Văn bản**, dòng "Nộp lưu hồ sơ" kèm ký hiệu hồ sơ, băm gói, số văn bản,
   số tệp; tên hồ sơ không hiện.
-- *Lãnh đạo khoa*: **Điều hành** → phần **Văn bản đã nộp lưu (kho lạnh)** cuối trang: số hồ sơ, văn bản đến, văn bản
+- *Lãnh đạo đơn vị*: **Điều hành** → phần **Văn bản đã nộp lưu (kho lạnh)** cuối trang: số hồ sơ, văn bản đến, văn bản
   đi đã nộp lưu; biểu đồ theo năm ban hành; bảng theo loại văn bản, theo phòng lập hồ sơ; dòng nguồn ghi số gói, tên
   bucket lạnh, giờ DuckDB tính. Chưa có hồ sơ nào nộp lưu thì phần này báo trống, không báo lỗi.
 - *Chuyên viên* (`chuyenviendt`): **Hồ sơ công việc** → **Lập hồ sơ** (ký hiệu, tiêu đề, thời hạn bảo quản) → **Thêm vào
@@ -100,7 +100,7 @@ gửi mô hình và trong nhật ký (`make demo-che-pii`, F4.4) là bằng ch�
   ghi tới ngày nào. Lệnh vẫn gọi job nộp lưu (bước 2) để in số byte, thời gian.
 - *Văn thư*: mở hồ sơ đã nộp lưu → **Phòng đọc**: "Manifest khớp băm ghi trong CSDL", văn bản trong gói, bấm
   **Xem** ở tệp PDF → bản xem hiện ngay trong trang, mọi trang có dòng "PHÒNG ĐỌC — bản xem tài liệu lưu trữ cho …,
-  giờ…" (tên người xem, giờ xem). Lãnh đạo khoa thấy dòng "Xem tệp trong phòng đọc" trong sổ kiểm toán.
+  giờ…" (tên người xem, giờ xem). Lãnh đạo đơn vị thấy dòng "Xem tệp trong phòng đọc" trong sổ kiểm toán.
 
 **Nếu giám khảo hỏi:**
 
@@ -227,7 +227,7 @@ Parquet → gói lưu trữ, số dòng đã kiểm); nút "Tải OpenLineage (.
 2. Văn thư tải lên `hoa-don-….pdf` chứa **chuỗi kiểm thử EICAR**. Đây là chuỗi chuẩn để thử phần mềm diệt virus,
    không phải mã độc thật. Kết quả: `422 infected`, ClamAV báo `Eicar-Test-Signature`.
 3. `core.files` không có dòng nào mang SHA-256 của tệp đó: tệp bị chặn trên luồng, trước khi ghi vào kho.
-4. Lãnh đạo khoa đọc sổ kiểm toán của đơn vị, đúng quyền của mình, và thấy dòng `file.rejected`:
+4. Lãnh đạo đơn vị đọc sổ kiểm toán của đơn vị, đúng quyền của mình, và thấy dòng `file.rejected`:
    - thấy giờ, người tải, mẫu mã độc, cỡ tệp;
    - không thấy tên tệp, vì tên do người dùng đặt có thể nói lên nội dung.
 5. `moc audit anchor` neo đầu chuỗi ra bucket lạnh khóa ghi (object lock). `moc audit verify` tính lại cả chuỗi bên
@@ -235,7 +235,7 @@ Parquet → gói lưu trữ, số dòng đã kiểm); nút "Tải OpenLineage (.
 
 **Trên giao diện:**
 
-- *Lãnh đạo khoa*: vào **Sổ kiểm toán** → tab **Tệp**, có dòng "Chặn tệp nhiễm mã độc" kèm mẫu mã độc và cỡ tệp.
+- *Lãnh đạo đơn vị*: vào **Sổ kiểm toán** → tab **Tệp**, có dòng "Chặn tệp nhiễm mã độc" kèm mẫu mã độc và cỡ tệp.
 - *Văn thư*: tải tệp EICAR ở **Tiếp nhận văn bản**, tệp hiện đỏ "Tệp nhiễm mã độc (…) — đã bị chặn, không lưu".
 
 **Nếu giám khảo hỏi:**
@@ -266,21 +266,21 @@ Parquet → gói lưu trữ, số dòng đã kiểm); nút "Tải OpenLineage (.
 1. Văn thư tải `nang-luong-….pdf` lên ở chế độ hạn chế. `svc-files` xin két một khóa AES-256 riêng cho tệp, mã hóa
    rồi mới ghi: đọc thẳng đối tượng trong kho thấy bắt đầu bằng `MOC1`, không có đầu `%PDF`, không có chữ trong tệp.
    CSDL chỉ giữ khóa đã bọc (`vault:v1:…`).
-2. Văn thư tiếp nhận văn bản hạn chế. Quy trình giao lãnh đạo khoa cho ý kiến chỉ đạo, và `svc-workflow` tự thêm lãnh
+2. Văn thư tiếp nhận văn bản hạn chế. Quy trình giao lãnh đạo đơn vị cho ý kiến chỉ đạo, và `svc-workflow` tự thêm lãnh
    đạo khoa vào danh sách được xem — nhận việc mà không mở được văn bản thì vô nghĩa.
 3. Tổ trưởng Tổ Đào tạo không có tên: không đọc được văn bản, mở thẳng đường dẫn tệp → `404`.
-4. Lãnh đạo khoa mở tệp: bản giải mã trong bộ nhớ, trên trang có dòng "VĂN BẢN HẠN CHẾ — bản giải mã cho …, giờ…",
+4. Lãnh đạo đơn vị mở tệp: bản giải mã trong bộ nhớ, trên trang có dòng "VĂN BẢN HẠN CHẾ — bản giải mã cho …, giờ…",
    `Cache-Control: no-store`; băm khác bản gốc vì mỗi người, mỗi lần mở là một bản riêng.
-5. Thông báo việc mới của lãnh đạo khoa chỉ có nhãn "Văn bản hạn chế", không số ký hiệu, trích yếu, cơ quan ban hành.
-6. Sổ kiểm toán có dòng `file.decrypted` của lãnh đạo khoa; lần tổ trưởng bị từ chối không giải mã gì nên không có
+5. Thông báo việc mới của lãnh đạo đơn vị chỉ có nhãn "Văn bản hạn chế", không số ký hiệu, trích yếu, cơ quan ban hành.
+6. Sổ kiểm toán có dòng `file.decrypted` của lãnh đạo đơn vị; lần tổ trưởng bị từ chối không giải mã gì nên không có
    dòng.
 
 **Trên giao diện:**
 
 - *Văn thư*: **Tiếp nhận văn bản**, tích "Hạn chế người xem" *trước khi* tải tệp (chỉ nhận PDF; đã có tệp thì ô này
   khóa lại), tệp hiện "Đã quét — sạch, đã mã hóa". Trang văn bản: tệp có nhãn "Đã mã hóa", mục **Người được xem** có
-  lãnh đạo khoa, gỡ hoặc cấp thêm người được.
-- *Lãnh đạo khoa*: chuông ghi "Việc mới … Văn bản hạn chế"; mở tệp thấy tên mình đóng chéo trang.
+  lãnh đạo đơn vị, gỡ hoặc cấp thêm người được.
+- *Lãnh đạo đơn vị*: chuông ghi "Việc mới … Văn bản hạn chế"; mở tệp thấy tên mình đóng chéo trang.
 - *Tổ trưởng*: dán đường dẫn văn bản → "Không tìm thấy văn bản, hoặc bạn không có quyền xem."
 
 **Nếu giám khảo hỏi:**
@@ -292,8 +292,8 @@ Parquet → gói lưu trữ, số dòng đã kiểm); nút "Tải OpenLineage (.
   trong `.env`. Bản sao lưu gồm cả két (để khôi phục được), nên `.env` phải giữ riêng, ngoài bản sao lưu.
 - *"Người có tên chụp màn hình, chuyển tiếp thì sao?"* Không chặn được. Tên người xem và giờ xem nằm trên mọi trang,
   sổ kiểm toán ghi từng lần mở: lộ thì truy được từ bản nào.
-- *"Lãnh đạo khoa vốn đọc được mọi văn bản, sao còn cần có tên?"* Vai trò chưa đủ: văn bản hạn chế còn cần có tên.
-  Người nhận việc được tự thêm; văn thư, lãnh đạo khoa thêm hoặc gỡ người khác, mỗi lần đều vào sổ.
+- *"Lãnh đạo đơn vị vốn đọc được mọi văn bản, sao còn cần có tên?"* Vai trò chưa đủ: văn bản hạn chế còn cần có tên.
+  Người nhận việc được tự thêm; văn thư, lãnh đạo đơn vị thêm hoặc gỡ người khác, mỗi lần đều vào sổ.
 - *"Tìm theo nội dung được không?"* Không: tệp mã hóa không được đọc chữ, nội dung văn bản hạn chế không vào chỉ mục,
   vì một bản chữ trần nằm ngoài tệp là vô hiệu việc mã hóa. Tìm theo số ký hiệu, trích yếu vẫn được nếu có quyền.
 
@@ -625,7 +625,7 @@ dòng hỏi đáp của tác tử, không có câu hỏi.
 ## Ngoài 4 nguyên lý: gợi ý giao việc — `make demo-giao-viec`
 
 Màn này thuộc F4.3, **không** phải màn bằng chứng nguyên lý: văn bản đến vừa vào sổ thì một tác tử (`moc-assigner`)
-tìm các văn bản tương tự đã giao, gợi ý cho lãnh đạo khoa đơn vị chủ trì và hạn xử lý, kèm căn cứ. Tác tử chỉ gợi ý,
+tìm các văn bản tương tự đã giao, gợi ý cho lãnh đạo đơn vị: phòng chủ trì và hạn xử lý, kèm căn cứ. Tác tử chỉ gợi ý,
 lãnh đạo quyết định. Không cần mô hình ngôn ngữ. Lần đầu nạp lịch sử mẫu mất khoảng hai phút, các lần sau dưới hai
 phút (bước 10 khởi động lại svc-files).
 
@@ -641,7 +641,7 @@ phút (bước 10 khởi động lại svc-files).
 - Văn bản hạn chế (F3.7) **không được gợi ý và không làm căn cứ**: không vào chỉ mục; svc-files hậu kiểm; trigger CSDL
   chặn ghi gợi ý cho văn bản hạn chế hay có căn cứ hạn chế, và gỡ căn cứ khi một văn bản bị bật hạn chế sau đó.
 - Mỗi gợi ý một dòng sổ kiểm toán của tác tử (loại `agent`): đơn vị, độ tin cậy, số căn cứ, thời gian — **không** có
-  trích yếu. Danh sách căn cứ nằm ở bảng `office.assignment_suggestions`, chỉ lãnh đạo khoa đọc.
+  trích yếu. Danh sách căn cứ nằm ở bảng `office.assignment_suggestions`, chỉ lãnh đạo đơn vị đọc.
 - Đo được: view `office.v_assignment_suggestion_accuracy` đếm số lần lãnh đạo giữ hay đổi gợi ý; `make do-giao-viec` đo
   trên lịch sử.
 
