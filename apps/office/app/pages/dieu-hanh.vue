@@ -54,7 +54,9 @@ const QUERY = `{
 const CHECKS = '{ office_report_checks { rule report status expected actual issues detail } }'
 const IN_STATUSES = ['received', 'registered', 'in_progress', 'done', 'archived', 'cancelled'] as const
 const OPEN = new Set(['received', 'registered', 'in_progress'])
-const MONTHS = 12
+// Kỳ của hai chuỗi theo tháng và thẻ thời gian xử lý: số tháng gần nhất, ghi trên đường dẫn (?thang=6). Các khung
+// nhìn trả mọi tháng, trang tự cắt; các số còn lại là số lúc mở trang, không theo kỳ
+const PERIODS = [3, 6, 12, 24]
 // màu biểu đồ theo giao diện "Lịch hạn": lục bảo của hành động chính, đỏ trầm cho quá hạn
 const BRAND = '#0b6b53'
 const LATE = '#9f2019'
@@ -64,6 +66,12 @@ const GRID = { left: 8, right: 16, top: 16, bottom: 8, outerBoundsMode: 'same', 
 const { t, locale } = useI18n()
 const { gql } = useApi()
 const claims = useAuth().claims
+const route = useRoute()
+const router = useRouter()
+const period = computed(() => (PERIODS.includes(Number(route.query.thang)) ? Number(route.query.thang) : 12))
+function pickPeriod(value: string) {
+  router.replace({ query: { ...route.query, thang: value } })
+}
 
 const counts = ref<Count[]>([])
 const departments = ref<Department[]>([])
@@ -123,11 +131,12 @@ function duration(hours: number) {
     : t('board.daysValue', { n: number.value.format(hours / 24) })
 }
 
-// 12 tháng gần nhất theo giờ Việt Nam, tháng không có số liệu vẫn có cột
+// Các tháng của kỳ đang chọn theo giờ Việt Nam, tháng không có số liệu vẫn có cột
 const months = computed(() => {
   const [y, m] = today().split('-').map(Number) as [number, number]
-  return Array.from({ length: MONTHS }, (_, i) => {
-    const d = new Date(y, m - 1 - (MONTHS - 1 - i), 1)
+  const n = period.value
+  return Array.from({ length: n }, (_, i) => {
+    const d = new Date(y, m - 1 - (n - 1 - i), 1)
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
   })
 })
@@ -232,6 +241,15 @@ const outgoingChart = computed(() => ({
 <template>
   <div>
     <PageHeader :title="t('board.title')" :subtitle="t('board.subtitle')">
+      <template v-if="allowed">
+        <label class="sr-only" for="board-period">{{ t('board.period') }}</label>
+        <select
+          id="board-period" class="input w-40" :value="period" data-testid="board-period"
+          @change="pickPeriod(($event.target as HTMLSelectElement).value)"
+        >
+          <option v-for="n in PERIODS" :key="n" :value="n">{{ t('board.lastMonths', { n }) }}</option>
+        </select>
+      </template>
       <button v-if="allowed" class="btn-secondary" :disabled="loading" @click="load">{{ t('app.refresh') }}</button>
     </PageHeader>
     <p v-if="!allowed" class="moc-empty">{{ t('board.forbidden') }}</p>
@@ -252,6 +270,11 @@ const outgoingChart = computed(() => ({
               {{ kpis.overdue }}
             </div>
             <div class="mt-1 text-xs text-stone-500">{{ t('board.overdueHint') }}</div>
+            <NuxtLink
+              to="/van-ban-den?tab=overdue" class="sg-link mt-1 inline-block text-xs" data-testid="kpi-overdue-list"
+            >
+              {{ t('board.overdueList') }}
+            </NuxtLink>
           </div>
           <div class="card p-4">
             <div class="text-sm text-stone-600">{{ t('board.urgent') }}</div>
@@ -264,7 +287,7 @@ const outgoingChart = computed(() => ({
               {{ kpis.hours === null ? '—' : duration(kpis.hours) }}
             </div>
             <div class="mt-1 text-xs text-stone-500">
-              {{ kpis.hours === null ? t('board.noneDone') : t('board.avgHint', { done: kpis.done }) }}
+              {{ kpis.hours === null ? t('board.noneDone') : t('board.avgHint', { done: kpis.done, months: period }) }}
               <template v-if="kpis.onTimePct !== null"> · {{ t('board.onTimePct', { pct: kpis.onTimePct }) }}</template>
             </div>
           </div>
@@ -337,6 +360,7 @@ const outgoingChart = computed(() => ({
                 </tr>
               </tbody>
             </table>
+            <p class="mt-2 text-[13px] text-stone-500">{{ t('board.departmentHint') }}</p>
           </template>
         </section>
 

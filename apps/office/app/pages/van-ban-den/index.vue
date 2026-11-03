@@ -43,6 +43,9 @@ const router = useRouter()
 const tabs = {
   received: ['received'],
   active: ['registered', 'in_progress'],
+  // chưa xong mà hạn giải quyết đã qua (thêm điều kiện due_on ở load): đúng ô Quá hạn của Điều hành
+  // (office.v_document_counts), quá hạn lâu nhất ở trên
+  overdue: ['received', 'registered', 'in_progress'],
   done: ['done', 'archived'],
   all: null,
 } as const
@@ -67,14 +70,21 @@ async function load(append = false) {
   }
   const page = nextPage(rows.value.length)
   const statuses = tabs[tab.value]
+  const overdue = tab.value === 'overdue'
   try {
     const data = await gql<{ office_documents: Row[] }>(`
-      query ($where: office_documents_bool_exp!, $offset: Int!, $limit: Int!) {
-        office_documents(where: $where, order_by: [{registered_at: desc_nulls_first}, {created_at: desc}, {id: asc}], limit: $limit, offset: $offset) {
+      query ($where: office_documents_bool_exp!, $order: [office_documents_order_by!]!, $offset: Int!, $limit: Int!) {
+        office_documents(where: $where, order_by: $order, limit: $limit, offset: $offset) {
           id symbol issuer_name summary status urgency register_number registered_at due_on issued_on restricted source_id
         }
       }`, {
-      where: { direction: { _eq: 'in' }, ...(statuses ? { status: { _in: statuses } } : {}) },
+      where: {
+        direction: { _eq: 'in' },
+        ...(statuses ? { status: { _in: statuses } } : {}),
+        ...(overdue ? { due_on: { _lt: today() } } : {}),
+      },
+      order: overdue ? [{ due_on: 'asc' }, { id: 'asc' }]
+        : [{ registered_at: 'desc_nulls_first' }, { created_at: 'desc' }, { id: 'asc' }],
       ...page,
     })
     if (mine !== seq) return   // đã đổi tab trong lúc chờ: bỏ kết quả cũ
@@ -124,6 +134,9 @@ const filteredRows = computed(() => {
         {{ t(`incoming.tab.${key}`) }}
       </button>
     </div>
+    <p v-if="tab === 'overdue'" class="mb-3 text-[13px] text-stone-500" data-testid="overdue-hint">
+      {{ t('incoming.overdueHint') }}
+    </p>
 
     <div class="moc-toolbar">
       <input
