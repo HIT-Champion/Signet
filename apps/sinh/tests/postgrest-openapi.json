@@ -1,0 +1,54 @@
+{
+  "swagger": "2.0",
+  "info": {"description": "", "title": "standard public schema", "version": "14"},
+  "host": "rest:3000",
+  "basePath": "/",
+  "schemes": ["http"],
+  "consumes": ["application/json", "application/vnd.pgrst.object+json", "text/csv"],
+  "produces": ["application/json", "application/vnd.pgrst.object+json", "text/csv"],
+  "paths": {
+    "/": {"get": {"produces": ["application/openapi+json", "application/json"], "responses": {"200": {"description": "OK"}}, "summary": "OpenAPI description (this document)", "tags": ["Introspection"]}},
+    "/yeu_cau": {"get": {"responses": {"200": {"description": "OK"}}, "tags": ["yeu_cau"]}, "description": "Quản lý yêu cầu\nGửi yêu cầu tới phòng phụ trách và theo dõi tới khi xong."},
+    "/phong": {"get": {"responses": {"200": {"description": "OK"}}, "tags": ["phong"]}, "description": "Danh mục phòng"},
+    "/bang_phu": {"get": {"responses": {"200": {"description": "OK"}}, "tags": ["bang_phu"]}}
+  },
+  "definitions": {
+    "yeu_cau": {
+      "description": "Quản lý yêu cầu\nGửi yêu cầu tới phòng phụ trách và theo dõi tới khi xong.",
+      "required": ["id", "tieu_de", "trang_thai", "tenant_id", "created_by", "created_at"],
+      "properties": {
+        "id": {"default": "gen_random_uuid()", "description": "Note:\nThis is a Primary Key.<pk/>", "format": "uuid", "type": "string"},
+        "tieu_de": {"description": "Tiêu đề", "format": "character varying", "maxLength": 200, "type": "string"},
+        "noi_dung": {"description": "Nội dung\nMô tả điều cần giải quyết.", "format": "text", "type": "string"},
+        "han": {"description": "Hạn giải quyết", "format": "date", "type": "string"},
+        "trang_thai": {"default": "Mới", "description": "Trạng thái", "enum": ["Mới", "Đang xử lý", "Xong"], "format": "sinh.trang_thai_yeu_cau", "type": "string"},
+        "so_luong": {"format": "integer", "type": "integer"},
+        "phong_id": {"description": "Phòng phụ trách\n\nNote:\nThis is a Foreign Key to `phong.id`.<fk table='phong' column='id'/>", "format": "uuid", "type": "string"},
+        "dinh_kem": {"description": "Tệp kèm", "format": "jsonb"},
+        "nhan": {"format": "text[]", "type": "array", "items": {"type": "string"}},
+        "tenant_id": {"format": "uuid", "type": "string"},
+        "created_by": {"format": "text", "type": "string"},
+        "created_at": {"default": "now()", "format": "timestamp with time zone", "type": "string"}
+      },
+      "type": "object"
+    },
+    "phong": {
+      "required": ["id", "ten", "tenant_id", "created_by", "created_at"],
+      "properties": {
+        "id": {"default": "gen_random_uuid()", "description": "Note:\nThis is a Primary Key.<pk/>", "format": "uuid", "type": "string"},
+        "ten": {"description": "Tên phòng", "format": "text", "type": "string"},
+        "tenant_id": {"format": "uuid", "type": "string"},
+        "created_by": {"format": "text", "type": "string"},
+        "created_at": {"default": "now()", "format": "timestamp with time zone", "type": "string"}
+      },
+      "type": "object"
+    },
+    "bang_phu": {
+      "required": ["id"],
+      "properties": {
+        "id": {"description": "Note:\nThis is a Primary Key.<pk/>", "format": "bigint", "type": "integer"}
+      },
+      "type": "object"
+    }
+  }
+}

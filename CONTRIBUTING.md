@@ -83,8 +83,8 @@ ci: pin the checkout action version
 
 - **Loại**: `feat`, `fix`, `perf`, `refactor`, `docs`, `test`, `build`, `ci`, `chore`, `revert`.
 - **Phạm vi** theo thành phần: `gateway`, `auth`, `db`, `workflow`, `files`, `realtime`, `office`,
-  `ca-nhan`, `bang-tin`, `nghi-phep`, `lich-giang`, `ai`, `data`, `ops`, `cli`, `scripts`, `e2e`, `ci`, `deps`,
-  `docs`, `release`.
+  `ca-nhan`, `bang-tin`, `nghi-phep`, `lich-giang`, `sinh`, `ai`, `data`, `ops`, `cli`, `scripts`, `e2e`, `ci`,
+  `deps`, `docs`, `release`.
 - Chân commit ghi `Closes #<số-issue>` để tự đóng issue khi gộp vào `develop`.
 - CI kiểm tiêu đề pull request theo đúng quy ước này, vì khi squash nó thành dòng đầu của commit.
 
