@@ -56,9 +56,9 @@ của người đó ở tab **Sessions**. Không xóa tài khoản: tài khoản
   realm (JWKS), không hỏi Keycloak ở mỗi yêu cầu. Giảm `accessTokenLifespan` thì mất quyền sớm hơn, đổi lại trình duyệt
   phải làm mới token thường hơn. 300 giây là giới hạn theo cấu hình, chưa đo bằng thực nghiệm; kết nối thông báo
   realtime đang mở bị cắt lúc nào cũng chưa kiểm.
-- Trong khoảng 15 giây, `svc-workflow` đồng bộ danh bạ và đánh dấu người đó `enabled = false` trong `core.users` (thay
-  đổi này vào sổ kiểm toán). Từ đó thông báo qua email, SMS, Zalo không gửi cho người đó, và các bước tự chọn người
-  nhận (thông báo, gợi ý giao việc) bỏ qua người đó.
+- Sau tối đa một chu kỳ đồng bộ danh bạ (mặc định 15 giây, `MOC_DIRECTORY_SYNC_INTERVAL_S`), `svc-workflow` đánh dấu
+  người đó `enabled = false` trong `core.users` (thay đổi này vào sổ kiểm toán). Từ đó thông báo qua email, SMS, Zalo
+  không gửi cho người đó, và các bước tự chọn người nhận (thông báo, gợi ý giao việc) bỏ qua người đó.
 - Chưa tự động: việc đang dở của người đó không tự chuyển, người giao việc phải giao lại.
 
 ## Sao lưu và khôi phục
@@ -120,9 +120,11 @@ bước ghi lại thời điểm và việc đã làm.
 1. **Cách ly.** Đã bật tự phục hồi hay GitOps (mục GitOps và tự phục hồi) thì tạm dừng reconciler trước
    (`sudo systemctl stop moc-reconcile.timer`; máy WSL2 thì tắt dòng `reconcile.py` trong crontab của người dùng
    `moc`), nếu không, chỉ sau một phút nó dựng lại dịch vụ vừa dừng. Rồi cắt đường vào từ Internet: dừng đường hầm
-   (`docker compose stop cloudflared` khi dùng profile `tunnel`) hoặc chặn cổng ở tường lửa. Nghi máy chủ đã bị chiếm
-   thì dừng hẳn (`make down`) và rút mạng. Khóa các tài khoản nghi bị lộ (mục Nhân viên nghỉ việc). Chưa xóa gì:
-   volume, log và kho sao lưu còn cần cho các bước sau.
+   (`docker compose --profile tunnel stop cloudflared`) hoặc chặn cổng ở tường lửa. Nghi máy chủ đã bị chiếm thì chép
+   log ra máy khác (`docker compose logs --timestamps --no-color > log-su-co.txt`), dừng hẳn bằng `docker compose stop`
+   rồi rút mạng. Đừng dùng `make down`: lệnh đó xóa container, log của container mất theo (trừ khi đã bật Log tập
+   trung). Khóa các tài khoản nghi bị lộ (mục Nhân viên nghỉ việc). Chưa xóa gì: volume, log và kho sao lưu còn cần
+   cho các bước sau.
 2. **Khoanh vùng.** `make audit` tính lại sổ kiểm toán ở ngoài CSDL và so với mốc neo: chuỗi còn khớp thì các dòng tới
    mốc gần nhất không bị sửa, xóa lén; có dòng hỏng thì lệnh in ra. Xem ai đã làm gì ở trang Sổ kiểm toán của quản trị
    đơn vị, ở log tập trung nếu đã bật (mục Log tập trung) và ở cảnh báo (mục Giám sát). Chạy
@@ -134,8 +136,8 @@ bước ghi lại thời điểm và việc đã làm.
    `MOC_BACKUP_PASSWORD`** (không đọc được kho sao lưu đã có).
 4. **Khôi phục.** `python3 scripts/moc.py backup restore <lượt>` với lượt đã chọn ở bước 2: lệnh kiểm kho đọc được trọn
    vẹn, hỏi lại, rồi mới thay dữ liệu và ghi lần khôi phục vào sổ kiểm toán. Sau đó chạy `make audit`, xem trang trạng
-   thái hệ thống, rồi mở lại đường vào và bật lại reconciler (`sudo systemctl start moc-reconcile.timer`). Báo người
-   dùng khoảng thời gian dữ liệu bị mất, từ lượt sao lưu tới lúc sự cố.
+   thái hệ thống, rồi mở lại đường vào và bật lại reconciler (`sudo systemctl start moc-reconcile.timer`; máy WSL2 thì
+   bỏ dấu `#` ở dòng crontab). Báo người dùng khoảng thời gian dữ liệu bị mất, từ lượt sao lưu tới lúc sự cố.
 
 Sau sự cố, lập biên bản: lúc phát hiện, lượt đã khôi phục, khoảng dữ liệu mất, nguyên nhân. Sự cố có đụng tới dữ liệu cá
 nhân thì báo cáo theo quy định về bảo vệ dữ liệu cá nhân.

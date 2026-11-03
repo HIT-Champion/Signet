@@ -66,9 +66,10 @@ audit log and on timelines.
   realm's public keys (JWKS) and do not ask Keycloak on each request. A lower `accessTokenLifespan` cuts access sooner,
   at the cost of browsers refreshing tokens more often. The 300 seconds are the configured limit, not measured; when an
   open realtime notification connection gets closed has not been checked either.
-- Within about 15 seconds, `svc-workflow` syncs the directory and marks the person `enabled = false` in `core.users`
-  (this change goes into the audit log). From then on email, SMS and Zalo notifications are not sent to them, and the
-  steps that pick recipients automatically (notifications, assignment suggestions) skip them.
+- Within one directory sync cycle (15 seconds by default, `MOC_DIRECTORY_SYNC_INTERVAL_S`), `svc-workflow` marks the
+  person `enabled = false` in `core.users` (this change goes into the audit log). From then on email, SMS and Zalo
+  notifications are not sent to them, and the steps that pick recipients automatically (notifications, assignment
+  suggestions) skip them.
 - Not automatic: the person's unfinished tasks are not handed over; whoever assigned them has to reassign.
 
 ## Backup and restore
@@ -134,10 +135,12 @@ below in order, and write down the time and what was done at each step.
 1. **Isolate.** If self-healing or GitOps is on (section GitOps and self-healing), pause the reconciler first
    (`sudo systemctl stop moc-reconcile.timer`; on a WSL2 machine, disable the `reconcile.py` line in the crontab of the
    `moc` user), or within a minute it brings back the services you just stopped. Then cut access from the Internet:
-   stop the tunnel (`docker compose stop cloudflared` with the `tunnel` profile) or block the port at the firewall. If
-   you suspect the server itself is taken over, stop everything (`make down`) and unplug the network. Disable the
-   accounts that may have leaked (section Staff leaving). Delete nothing yet: the volumes, the logs and the backup
-   repository are needed in the next steps.
+   stop the tunnel (`docker compose --profile tunnel stop cloudflared`) or block the port at the firewall. If you
+   suspect the server itself is taken over, copy the logs to another machine
+   (`docker compose logs --timestamps --no-color > incident-log.txt`), stop everything with `docker compose stop` and
+   unplug the network. Do not use `make down`: it removes the containers, and their logs go with them (unless
+   centralised logs are on). Disable the accounts that may have leaked (section Staff leaving). Delete nothing yet:
+   the volumes, the logs and the backup repository are needed in the next steps.
 2. **Scope.** `make audit` recomputes the audit log outside the database and compares it with the anchors: if the
    chain still matches, rows up to the latest anchor were not changed or deleted behind your back; a broken row is
    printed. See who did what on the unit administrator's Audit log page, in the centralised logs if they are on
@@ -152,8 +155,8 @@ below in order, and write down the time and what was done at each step.
 4. **Restore.** `python3 scripts/moc.py backup restore <snapshot>` with the snapshot picked in step 2: the command
    checks that the repository reads back in full, asks again, and only then replaces the data and records the restore
    in the audit log. Then run `make audit`, check the system status page, reopen access and turn the reconciler back on
-   (`sudo systemctl start moc-reconcile.timer`). Tell users which period of data was lost, from the snapshot to the
-   incident.
+   (`sudo systemctl start moc-reconcile.timer`; on a WSL2 machine, remove the `#` from the crontab line). Tell users
+   which period of data was lost, from the snapshot to the incident.
 
 After the incident, write a report: when it was found, which snapshot was restored, which period of data was lost,
 the cause. If personal data was involved, report it as the rules on personal data protection require.
