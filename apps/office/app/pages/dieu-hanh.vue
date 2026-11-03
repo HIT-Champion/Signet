@@ -429,6 +429,7 @@ const outgoingChart = computed(() => ({
         </section>
       </div>
     </div>
+    <PeriodClose v-if="allowed" class="mt-4" />
     <ArchiveBoard v-if="allowed" class="mt-4" />
   </div>
 </template>

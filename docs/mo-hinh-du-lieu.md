@@ -182,10 +182,11 @@ create table core.audit_anchors (           -- bản tra cứu các lần neo đ
   bảng này.
 - **`make audit`** (`scripts/moc.py audit verify`) tính lại cả chuỗi bên ngoài CSDL: PostgreSQL chỉ dựng chuỗi
   JSON của từng dòng bằng `pg_catalog.jsonb_build_array` (cùng biểu thức với `core.audit_hash`), còn băm và nối
-  chuỗi tính bằng Python. Ba lớp: chuỗi liền mạch; hash của dòng tại mỗi mốc bằng hash đã neo (viết lại chuỗi
+  chuỗi tính bằng Python. Bốn lớp: chuỗi liền mạch; hash của dòng tại mỗi mốc bằng hash đã neo (viết lại chuỗi
   từ dòng k thì mọi mốc từ k lệch, dòng bị sửa nằm giữa mốc cuối còn khớp và mốc đầu bị lệch); `content_sha256`
   của mọi văn bản bằng giá trị lần cuối ghi vào sổ (đổi hash để một tệp giả "khớp" ở cổng xác thực mà tắt
-  trigger thì bị bắt). `audit anchor --to <tệp>` ghi thêm một bản mốc vào tệp để chép ra ngoài máy chủ, kèm chữ ký
+  trigger thì bị bắt); mã băm tính lại từ số liệu của mỗi kỳ đã chốt bằng mã băm của sự kiện `period.closed`, và
+  sự kiện nào cũng còn kỳ của nó (§ Chốt kỳ). `audit anchor --to <tệp>` ghi thêm một bản mốc vào tệp để chép ra ngoài máy chủ, kèm chữ ký
   Ed25519 của két (khóa `moc-anchor`); `--publish` đẩy mốc lên một kho git công khai cấm đẩy ép, người ngoài kiểm chữ
   ký bằng OpenSSL (`docs/van-hanh.md` mục Mốc neo công khai). Mốc trong tệp có chữ ký sai, hay không có chữ ký mà
   đứng sau mốc đã ký, thì `audit verify` báo lỗi.
@@ -839,6 +840,16 @@ ký vẫn cho biết có bao nhiêu văn bản. Nhờ vậy mọi số chia trê
 | `office.v_overdue_by_department` | `department_id`, `code`, `name`, `in_progress`, `overdue` | Văn bản đến đang xử lý theo phòng chủ trì: việc chủ trì gốc giao cho phòng, hoặc giao cho một người thì tính về phòng của người đó (`core.users`). Phòng chưa có việc vẫn có dòng, số 0. Không xác định được phòng thì vào dòng `department_id` null ("Chưa rõ phòng"), để tổng luôn bằng số văn bản đang xử lý |
 | `office.v_processing_time` | `month`, `documents`, `total_hours`, `with_due`, `on_time` | Thời gian từ vào sổ đến khi xong, theo tháng xong. Lúc xong là sự kiện `office.document.processed` (báo xong) hoặc `office.document.filed` (cho lưu) trên dòng thời gian, ghi cùng giao dịch với trạng thái `done` (văn bản đã nộp lưu: bản giữ lại, xem dưới). Trả tổng số giờ để giao diện tự chia, gộp nhiều tháng không lệch; `on_time` đếm trong số `with_due` (văn bản có hạn) |
 | `office.v_outgoing_by_month` | `month`, `documents` | Văn bản đi đã phát hành theo tháng ban hành |
+
+**Chốt kỳ** (#542, migration 1792281604300). Số trên dashboard tính lại mỗi lần xem, nên đổi theo dữ liệu. Lãnh đạo
+đơn vị chốt một tháng đã qua bằng hàm `office.close_period(period)` (Hasura đưa ra thành mutation, chỉ `director`).
+Hàm chép số của bốn view trên vào `office.period_closes`, mỗi đơn vị mỗi tháng một dòng (`tenant_id`, `period`,
+`closed_at`, `closed_by`, `figures`, `sha256`), rồi ghi sự kiện `period.closed` kèm mã băm vào sổ kiểm toán. Trigger
+chặn sửa, xóa, truncate bảng này. `sha256` là băm của đúng chuỗi `figures::text`, tính lại được bằng SQL. Tắt trigger
+để sửa số (kể cả sửa cột `sha256` cho khớp) hay xóa kỳ thì `make audit` chỉ ra: lệnh tính lại mã băm từ `figures`,
+không tin cột `sha256`, rồi so với sổ. Hàm cũng từ chối kỳ cũ hơn 24 tháng, vì dòng đã chốt không xóa được. `v_document_counts` và
+`v_overdue_by_department` không có lịch sử nên `figures` giữ số tại lúc chốt (`closed_at`), không phải số cuối tháng;
+`v_processing_time`, `v_outgoing_by_month` lấy đúng dòng của tháng. Tháng chưa qua, tháng đã chốt bị từ chối.
 
 **Số đo đọc văn bản đến** (F4.1, migration 1792281601900): `office.v_intake_accuracy` đối chiếu gợi ý đã lưu với
 văn bản văn thư đã lưu từ tệp đó (tệp là bản chính của văn bản đến chưa hủy), cho biết văn thư giữ nguyên bao nhiêu

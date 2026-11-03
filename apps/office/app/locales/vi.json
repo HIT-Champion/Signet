@@ -937,6 +937,9 @@
       "register": {
         "printed": "In sổ đăng ký"
       },
+      "period": {
+        "closed": "Chốt kỳ số liệu điều hành"
+      },
       "case_file": {
         "archived": "Nộp lưu hồ sơ",
         "read": "Đọc hồ sơ lưu trữ",
@@ -969,7 +972,8 @@
         "case_files": "Hồ sơ",
         "case_file_documents": "Văn bản trong hồ sơ",
         "dispatches": "Liên thông văn bản",
-        "maturity_assessments": "Tự chẩn đoán H-P-D-I"
+        "maturity_assessments": "Tự chẩn đoán H-P-D-I",
+        "period_closes": "Kỳ số liệu đã chốt"
       },
       "core": {
         "files": "Tệp tải lên",
@@ -1293,6 +1297,21 @@
     "average": "Trung bình",
     "status": "Trạng thái",
     "underHour": "dưới 1 giờ"
+  },
+  "periodClose": {
+    "title": "Chốt kỳ số liệu",
+    "hint": "Chốt một tháng đã qua: số liệu được ghi một lần, không sửa, không xóa được; mã băm vào sổ kiểm toán. Văn bản đến chưa xong và quá hạn là số tại lúc chốt, không phải số cuối tháng: muốn sát số cuối kỳ thì chốt ngay đầu tháng sau.",
+    "month": "Tháng cần chốt",
+    "submit": "Chốt kỳ",
+    "confirm": "Chốt số liệu tháng {month}? Sau khi chốt không sửa, không xóa được.",
+    "closed": "Đã chốt số liệu tháng {month}.",
+    "empty": "Chưa chốt kỳ nào.",
+    "period": "Kỳ",
+    "closedAt": "Chốt lúc",
+    "open": "Chưa xong lúc chốt",
+    "overdue": "Quá hạn lúc chốt",
+    "done": "Xong trong kỳ",
+    "sha256": "Mã băm SHA-256"
   },
   "archiveBoard": {
     "title": "Văn bản đã nộp lưu (kho lạnh)",

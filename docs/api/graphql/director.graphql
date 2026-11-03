@@ -1297,6 +1297,21 @@ type mutation_root {
     "upsert condition"
     on_conflict: personal_items_on_conflict
   ): personal_items
+  "execute VOLATILE function \"office.close_period\" which returns \"office.period_closes\""
+  office_close_period(
+    "input parameters for function \"office_close_period\""
+    args: office_close_period_args!
+    "distinct select on columns"
+    distinct_on: [office_period_closes_select_column!]
+    "limit the number of rows returned"
+    limit: Int
+    "skip the first n rows. Use only with order_by"
+    offset: Int
+    "sort the rows by one or more columns"
+    order_by: [office_period_closes_order_by!]
+    "filter the rows returned"
+    where: office_period_closes_bool_exp
+  ): [office_period_closes!]!
   "execute VOLATILE function \"office.grant_document_access\" which returns \"office.document_acl\""
   office_grant_document_access(
     "input parameters for function \"office_grant_document_access\""
@@ -1922,6 +1937,10 @@ input office_case_files_stream_cursor_value_input {
   tenant_id: uuid
   title: String
   year: Int
+}
+
+input office_close_period_args {
+  period: date
 }
 
 "columns and relationships of \"office.departments\""
@@ -3583,6 +3602,76 @@ type office_maturity_assessments_variance_fields {
   p: Float
 }
 
+"columns and relationships of \"office.period_closes\""
+type office_period_closes {
+  closed_at: timestamptz!
+  closed_by: String!
+  figures(
+    "JSON select path"
+    path: String
+  ): jsonb!
+  period: date!
+  sha256: bytea!
+  tenant_id: uuid!
+}
+
+"Boolean expression to filter rows from the table \"office.period_closes\". All fields are combined with a logical 'AND'."
+input office_period_closes_bool_exp {
+  _and: [office_period_closes_bool_exp!]
+  _not: office_period_closes_bool_exp
+  _or: [office_period_closes_bool_exp!]
+  closed_at: timestamptz_comparison_exp
+  closed_by: String_comparison_exp
+  figures: jsonb_comparison_exp
+  period: date_comparison_exp
+  sha256: bytea_comparison_exp
+  tenant_id: uuid_comparison_exp
+}
+
+"Ordering options when selecting data from \"office.period_closes\"."
+input office_period_closes_order_by {
+  closed_at: order_by
+  closed_by: order_by
+  figures: order_by
+  period: order_by
+  sha256: order_by
+  tenant_id: order_by
+}
+
+"select columns of table \"office.period_closes\""
+enum office_period_closes_select_column {
+  "column name"
+  closed_at
+  "column name"
+  closed_by
+  "column name"
+  figures
+  "column name"
+  period
+  "column name"
+  sha256
+  "column name"
+  tenant_id
+}
+
+"Streaming cursor of the table \"office_period_closes\""
+input office_period_closes_stream_cursor_input {
+  "Stream column input with initial value"
+  initial_value: office_period_closes_stream_cursor_value_input!
+  "cursor ordering"
+  ordering: cursor_ordering
+}
+
+"Initial value of the column from where the streaming should start"
+input office_period_closes_stream_cursor_value_input {
+  closed_at: timestamptz
+  closed_by: String
+  figures: jsonb
+  period: date
+  sha256: bytea
+  tenant_id: uuid
+}
+
 "columns and relationships of \"office.registers\""
 type office_registers {
   direction: String!
@@ -5226,6 +5315,21 @@ type query_root {
   ): office_maturity_assessments_aggregate!
   "fetch data from the table: \"office.maturity_assessments\" using primary key columns"
   office_maturity_assessments_by_pk(id: uuid!): office_maturity_assessments
+  "fetch data from the table: \"office.period_closes\""
+  office_period_closes(
+    "distinct select on columns"
+    distinct_on: [office_period_closes_select_column!]
+    "limit the number of rows returned"
+    limit: Int
+    "skip the first n rows. Use only with order_by"
+    offset: Int
+    "sort the rows by one or more columns"
+    order_by: [office_period_closes_order_by!]
+    "filter the rows returned"
+    where: office_period_closes_bool_exp
+  ): [office_period_closes!]!
+  "fetch data from the table: \"office.period_closes\" using primary key columns"
+  office_period_closes_by_pk(period: date!, tenant_id: uuid!): office_period_closes
   "fetch data from the table: \"office.registers\""
   office_registers(
     "distinct select on columns"
@@ -6064,6 +6168,30 @@ type subscription_root {
     "filter the rows returned"
     where: office_maturity_assessments_bool_exp
   ): [office_maturity_assessments!]!
+  "fetch data from the table: \"office.period_closes\""
+  office_period_closes(
+    "distinct select on columns"
+    distinct_on: [office_period_closes_select_column!]
+    "limit the number of rows returned"
+    limit: Int
+    "skip the first n rows. Use only with order_by"
+    offset: Int
+    "sort the rows by one or more columns"
+    order_by: [office_period_closes_order_by!]
+    "filter the rows returned"
+    where: office_period_closes_bool_exp
+  ): [office_period_closes!]!
+  "fetch data from the table: \"office.period_closes\" using primary key columns"
+  office_period_closes_by_pk(period: date!, tenant_id: uuid!): office_period_closes
+  "fetch data from the table in a streaming manner: \"office.period_closes\""
+  office_period_closes_stream(
+    "maximum number of rows returned in a single batch"
+    batch_size: Int!
+    "cursor to stream the results returned by the query"
+    cursor: [office_period_closes_stream_cursor_input]!
+    "filter the rows returned"
+    where: office_period_closes_bool_exp
+  ): [office_period_closes!]!
   "fetch data from the table: \"office.registers\""
   office_registers(
     "distinct select on columns"

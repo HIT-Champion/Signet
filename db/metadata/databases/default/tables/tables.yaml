@@ -39,6 +39,7 @@
 - "!include office_v_overdue_by_department.yaml"
 - "!include office_v_processing_time.yaml"
 - "!include office_v_outgoing_by_month.yaml"
+- "!include office_period_closes.yaml"
 - "!include office_case_files.yaml"
 - "!include office_case_file_documents.yaml"
 - "!include core_lineage_events.yaml"

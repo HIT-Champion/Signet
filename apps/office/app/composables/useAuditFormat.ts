@@ -84,8 +84,8 @@ export function useAuditFormat(names: { value: Map<string, string> }, department
     if (col === 'to_tenant_id') return units?.value.get(String(value)) ?? String(value)
     if (col === 'registered_at' || col === 'archived_at' || col === 'delivered_at') return fmtDateTime(String(value))
     if (col === 'due_on' || col === 'issued_on' || col === 'closed_on') return fmtDate(String(value))
-    // băm gói nộp lưu: sự kiện case_file.archived ghi dạng hex, không có tiền tố \x
-    if (col === 'archive_sha256') return `${String(value).replace(/^\\x/, '').slice(0, 10)}…`
+    // băm ghi dạng hex, không có tiền tố \x: gói nộp lưu (case_file.archived), kỳ đã chốt (period.closed)
+    if (col === 'archive_sha256' || col === 'sha256') return `${String(value).replace(/^\\x/, '').slice(0, 10)}…`
     if (col === 'size_bytes' && typeof value === 'number') return fmtSize(value)
     // đọc văn bản đến (F4.1): trường đọc được ghi thành chuỗi "symbol,issued_on,…" (diff không chứa mảng)
     if (col === 'found') {

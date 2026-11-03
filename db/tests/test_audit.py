@@ -29,7 +29,7 @@ from conftest import INSERT_DOC, SQLError, User, incoming, insert_file, outgoing
 
 # Phần kiểm từ bên ngoài CSDL của lệnh `moc audit verify` (scripts/audit_chain.py, chỉ dùng thư viện chuẩn)
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "scripts"))
-from audit_chain import DOCUMENTS_SQL, HEAD_SQL, NOW_SQL, ROWS_SQL, check  # noqa: E402
+from audit_chain import DOCUMENTS_SQL, HEAD_SQL, NOW_SQL, PERIODS_SQL, ROWS_SQL, check  # noqa: E402
 
 
 def verify() -> list[list[str]]:
@@ -163,7 +163,8 @@ def outside(*anchors: dict, **options):
     # Test chạy tuần tự, không ai ghi sổ chen giữa các câu, nên không cần một giao dịch như scripts/moc.py
     head = json.loads(sql(HEAD_SQL)[0][0])
     rows = (json.loads(r[0]) for r in sql(ROWS_SQL))
-    return check(rows, head, anchors, [json.loads(r[0]) for r in sql(DOCUMENTS_SQL)], **options)
+    return check(rows, head, anchors, [json.loads(r[0]) for r in sql(DOCUMENTS_SQL)],
+                 periods=[json.loads(r[0]) for r in sql(PERIODS_SQL)], **options)
 
 
 def anchor_now() -> dict:

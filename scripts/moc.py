@@ -116,8 +116,8 @@ import tenants
 import tu_dong
 import ung_dung
 import wiki
-from audit_chain import (ANCHORS_SQL, DOCUMENTS_SQL, HEAD_SQL, NOW_SQL, ROWS_SQL, Problem, Report, check, local_time,
-                         to_datetime)
+from audit_chain import (ANCHORS_SQL, DOCUMENTS_SQL, HEAD_SQL, NOW_SQL, PERIODS_SQL, ROWS_SQL, Problem, Report, check,
+                         local_time, to_datetime)
 from moc_env import ENV, ROOT
 
 COMPOSE = ["docker", "compose", "--profile", "core", "--profile", "app"]
@@ -137,7 +137,7 @@ class Snapshot:
     sổ có thể rất dài) cùng nhìn một thời điểm — dòng ghi chen giữa các câu không làm báo nhầm."""
 
     SECTIONS = (("now", NOW_SQL), ("head", HEAD_SQL), ("recorded", ANCHORS_SQL), ("documents", DOCUMENTS_SQL),
-                ("rows", ROWS_SQL))
+                ("periods", PERIODS_SQL), ("rows", ROWS_SQL))
 
     def __enter__(self) -> Snapshot:
         script = "begin isolation level repeatable read read only;\n"
@@ -166,6 +166,7 @@ class Snapshot:
         self.head = data["head"][0]
         self.recorded = data["recorded"]
         self.documents = data["documents"]
+        self.periods = data["periods"]
         return self
 
     def rows(self) -> Iterator[dict[str, Any]]:
@@ -288,6 +289,8 @@ def render(report: Report, gaps: list[str], notes: list[str], signatures: dict[s
         print(f"    mốc mới nhất #{a['audit_id']} ({a['source']}, {local_time(a['anchored_at'])}){tail}")
     if report.documents and not any(p.kind == "document" for p in report.problems):
         print(f"  ✓ {report.documents} văn bản có hash: khớp hash ghi trong sổ")
+    if report.periods and not any(p.kind == "period" for p in report.problems):
+        print(f"  ✓ {report.periods} kỳ số liệu đã chốt: khớp mã băm ghi trong sổ")
     for note in notes:
         print(f"  · {note}")
     for gap in gaps:
@@ -360,7 +363,8 @@ def verify(args: argparse.Namespace) -> int:
             except Unavailable as exc:
                 gaps.append(f"không đọc được mốc neo trong bucket lạnh: {exc}")
             report = check(snap.rows(), snap.head, anchors, snap.documents,
-                           recorded=snap.recorded if bucket is not None else None, as_of=snap.now)
+                           recorded=snap.recorded if bucket is not None else None, as_of=snap.now,
+                           periods=snap.periods)
     except Unavailable as exc:
         print(f"✗ {exc}. Signet có đang chạy không? (make ps)", file=sys.stderr)
         return 2
@@ -384,6 +388,7 @@ def verify(args: argparse.Namespace) -> int:
             "ok": report.ok, "complete": not gaps, "rows": report.rows, "last_id": report.last_id,
             "last_hash": report.last_hash, "anchors": report.anchors, "latest_anchor": report.latest_anchor,
             "unanchored": report.unanchored, "rewritten": report.rewritten, "documents": report.documents,
+            "periods": report.periods,
             "signatures": signatures, "gaps": gaps, "notes": notes,
             "problems": [p.__dict__ for p in report.problems],
         }, ensure_ascii=False))
