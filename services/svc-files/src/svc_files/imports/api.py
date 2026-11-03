@@ -40,9 +40,10 @@ from starlette.datastructures import UploadFile
 from ..auth import Principal
 from ..config import Settings
 from ..hasura import HasuraError
+from ..lineage import open_data_inputs
 from .parse import ParseError, Row, guess_format, parse
 from .runner import Handler
-from .spool import Spool, check_rows
+from .spool import EntryError, Spool, check_rows
 from .store import STATUSES, ImportStore, KeyTaken
 
 log = logging.getLogger("svc_files")
@@ -121,7 +122,9 @@ CREATE_RESPONSES: dict[int | str, dict[str, Any]] = {
                          "tổng cỡ tệp các dòng trỏ tới — mỗi lần trỏ tính một lần — MOC_IMPORT_STORE_MAX_MB) · "
                          "`too_many_rows` (MOC_IMPORT_MAX_ROWS; register=true: MOC_IMPORT_REGISTER_MAX_ROWS)"},
     422: {"description": "`infected` / `unscannable` — chính tệp dữ liệu bị trạm quét chặn, đã ghi `file.rejected` "
-                         "vào sổ kiểm toán, không tạo lô"},
+                         "vào sổ kiểm toán, không tạo lô · `unknown_source` — `open_data` không phải nguồn công khai "
+                         "dùng được trên máy chủ · `open_data_mismatch` — tệp các dòng trỏ tới không có trong manifest "
+                         "của nguồn hoặc khác SHA-256"},
     429: {"description": "`too_many_imports` — đơn vị đã có MOC_IMPORT_MAX_OPEN lô chưa xong (kèm `Retry-After`)"},
     503: {"description": "`imports_disabled` (MOC_IMPORT_INTERVAL_S=0) · `busy` (chỗ giữ zip đầy, kèm `Retry-After`) "
                          "· `scanner_unavailable` · `database_unavailable`"},
@@ -158,9 +161,11 @@ def _db_unavailable(exc: HasuraError) -> HTTPException:
 
 def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: dict[str, Handler], spool: Spool,
             principal: Callable[..., Principal], quarantine: Callable[..., Awaitable[Any]],
-            clean_filename: Callable[[str | None], str], max_body: int) -> None:
+            clean_filename: Callable[[str | None], str], max_body: int,
+            open_data: Callable[[], list[dict[str, Any]]] | None = None) -> None:
     """Gắn các route nạp lô vào app. ``quarantine``: trạm kiểm dịch của app.py (cùng hàm với POST /api/files);
-    ``max_body``: trần Content-Length của yêu cầu tạo lô (tệp dữ liệu + zip + phần đầu multipart)."""
+    ``max_body``: trần Content-Length của yêu cầu tạo lô (tệp dữ liệu + zip + phần đầu multipart); ``open_data``: các
+    nguồn công khai trên máy chủ (open_data.OpenData), cho tham số ``open_data`` (#445)."""
     enabled = settings.import_interval_s > 0
 
     async def check_open(who: Principal, rid: str) -> None:
@@ -173,12 +178,13 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
                          f"{settings.import_max_open}) — đợi lô trước xong rồi gửi lại", {"Retry-After": RETRY_AFTER})
 
     def replay(existing: dict[str, Any], kind: str, sha: str, archive: str | None, fmt: str,
-               register: bool) -> JSONResponse:
+               register: bool, source: str | None) -> JSONResponse:
+        loaded = ((existing.get("options") or {}).get("open_data") or {}).get("source")
         same = (existing["kind"] == kind and existing["data_sha256"] == sha and existing["archive_sha256"] == archive
-                and existing["format"] == fmt and existing["register"] == register)
+                and existing["format"] == fmt and existing["register"] == register and loaded == source)
         if not same:
             raise _error(409, "idempotency_conflict", "Idempotency-Key này đã dùng cho một lô khác nội dung (tệp, "
-                         "định dạng hoặc register) — dùng khóa mới cho lô mới")
+                         "định dạng, register hoặc open_data) — dùng khóa mới cho lô mới")
         return JSONResponse(_out(existing), status_code=200,
                             headers={"Location": f"/api/imports/{existing['id']}", **NO_STORE})
 
@@ -209,6 +215,10 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
         idempotency_key: Annotated[str | None, Header(
             alias="Idempotency-Key", description="Tùy chọn, 1–200 ký tự ASCII in được: gửi lại cùng khóa trả đúng "
                                                  "lô cũ")] = None,
+        source: Annotated[str | None, Query(alias="open_data", description=(
+            "Mã nguồn dữ liệu công khai mà lô nạp lại (thư mục trong MOC_OPEN_DATA_DIR, vd cong-bao-gddt): tệp các "
+            "dòng trỏ tới phải có trong manifest.json của nguồn, đúng SHA-256. Lô xong thì ghi phả hệ OpenLineage, "
+            "job moc.open_data.load.<mã> (#445)"))] = None,
     ) -> JSONResponse:
         handler = handlers[kind]
         if not handler.roles & set(who.roles):
@@ -231,15 +241,37 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
         job_id = uuid.uuid4()
         form = await request.form(max_files=2, max_fields=1)
         try:
-            return await _create(kind, handler, request, who, form, job_id, rid, format, register, key)
+            return await _create(kind, handler, request, who, form, job_id, rid, format, register, key, source)
         except BaseException:
             spool.drop(job_id)
             raise
         finally:
             await form.close()
 
+    def lineage_inputs(code: str, rows: list[Row], job_id: uuid.UUID) -> list[dict[str, Any]]:
+        """Lô nạp nguồn công khai ``code``: mọi tệp các dòng còn lại trỏ tới phải là tệp của bản chụp trên máy chủ,
+        đúng SHA-256, để phả hệ chỉ ghi nguồn thật. Trả các dataset đầu vào. Chạy trong thread (băm từng mục zip)."""
+        found = next((s for s in (open_data() if open_data else []) if s["source"] == code), None)
+        if found is None or found["state"] == "broken":
+            raise _error(422, "unknown_source", f"Máy chủ không có nguồn dữ liệu công khai {code!r} dùng được "
+                         "(MOC_OPEN_DATA_DIR, GET /api/status khóa open_data)")
+        names = sorted({n for r in rows if not r.failed for n in r.files})
+        if not names:
+            raise _error(422, "open_data_mismatch", "Lô nạp nguồn công khai phải có dòng trỏ tệp của nguồn trong zip")
+        manifest = {f["file"]: f["sha256"] for f in found["files"]}
+        try:
+            got = spool.sha256s(job_id, names, settings.max_upload_bytes)
+        except EntryError as exc:
+            raise _error(422, "open_data_mismatch", exc.message) from None
+        bad = [n for n in names if manifest.get(n) != got[n]]
+        if bad:
+            raise _error(422, "open_data_mismatch", f"Không có trong manifest của nguồn {code}, hoặc khác SHA-256: "
+                         + ", ".join(bad[:5]))
+        return open_data_inputs(found, names)
+
     async def _create(kind: str, handler: Handler, request: Request, who: Principal, form: Any, job_id: uuid.UUID,
-                      rid: str, explicit: str | None, register: bool, key: str | None) -> JSONResponse:
+                      rid: str, explicit: str | None, register: bool, key: str | None,
+                      source: str | None) -> JSONResponse:
         data, archive = form.get("data"), form.get("archive")
         if not isinstance(data, UploadFile):
             raise _error(400, "missing_file", "Thiếu trường 'data' (tệp NDJSON hoặc CSV) trong form multipart")
@@ -270,7 +302,7 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
                 raise _db_unavailable(exc) from exc
             if existing is not None:
                 spool.drop(job_id)
-                return replay(existing, kind, digest.hexdigest(), archive_sha, fmt, register)
+                return replay(existing, kind, digest.hexdigest(), archive_sha, fmt, register, source)
             await check_open(who, rid)
         if archived and spool.used() > spool.max_bytes:
             raise _error(503, "busy", "Chỗ giữ tệp nén của các lô đang chạy đã đầy — gửi lại sau ít phút",
@@ -286,12 +318,15 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
             if exc.code == "too_many_rows" and register:
                 exc.message += f" (lô có vào sổ tối đa {limit} dòng)"
             raise _error(exc.status, exc.code, exc.message) from exc
+        inputs = await asyncio.to_thread(lineage_inputs, source, rows, job_id) if source is not None else None
         if archived and any(r.files and not r.failed for r in rows):
             spool.commit(job_id)        # trước khi ghi lô: vòng nền thấy lô thì zip đã ở chỗ của nó
         else:
             spool.drop(job_id)
 
-        options = {"register": register}
+        options: dict[str, Any] = {"register": register}
+        if inputs is not None:      # vòng nền ghi phả hệ khi lô xong (runner.py), theo đúng tệp đã đối chiếu lúc này
+            options["open_data"] = {"source": source, "inputs": inputs}
         now = datetime.now(UTC)
         job = {"id": str(job_id), "kind": kind, "created_by": who.user_id, "department_id": who.department_id,
                "filename": filename, "format": fmt, "data_sha256": digest.hexdigest(), "archive_sha256": archive_sha,
@@ -301,7 +336,7 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
         audit = {"actor_id": who.user_id, "actor_kind": "user", "request_id": rid, "action": "import.created",
                  "entity": "core.import_jobs", "entity_id": str(job_id),
                  "diff": {"kind": kind, "format": fmt, "register": register, "total": len(rows), "failed": failed,
-                          "filename": filename}}
+                          "filename": filename, **({"open_data": source} if source is not None else {})}}
         try:
             await store.create(job, [_row_in(job_id, r, now) for r in rows], audit, tenant_id=who.tenant_id,
                                user=who.user_id, rid=rid)
@@ -310,14 +345,14 @@ def install(app: FastAPI, *, settings: Settings, store: ImportStore, handlers: d
             existing = await store.by_key(who.tenant_id, who.user_id, key or "", rid=rid)
             if existing is None:
                 raise _error(503, "database_unavailable", "CSDL chưa sẵn sàng, chưa tạo lô") from None
-            return replay(existing, kind, digest.hexdigest(), archive_sha, fmt, register)
+            return replay(existing, kind, digest.hexdigest(), archive_sha, fmt, register, source)
         except HasuraError as exc:
             log.warning(json.dumps({"event": "core.import.create_failed", "request_id": rid, "code": exc.code,
                                     "error": str(exc)}, ensure_ascii=False))
             raise _db_unavailable(exc) from exc
         log.info(json.dumps({"event": "core.import.created", "request_id": rid, "job_id": str(job_id),
                              "tenant_id": str(who.tenant_id), "actor_id": who.user_id, "kind": kind, "format": fmt,
-                             "rows": len(rows), "failed": failed, "register": register,
+                             "rows": len(rows), "failed": failed, "register": register, "open_data": source,
                              "archive_bytes": job["archive_bytes"]}, ensure_ascii=False))
         out = {**job, "status": "queued", "register": register, "pending": len(rows) - failed, "ok": 0,
                "duplicate": 0, "failed": failed, "note": None, "created_at": now, "started_at": None,

@@ -122,6 +122,13 @@ class Spool:
         except (zipfile.BadZipFile, zlib.error, ValueError, OSError, EOFError) as exc:
             raise ParseError(400, "bad_archive", f"Tệp nén không mở được (không phải zip hợp lệ: {exc})") from None
 
+    def sha256s(self, job_id: uuid.UUID, names: list[str], limit: int) -> dict[str, str]:
+        """SHA-256 các mục ``names`` của zip vừa nhận, để đối chiếu với manifest của nguồn công khai (#445). Mục hỏng,
+        đặt mật khẩu, quá ``limit``: EntryError. Chạy trong thread."""
+        with zipfile.ZipFile(self._part(job_id)) as zf:
+            entries = index(zf)
+            return {n: hashlib.sha256(read_entry(zf, entries, n, limit)).hexdigest() for n in names}
+
     def commit(self, job_id: uuid.UUID) -> None:
         os.replace(self._part(job_id), self.path(job_id))
 

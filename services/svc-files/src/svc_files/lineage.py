@@ -35,6 +35,12 @@ facet của dataset vừa ghi (mở rộng của Signet — đặc tả định 
 Bước nào lỗi thì run con của bước đó FAIL. Thông báo lỗi trong phả hệ chỉ có tên lớp lỗi (lỗi kiểm chất lượng thì có ký
 hiệu hồ sơ, tên bảng) — không có tên tệp, số ký hiệu văn bản. Ghi phả hệ lỗi không làm hỏng việc nộp lưu: chỉ ghi cảnh
 báo vào nhật ký.
+
+Nạp nguồn dữ liệu công khai (#445): lô nạp có ``open_data=<mã nguồn>`` (``moc du-lieu-mo nap``) xong thì ghi một run
+COMPLETE của job ``moc.open_data.load.<mã nguồn>``, run id là id của lô. Đầu vào là các tệp của bản chụp mà lô dùng:
+namespace là gốc trang của nguồn (``https://congbao.chinhphu.vn``), tên là tên tệp trong manifest.json; SHA-256 ở facet
+``version``, URL tải ở ``dataSource``, ngày lấy ở ``documentation``. Đầu ra là ``moc.office.documents``, số văn bản mới
+ở ``outputStatistics``.
 """
 
 from __future__ import annotations
@@ -45,6 +51,7 @@ import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx2
 
@@ -55,6 +62,7 @@ SPEC = "https://openlineage.io/spec"
 RUN_EVENT = f"{SPEC}/2-0-2/OpenLineage.json#/$defs/RunEvent"
 JOB_NAMESPACE = "moc"
 PG = "postgres://postgres:5432"
+OPEN_DATA_JOB = "moc.open_data.load"      # + ".<mã nguồn>": mỗi nguồn công khai một job (#445)
 
 # Cột bắt buộc của từng bảng trong gói: null ở đây là dữ liệu hỏng, không nộp lưu
 REQUIRED: dict[str, tuple[str, ...]] = {
@@ -92,6 +100,38 @@ def quality_facets(name: str, expected_rows: int, measured: dict[str, int], size
     output = {"outputStatistics": _facet("OutputStatisticsOutputDatasetFacet", "1-0-2", rowCount=measured["rows"],
                                          size=size)}
     return facets, output, ok
+
+
+def _origin(url: str | None) -> str | None:
+    parts = urlsplit(url or "")
+    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else None
+
+
+def open_data_inputs(source: dict[str, Any], names: list[str]) -> list[dict[str, Any]]:
+    """Tệp ``names`` của một nguồn công khai (một mục của open_data.OpenData) → dataset đầu vào của lượt nạp."""
+    files = {f["file"]: f for f in source["files"]}
+    out = []
+    for name in names:
+        f = files[name]
+        namespace = _origin(source.get("home_url")) or _origin(f.get("url")) or f"file://du-lieu-mo/{source['source']}"
+        fetched = f.get("fetched_at") or source.get("fetched_at")
+        facets = {
+            "version": _facet("DatasetVersionDatasetFacet", "1-0-1", datasetVersion=f["sha256"]),
+            "documentation": _facet("DocumentationDatasetFacet", "1-1-0",
+                                    description=f"{source.get('name') or source['source']} — lấy ngày {fetched}"),
+        }
+        if f.get("url"):
+            # trường "name" của facet trùng tham số đầu của _facet: ghép sau
+            facets["dataSource"] = {**_facet("DatasourceDatasetFacet", "1-0-1"), "name": source["source"],
+                                    "uri": f["url"]}
+        out.append({"namespace": namespace, "name": name, "facets": facets})
+    return out
+
+
+def open_data_outputs(rows: int) -> list[dict[str, Any]]:
+    """Đầu ra của lượt nạp: bảng văn bản, ``rows`` văn bản mới (dòng trùng, dòng lỗi không tính)."""
+    return [{**pg("office.documents"), "outputFacets": {
+        "outputStatistics": _facet("OutputStatisticsOutputDatasetFacet", "1-0-2", rowCount=rows)}}]
 
 
 def null_counts_sql(name: str) -> str:

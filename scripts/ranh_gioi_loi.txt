@@ -43,10 +43,11 @@ vai-tro svc_workflow/notify.py -> clerk,director,manager,staff
 vai-tro svc_workflow/subscriptions.py -> clerk,director,manager,staff
 vai-tro svc_workflow/tu_dong.py -> clerk,director,manager,staff
 
-# 5. Nguồn tìm kiếm và sự kiện: tìm kiếm, lô nạp, robot Node-RED đọc thẳng office.documents; loại sự kiện, loại
-#    lô nạp cố định.
+# 5. Nguồn tìm kiếm và sự kiện: tìm kiếm, lô nạp (cả tên đầu ra trong phả hệ lượt nạp, #445), robot Node-RED đọc
+#    thẳng office.documents; loại sự kiện, loại lô nạp cố định.
 du-lieu svc_files/hasura.py -> office.documents
 du-lieu svc_files/imports/store.py -> office.documents
+du-lieu svc_files/lineage.py -> office.documents
 du-lieu svc_workflow/tu_dong.py -> office.documents
 csdl rang-buoc core.app_events.kind -> office.document.issued,office.document.received,office.document.registered
 csdl rang-buoc core.import_jobs.kind -> incoming

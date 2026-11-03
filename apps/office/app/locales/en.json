@@ -1445,25 +1445,27 @@
   "lineage": {
     "nav": "Data lineage",
     "title": "Data lineage",
-    "subtitle": "Which view each Overview chart reads and which tables each view reads — computed from the database catalog when the page opens, not declared by hand — plus the latest archiving run. Names of tables, views and edges only, no document data.",
+    "subtitle": "Which view each Overview chart reads and which tables each view reads — computed from the database catalog when the page opens, not declared by hand — plus the latest archiving run and public data loads. Names of tables, views and edges only, no document data.",
     "source": "Data source",
     "sourceOf": "Data source: {chart}",
     "kpis": "Summary cards",
     "chart": "Chart",
     "allCharts": "All charts",
     "graph": "Lineage graph",
-    "graphHint": "Data flows left to right: table → view → chart; table → Parquet → archive package. Dashed: the last archiving step writing back to the database. Hover a node to see its full name.",
+    "graphHint": "Data flows left to right: public source → load → table; table → view → chart; table → Parquet → archive package. Dashed: the last archiving step writing back to the database. Hover a node to see its full name.",
     "kind": {
       "chart": "Chart",
       "view": "View",
       "table": "Table",
-      "job": "Archiving step",
-      "object": "Stored object (S3)"
+      "job": "Processing step (archiving, data load)",
+      "object": "Stored object (S3)",
+      "source": "Public data source"
     },
     "edge": {
       "read": "reads",
       "archive": "archiving",
-      "commit": "archiving writes to the database"
+      "commit": "archiving writes to the database",
+      "load": "public data load"
     },
     "sourceKind": {
       "table": "table",
@@ -1489,7 +1491,8 @@
       "files": "Copy files hot → cold",
       "tables": "Tables → Parquet + checks",
       "manifest": "Build package (manifest)",
-      "commit": "Write back to database"
+      "commit": "Write back to database",
+      "open_data": "Public data load"
     },
     "inputs": "Inputs",
     "outputs": "Outputs",
@@ -1498,7 +1501,13 @@
     "reports": "All report views ({n})",
     "reportsHint": "Every office.v_… view in the database, including views no Overview chart uses yet (e.g. those of the Metrics page).",
     "usedBy": "Used by",
-    "export": "Download OpenLineage (.jsonl)"
+    "export": "Download OpenLineage (.jsonl)",
+    "loads": "Latest public data loads",
+    "loadsHint": "One row per source: the snapshot files the load used (svc-files checked their SHA-256 against the source's manifest) and the number of new documents written to office.documents.",
+    "loadsNone": "No public data load of your unit has recorded lineage yet.",
+    "loadSource": "Source",
+    "loadNew": "New documents",
+    "loadAt": "Finished at"
   },
   "quality": {
     "status": {

@@ -419,14 +419,43 @@ test('xuất OpenLineage: JobEvent cho từng khung nhìn và biểu đồ, rồ
 
 // --- Chữ trên giao diện -----------------------------------------------------------------------------------------
 
+// Lượt nạp nguồn công khai (#445) như svc_files.lineage ghi: tệp của bản chụp → moc.office.documents
+const CONG_BAO = 'https://congbao.chinhphu.vn'
+const LOAD: LineageEvent = {
+  run_id: '9a1e0000-2222-4000-8000-000000000001', parent_run_id: null, job: 'moc.open_data.load.cong-bao-gddt',
+  event_type: 'COMPLETE', event_time: '2026-11-03T03:00:00Z', quality_ok: null,
+  inputs: [`${CONG_BAO}/26-2026-tt-bgddt.pdf`, `${CONG_BAO}/27-2026-tt-bgddt.pdf`], outputs: [PG('office.documents')],
+  event: { eventType: 'COMPLETE', outputs: [{ namespace: 'postgres://postgres:5432', name: 'moc.office.documents',
+    outputFacets: { outputStatistics: { rowCount: 2 } } }] },
+}
+
+test('lượt nạp nguồn công khai: tệp nguồn gộp một nút → lượt nạp → bảng văn bản, cả khi lọc theo biểu đồ', () => {
+  assert.deepEqual(datasetNode(LOAD.inputs[0]!), { id: `${CONG_BAO}/`, kind: 'source', label: 'congbao.chinhphu.vn' })
+  const g = lineageGraph(BOARD_CHARTS, CATALOG, [], [LOAD,
+    { ...LOAD, job: 'moc.open_data.load.x', event_type: 'START' }, { ...LOAD, job: 'moc.case_file.archive' }])
+  const job = 'job:moc.open_data.load.cong-bao-gddt'
+  assert.deepEqual(ids(g, 'job'), [job])                     // chỉ run COMPLETE của job nạp
+  assert.equal(g.nodes.find((n) => n.id === `${CONG_BAO}/`)!.count, 2)
+  assert.ok(has(g, `${CONG_BAO}/`, job, 'load') && has(g, job, 'office.documents', 'load'))
+  // rowCount của lượt nạp là số văn bản mới, không ghi lên bảng như số dòng
+  assert.equal(g.nodes.find((n) => n.id === 'office.documents')!.rows, undefined)
+  const p = lineageUpstream(g, chartNode('outgoing'))
+  assert.ok(ids(p).includes(job) && ids(p).includes(`${CONG_BAO}/`) && has(p, job, 'office.documents', 'load'))
+  const at = new Map(lineageLayout(g).map((x) => [x.id, x]))
+  assert.ok(at.get(`${CONG_BAO}/`)!.layer < at.get(job)!.layer)
+  assert.ok(at.get(job)!.layer < at.get('office.documents')!.layer)
+  const lines = toOpenLineage(BOARD_CHARTS, CATALOG, [], new Date('2026-11-03T03:00:00Z'), [LOAD]).trimEnd().split('\n')
+  assert.deepEqual(JSON.parse(lines.at(-1)!), LOAD.event)
+})
+
 test('mọi khóa i18n của trang Phả hệ, nút Nguồn số liệu có đủ tiếng Việt và tiếng Anh', () => {
   const keys = new Set([
     ...[...page.matchAll(/'((?:lineage|board|app)\.[\w.]+)'/g)].map((m) => m[1]!),
     ...[...sourceLink.matchAll(/'(lineage\.[\w.]+)'/g)].map((m) => m[1]!),
     ...BOARD_CHARTS.map((c) => c.label),
-    ...['chart', 'view', 'table', 'job', 'object'].map((k) => `lineage.kind.${k}`),
-    ...['read', 'archive', 'commit'].map((k) => `lineage.edge.${k}`),
-    ...['files', 'tables', 'manifest', 'commit'].map((k) => `lineage.steps.${k}`),
+    ...['chart', 'view', 'table', 'job', 'object', 'source'].map((k) => `lineage.kind.${k}`),
+    ...['read', 'archive', 'commit', 'load'].map((k) => `lineage.edge.${k}`),
+    ...['files', 'tables', 'manifest', 'commit', 'open_data'].map((k) => `lineage.steps.${k}`),
     ...['table', 'partitioned_table', 'view', 'materialized_view', 'foreign_table']
       .map((k) => `lineage.sourceKind.${k}`),
   ])
