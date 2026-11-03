@@ -453,8 +453,9 @@ hai lúc:
 
 **RAM lúc nạp lại gần gấp đôi**, vì clamd giữ hai bộ chữ ký tới khi nạp xong. Đo trên máy CI (#288, ClamAV 1.5.4,
 3,6 triệu chữ ký): lúc thường 956 MiB, lúc nạp lên 1,9 GiB trong khoảng 10 giây rồi về lại 956 MiB. Máy bận hay yếu có
-thể nạp lâu hơn. Với máy 8 GB chạy profile mặc định (khoảng 4,6 GiB), lúc nạp lại cả hệ thống lên khoảng 5,6 GiB; bật
-thêm mô hình ngôn ngữ thì cần 16 GB như ở `README.md`, mục Yêu cầu hệ thống.
+thể nạp lâu hơn. Phần thêm lúc nạp là khoảng 0,93 GiB: máy 8 GB chạy profile mặc định (khoảng 4,6 GiB) lúc nạp lại
+ước khoảng 5,5 GiB (cộng hai số đo trên hai máy, chưa chạy trên máy 8 GB thật); bật thêm mô hình ngôn ngữ thì cần
+16 GB như ở `README.md`, mục Yêu cầu hệ thống.
 
 Cách nhận ra và xử lý:
 
@@ -462,7 +463,7 @@ Cách nhận ra và xử lý:
   báo trạm quét mã độc chưa sẵn sàng (`503 scanner_unavailable`), tệp chưa được lưu. Nạp lại chữ ký không còn gây lỗi
   này; nguyên nhân là clamd chưa nạp xong lần đầu sau khi khởi động (khoảng 1 phút), hoặc container `clamav` không chạy.
   Máy thiếu RAM lúc nạp lại thì hệ điều hành có thể dừng clamd (OOM): máy 8 GB đã bật mô hình ngôn ngữ dùng khoảng
-  7,8 GiB, thêm khoảng 1 GiB lúc nạp là vượt 8 GB. Trang trạng thái có thể báo "Quét mã độc" gián đoạn trong lúc đó.
+  7,8 GiB, thêm khoảng 0,93 GiB lúc nạp là vượt 8 GB. Trang trạng thái có thể báo "Quét mã độc" gián đoạn trong lúc đó.
 - **Xử lý:** chờ khoảng 1 phút rồi tải lại. Không cần khởi động lại gì: khởi động lại `clamav` chỉ làm nó nạp chữ ký
   lại từ đầu.
 - **Nhận ra trong nhật ký:** trên máy chủ, trong thư mục cài, chạy `docker compose logs clamav`. Lúc bắt đầu nạp lại

@@ -289,7 +289,7 @@ services:
     profiles: [core]
     environment:
       # ConcurrentDatabaseReload để mặc định (yes): lúc nạp lại chữ ký clamd vẫn quét bằng bộ cũ, đổi lại RAM của
-      # container lên khoảng 1,9 GiB trong ~10 giây thay vì 0,95 GiB (đo trên máy CI, #288)
+      # container lên khoảng 1,9 GiB trong ~10 giây thay vì 956 MiB (đo trên máy CI, #288)
       CLAMD_CONF_StreamMaxLength: 64M
       CLAMD_CONF_TemporaryDirectory: /tmp
       # tệp có mật khẩu (zip, 7z, rar, pdf phải nhập mật khẩu mới mở) và tệp giải nén vượt giới hạn quét (bom nén,

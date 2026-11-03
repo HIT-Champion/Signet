@@ -516,8 +516,9 @@ alongside the old one and keeps scanning with the old set until the new one is r
 **RAM nearly doubles during a reload**, because clamd holds both signature sets until the reload is done. Measured on
 the CI machine (#288, ClamAV 1.5.4, 3.6 million signatures): 956 MiB normally, up to 1.9 GiB for about 10 seconds
 during a reload, then back to 956 MiB. A busy or weak machine may take longer to reload. On an 8 GB machine running the
-default profiles (about 4.6 GiB), the whole system reaches about 5.6 GiB during a reload; with the language model on,
-plan on 16 GB as in `README.md`, System requirements.
+default profiles (about 4.6 GiB), the reload adds about 0.93 GiB, an estimated 5.5 GiB in all (two measurements on two
+machines added up, not yet run on a real 8 GB machine); with the language model on, plan on 16 GB as in `README.md`,
+System requirements.
 
 How to recognise it and what to do:
 
@@ -526,7 +527,7 @@ How to recognise it and what to do:
   the file has not been stored. A signature reload no longer causes this; the cause is that clamd has not finished its
   first load after starting (about 1 minute), or the `clamav` container is not running. If the machine runs short of
   RAM during a reload, the operating system may stop clamd (OOM): an 8 GB machine with the language model on uses
-  about 7.8 GiB, and about 1 GiB more during a reload goes over 8 GB. The status page may show "Malware scanning" as
+  about 7.8 GiB, and about 0.93 GiB more during a reload goes over 8 GB. The status page may show "Malware scanning" as
   down during that time.
 - **What to do:** wait about 1 minute, then upload again. Nothing needs restarting: restarting `clamav` only makes it
   load the signatures again from the start.
