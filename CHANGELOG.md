@@ -29,6 +29,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   trang Phả hệ có mục riêng (#445).
 - CI kiểm `/rest/v1` và khung schema `sinh` trên hệ thống dựng thật (WAF bật, token Keycloak của hai đơn vị, bảng tạo
   qua Studio); OpenAPI thật và RAM lên artifact (#567).
+- Ứng dụng sinh từ bảng (`apps/sinh`): menu, danh sách, biểu mẫu thêm và sửa dựng từ mô tả API mà PostgREST sinh cho
+  bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
