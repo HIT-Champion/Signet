@@ -272,7 +272,7 @@ thuộc danh sách OSI. Xem PDF trên trình duyệt bằng PDF.js (Apache-2.0).
 
 ### Hoàn thành khi
 
-- Kịch bản 5 phút: văn thư nhận công văn đến → vào sổ → lãnh đạo khoa chỉ đạo, giao phòng Đào tạo →
+- Kịch bản 5 phút: văn thư nhận công văn đến → vào sổ → lãnh đạo đơn vị chỉ đạo, giao phòng Đào tạo →
   chuyên viên xử lý, soạn công văn trả lời → trình → duyệt → văn thư cấp số, phát hành PDF có mã QR;
   có thông báo realtime ở từng bước; timer `PT1M` tự nhắc khi để quá hạn.
 - Kịch bản trên chạy **tự động bằng Playwright** (Apache-2.0) trong CI.

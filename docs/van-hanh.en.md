@@ -599,7 +599,7 @@ circulars of the Ministry of Education and Training on higher education, as publ
   mount `/srv/du-lieu-mo`, checks the SHA-256 and reports in `GET /api/status` (key `open_data`: `ok`, `stale` past
   `max_age_days`, `broken` when a file is missing or its hash differs) and on `/trang-thai`. If the source goes
   offline Signet keeps using the latest snapshot, and the status page shows how many days old the data is.
-- **Import:** `make seed` imports each file as an incoming document of the IT faculty through the batch import API
+- **Import:** `make seed` imports each file as an incoming document of the School of ICT through the batch import API
   (CSV + zip, ClamAV, as a clerk would), type "Thông tư" (migration `1792281604000_document_type_tt`). On a copy that
   already has its sample data run `python3 scripts/moc.py du-lieu-mo nap`; running it again creates no duplicates. The
   document page recognises a document from a public source because the SHA-256 of its attachment matches the

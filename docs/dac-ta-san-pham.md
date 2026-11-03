@@ -272,7 +272,7 @@ Các năng lực đề nêu tên mà sản phẩm chạm tới một cách tự 
 | # | Màn | Dự phòng nếu hỏng |
 |---|---|---|
 | 1 | Văn thư tải lên một công văn scan → quét virus → hệ thống điền sẵn số ký hiệu, ngày, cơ quan ban hành, trích yếu → văn thư xác nhận, vào sổ, nhận số đến | Không có F4.1 thì văn thư nhập tay — luồng không đổi |
-| 2 | Lãnh đạo khoa ghi ý kiến chỉ đạo: giao phòng Đào tạo chủ trì, hạn 3 ngày → chuyên viên nhận thông báo ngay | — |
+| 2 | Lãnh đạo đơn vị ghi ý kiến chỉ đạo: giao phòng Đào tạo chủ trì, hạn 3 ngày → chuyên viên nhận thông báo ngay | — |
 | 3 | Chuyên viên soạn công văn trả lời từ mẫu → trình → lãnh đạo duyệt → văn thư cấp số → PDF phát hành có mã QR | — |
 | 4 | **Giám khảo quét QR bằng điện thoại** → "văn bản thật, ban hành ngày …". Sửa một chữ trong PDF, thả vào cổng → "không khớp" | Quét bằng điện thoại của đội |
 | 5 | Hỏi trợ lý "tháng này có công văn nào về tuyển sinh sắp quá hạn?" → trả lời kèm số ký hiệu; dashboard văn bản quá hạn theo phòng | Không có F4.2 thì dùng tìm kiếm + dashboard |
