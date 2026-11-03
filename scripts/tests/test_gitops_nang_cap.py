@@ -34,6 +34,7 @@ import io
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -303,6 +304,22 @@ class BackupLockTest(unittest.TestCase):
                 self.assertRaisesRegex(self.backup.BackupError, "giữ khóa quá 30 phút"), \
                 self.backup._guard(self.repo):
             pass
+
+
+
+class BackupPausesTest(unittest.TestCase):
+    def test_reconciler_resumes_exactly_what_backup_pauses(self) -> None:
+        # lượt sao lưu hỏng giữa chừng để lại dịch vụ tạm dừng; reconciler chỉ mở lại các dịch vụ trong BACKUP_PAUSES
+        text = (SCRIPTS / "backup.py").read_text(encoding="utf-8")
+        paused: set[str] = set()
+        for name in ("WRITERS", "DB_WRITERS"):
+            m = re.search(rf"^{name} = \((.*?)\)", text, re.M)
+            assert m, f"backup.py thiếu {name}"
+            paused |= set(re.findall(r'"([^"]+)"', m.group(1)))
+        reconcile = (SCRIPTS / "reconcile.py").read_text(encoding="utf-8")
+        m = re.search(r"^BACKUP_PAUSES = \{(.*?)\}", reconcile, re.M | re.S)
+        assert m
+        self.assertEqual(set(re.findall(r'"([^"]+)"', m.group(1))), paused)
 
 
 if __name__ == "__main__":

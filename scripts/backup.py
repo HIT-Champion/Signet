@@ -66,11 +66,11 @@ from typing import Any
 
 from audit_chain import BACKED_UP_SQL, HEAD_SQL, RESTORED_SQL
 from moc_env import ENV, ROOT
-from ung_dung import APP_ROLES_SQL, AppError, recreate_roles_sql
+from ung_dung import APP_ROLES_SQL, SINH_ROLES_SQL, AppError, recreate_roles_sql
 
 COMPOSE = ["docker", "compose", "--profile", "core", "--profile", "app"]
 WRITERS = ("svc-files", "seaweedfs", "openbao")            # tạm dừng suốt lúc sao lưu
-DB_WRITERS = ("hasura", "svc-workflow", "flowable", "keycloak")   # tạm dừng lúc dump CSDL
+DB_WRITERS = ("hasura", "svc-workflow", "flowable", "keycloak", "rest", "meta")   # tạm dừng lúc dump CSDL
 FILES = "/data/seaweedfs"               # chỗ volume SeaweedFS gắn vào container restic
 VAULT = "/data/openbao"                 # chỗ volume két OpenBao gắn vào container restic (F3.7)
 # Dịch vụ tùy chọn có dữ liệu trong volume riêng: khóa trong manifest → (dịch vụ, cũng là tên profile; chỗ volume gắn
@@ -80,7 +80,9 @@ OPTIONAL = {
     "wiki": ("wiki", "/data/wiki", "Wiki nội bộ (volume wiki_data)"),                                # #367
     "tu_dong": ("tu-dong", "/data/tu-dong", "Tự động hóa Node-RED (volume tu_dong_data)"),           # #366
 }
-WITH_OPTIONAL = [*COMPOSE, *(arg for service, _, _ in OPTIONAL.values() for arg in ("--profile", service))]
+# profile studio (#566): meta trong DB_WRITERS chỉ hiện ở `ps`, `pause` khi có profile của nó
+WITH_OPTIONAL = [*COMPOSE, *(arg for service, _, _ in OPTIONAL.values() for arg in ("--profile", service)),
+                 "--profile", "studio"]
 # Chủ của thư mục gốc volume, cho dịch vụ không chạy bằng root. `restic restore <snapshot>:<đường>` trả nội dung kèm
 # quyền từng tệp, không trả quyền của chính thư mục gốc: volume tạo mới lúc khôi phục (máy mới, volume đã xóa) thì gốc
 # thuộc root, Node-RED không tạo được tệp nào trong /data (EACCES ở .sessions.json). 1000:0 là chủ image Node-RED đặt
@@ -326,7 +328,7 @@ def create(keep: int | None = None) -> dict[str, Any]:
                     for service in group:
                         if service in running:
                             into.append(service)    # ghi trước: bị ngắt ngay lúc pause vẫn được bỏ tạm dừng
-                            _call([*COMPOSE, "pause", service], f"không tạm dừng được {service}")
+                            _call([*WITH_OPTIONAL, "pause", service], f"không tạm dừng được {service}")
                 started = time.monotonic()
                 manifest["audit"] = json.loads(_psql(HEAD_SQL + ";"))
                 manifest["app_roles"] = _psql(APP_ROLES_SQL).split()
@@ -495,7 +497,7 @@ def restore(rid: str | None, *, yes: bool = False) -> dict[str, Any] | None:
                 print("Không khôi phục.")
                 return None
         try:
-            roles = recreate_roles_sql(manifest.get("app_roles", []))   # lượt cũ chưa có khóa này
+            roles = SINH_ROLES_SQL + recreate_roles_sql(manifest.get("app_roles", []))   # lượt cũ chưa có khóa này
         except AppError as exc:
             raise BackupError(f"manifest của lượt {manifest['run']}: {exc}") from None
         _check_readable(target, manifest)

@@ -114,7 +114,7 @@ CORE_SCHEMAS = ("core", "office")             # quan hệ từ bảng ứng dụ
 # (trường `visible` = office.document_visible, chạy theo phiên người gọi)
 CORE_READ_RULE = {"visible": {"_eq": True}}
 RESERVED_SCHEMAS = {"core", "office", "personal", "public", "hdb_catalog", "information_schema", "flowable",
-                    "keycloak", "topology", "cron", "graphql", "moc_app"}
+                    "keycloak", "topology", "cron", "graphql", "moc_app", "sinh", "sinh_khung"}
 RESERVED_NAMES = {"office", "ca-nhan", "core", "moc", "admin", "api", "svc"}
 # Đường của lõi (platform/apisix/apisix.yaml), của ứng dụng có sẵn và trang của apps/office (test so với
 # apps/office/app/pages): ứng dụng mới không được che
@@ -1085,6 +1085,27 @@ def db_state(system: System, rec: dict[str, Any]) -> dict[str, Any]:
 def db_role(schema: str) -> str:
     """Vai trò CSDL của ứng dụng (≤ 63 ký tự: schema tối đa 50)."""
     return f"moc_appdb_{schema}"
+
+
+# Vai trò của ứng dụng sinh từ Studio, đúng đoạn trong migration 1792281604400_sinh_khung (test so khớp): thuộc cả
+# máy chủ, pg_dump không chép cả vai trò lẫn quan hệ thành viên. `moc backup restore` chạy trước pg_restore; chạy
+# lại được. Mật khẩu, LOGIN do dịch vụ khởi động đặt lại
+SINH_ROLES_SQL = """\
+do $moc$ begin
+  if not exists (select 1 from pg_roles where rolname = 'authenticator') then
+    create role authenticator nologin noinherit;
+  end if;
+  if not exists (select 1 from pg_roles where rolname = 'staff') then create role staff nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'clerk') then create role clerk nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'manager') then create role manager nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'director') then create role director nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'tenant_admin') then create role tenant_admin nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'moc_studio') then create role moc_studio nologin; end if;
+  if not exists (select 1 from pg_roles where rolname = 'moc_harness') then create role moc_harness nologin; end if;
+end $moc$;
+grant staff, clerk, manager, director, tenant_admin to authenticator;
+grant moc_studio to moc_harness;
+"""
 
 
 def recreate_roles_sql(roles: list[str]) -> str:

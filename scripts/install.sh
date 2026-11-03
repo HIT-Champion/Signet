@@ -215,6 +215,14 @@ do_install() {
       "$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')" >> "$dest/.env"
     echo "    .env: thêm MOC_ALERT_TOKEN (ngẫu nhiên) cho cảnh báo vận hành"
   }
+  # #566: bản cài trước ứng dụng sinh từ Studio chưa có các khóa này → docker compose dừng ở ${…:?}: sinh như make env
+  for key in MOC_REST_DB_PASSWORD MOC_STUDIO_DB_PASSWORD MOC_STUDIO_META_KEY MOC_STUDIO_JWT_SECRET; do
+    grep -q "^$key=" "$dest/.env" || {
+      printf '\n# Ứng dụng sinh từ Studio (#566), make install thêm\n%s=%s\n' \
+        "$key" "$(od -An -N24 -tx1 /dev/urandom | tr -d ' \n')" >> "$dest/.env"
+      echo "    .env: thêm $key (ngẫu nhiên) cho PostgREST, Studio"
+    }
+  done
   grep -q '^MOC_VERSION=' "$dest/.env" || printf '\n# Do make install đặt: thẻ image của đội và profile chạy mặc định\n' >> "$dest/.env"
   set_env "$dest/.env" MOC_VERSION "$ver"
   # profile thêm (MOC_EXTRA_PROFILES của bản cài, vd tunnel) chạy cùng mỗi lần docker compose up trong bản cài

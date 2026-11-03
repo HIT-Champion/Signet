@@ -9,6 +9,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 ## [Chưa phát hành]
 
 ### Đã thêm
+- Cổng `/rest/v1` tới PostgREST cho ứng dụng sinh từ bảng, cần token; dòng "API dữ liệu" trên trang trạng thái (#561).
 - Ứng dụng ngành Đổi, bù lịch giảng (`apps/lich-giang`): giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh
   đạo khoa duyệt; cắm bằng `moc app install` (#482).
 - Trợ lý hỏi đáp nhúng được qua API ngoài chuẩn OpenAI (cả Azure AI Foundry) bằng `MOC_EMBED_API=openai`; mặc định
@@ -19,6 +20,10 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Cổng xác thực `/api/verify` trả JSON-LD cho văn bản hợp lệ: `@id` là URL in trong mã QR, từ vựng Dublin Core Terms
   và schema.org (#540).
 - Điều hành: chốt kỳ số liệu theo tháng, bản chép không sửa, xóa được, mã băm vào sổ kiểm toán (#542).
+- Khung CSDL cho ứng dụng sinh từ Supabase Studio: bảng trong schema `sinh` tự có cột đơn vị, RLS, sổ kiểm toán;
+  lệnh gỡ bảo vệ bị hủy; sao lưu tạo lại vai trò mới (#562).
+- Dịch vụ PostgREST (`rest`) phục vụ schema `sinh`; Supabase Studio, postgres-meta ở profile `studio`, chỉ nghe
+  127.0.0.1; `make seed` tạo bảng mẫu "Quản lý yêu cầu" (#566).
 - Phả hệ dữ liệu có lượt nạp nguồn công khai: tệp đối chiếu manifest trên máy chủ, mỗi lượt là một run OpenLineage,
   trang Phả hệ có mục riêng (#445).
 - CI kiểm `/rest/v1` và khung schema `sinh` trên hệ thống dựng thật (WAF bật, token Keycloak của hai đơn vị, bảng tạo
