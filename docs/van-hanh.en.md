@@ -1246,8 +1246,10 @@ python3 scripts/moc.py tu-dong robot remove CNTT  # removes it; issued tokens wo
 
 The `studio` profile (off by default, #566) adds **Supabase Studio** and **postgres-meta**: platform operators
 create tables and add columns in the `sinh` schema through a web UI. The `rest` service (PostgREST, `core` profile,
-always on) serves a REST API at `/rest/v1/<table>` right away, through the gateway, to holders of a Keycloak token.
-The decision and the harness: [`architecture.md`](architecture.md) QĐ-014.
+always on) serves a REST API at `/rest/v1/<table>` right away, through the gateway, to holders of a Keycloak token;
+users work on the `/sinh` page (installed with `moc app install apps/sinh/app.yaml`). How to use it and what the
+harness enforces: [`them-ung-dung.md`](them-ung-dung.md) section 8 (Vietnamese); the decision:
+[`architecture.md`](architecture.md) QĐ-014.
 
 ```bash
 # keep it on: add studio to MOC_EXTRA_PROFILES in .env (e.g. MOC_EXTRA_PROFILES=tunnel,studio), then

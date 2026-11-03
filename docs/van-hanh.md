@@ -1110,8 +1110,9 @@ python3 scripts/moc.py tu-dong robot remove CNTT  # gỡ robot; token đã cấp
 
 Profile `studio` (tắt mặc định, #566) thêm **Supabase Studio** và **postgres-meta**: người vận hành nền tảng tạo
 bảng, thêm cột trong schema `sinh` trên giao diện. Dịch vụ `rest` (PostgREST, profile `core`, luôn chạy) sinh ngay
-REST API `/rest/v1/<bảng>` qua cổng, cho người có token Keycloak. Quyết định và khung bảo vệ:
-[`architecture.md`](architecture.md) QĐ-014.
+REST API `/rest/v1/<bảng>` qua cổng, cho người có token Keycloak; người dùng làm việc ở trang `/sinh` (cài bằng
+`moc app install apps/sinh/app.yaml`). Cách dùng và khung bảo vệ: [`them-ung-dung.md`](them-ung-dung.md) mục 8; quyết
+định: [`architecture.md`](architecture.md) QĐ-014.
 
 ```bash
 # bật lâu dài: .env thêm studio vào MOC_EXTRA_PROFILES (vd MOC_EXTRA_PROFILES=tunnel,studio), rồi
