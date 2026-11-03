@@ -523,8 +523,10 @@ How to recognise it and what to do:
 
 - **What users see:** the file stays at "Uploading and scanning for malware…". After 60 seconds
   (`CLAMAV_TIMEOUT_S` of `svc-files`) it reports that the malware scanner is not ready (`503 scanner_unavailable`), and
-  the file has not been stored. A signature reload does not cause this: clamd has not finished its first load after
-  starting (about 1 minute), or the `clamav` container is not running. The status page may show "Malware scanning" as
+  the file has not been stored. A signature reload no longer causes this; the cause is that clamd has not finished its
+  first load after starting (about 1 minute), or the `clamav` container is not running. If the machine runs short of
+  RAM during a reload, the operating system may stop clamd (OOM): an 8 GB machine with the language model on uses
+  about 7.8 GiB, and about 1 GiB more during a reload goes over 8 GB. The status page may show "Malware scanning" as
   down during that time.
 - **What to do:** wait about 1 minute, then upload again. Nothing needs restarting: restarting `clamav` only makes it
   load the signatures again from the start.
