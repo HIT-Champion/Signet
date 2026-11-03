@@ -66,11 +66,11 @@ from typing import Any
 
 from audit_chain import BACKED_UP_SQL, HEAD_SQL, RESTORED_SQL
 from moc_env import ENV, ROOT
-from ung_dung import APP_ROLES_SQL, AppError, recreate_roles_sql
+from ung_dung import APP_ROLES_SQL, SINH_ROLES_SQL, AppError, recreate_roles_sql
 
 COMPOSE = ["docker", "compose", "--profile", "core", "--profile", "app"]
 WRITERS = ("svc-files", "seaweedfs", "openbao")            # tạm dừng suốt lúc sao lưu
-DB_WRITERS = ("hasura", "svc-workflow", "flowable", "keycloak")   # tạm dừng lúc dump CSDL
+DB_WRITERS = ("hasura", "svc-workflow", "flowable", "keycloak", "rest", "meta")   # tạm dừng lúc dump CSDL
 FILES = "/data/seaweedfs"               # chỗ volume SeaweedFS gắn vào container restic
 VAULT = "/data/openbao"                 # chỗ volume két OpenBao gắn vào container restic (F3.7)
 # Dịch vụ tùy chọn có dữ liệu trong volume riêng: khóa trong manifest → (dịch vụ, cũng là tên profile; chỗ volume gắn
@@ -495,7 +495,7 @@ def restore(rid: str | None, *, yes: bool = False) -> dict[str, Any] | None:
                 print("Không khôi phục.")
                 return None
         try:
-            roles = recreate_roles_sql(manifest.get("app_roles", []))   # lượt cũ chưa có khóa này
+            roles = SINH_ROLES_SQL + recreate_roles_sql(manifest.get("app_roles", []))   # lượt cũ chưa có khóa này
         except AppError as exc:
             raise BackupError(f"manifest của lượt {manifest['run']}: {exc}") from None
         _check_readable(target, manifest)
