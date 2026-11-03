@@ -1,13 +1,26 @@
 # Nghiên cứu chủ đề OLP PMNM 2026 — kiểm chứng trực tuyến ngày 09/09/2026
 
 > Tài liệu này là kết quả một phiên nghiên cứu độc lập, đối chiếu lại toàn bộ giả định trong
-> [`olp-2026-brief.md`](../olp-2026-brief.md), [`chien-luoc-du-thi.md`](chien-luoc-du-thi.md) và
+> [`olp-2026-brief.md`](../olp-2026-brief.md), `chien-luoc-du-thi.md` (đã gỡ ngày 03/11/2026) và
 > [`research-huong-trien-khai.md`](research-huong-trien-khai.md) bằng nguồn trực tuyến:
 > vfossa.vn và olp.vn (tin sau 09/06/2026), toàn văn 82 trang giáo trình DX-OS, tệp LICENSE thật
 > của hơn 60 công cụ ứng viên, và 52 kho mã của các đội mùa trước cùng 2 đội mùa 2026.
 >
 > Quy ước: *(BTC)* là yêu cầu của Ban tổ chức, *(giáo trình)* là nội dung giáo trình DX-OS,
 > *(đội)* là nhận định của đội. Mục nào chưa kiểm chứng được sẽ ghi rõ.
+
+> **Đính chính 03/11/2026**, sau khi đọc hết giáo trình. Thân tệp giữ nguyên như ngày viết; các nhận định sau sai
+> hoặc thiếu:
+>
+> - Mục 0 ý 2: DX-Ticket không phải đặc tả cụ thể duy nhất. Giáo trình còn nhiều quy định kiểm được, ví dụ RACI
+>   chuyển thành phân quyền RBAC (mục 3.2.1), RPO tối đa 24 giờ và sao lưu 3-2-1 (chương 10).
+> - Mục 0 ý 3, mục 3.5: DX-OS đúng là không nhắc LOD, RDF, nhưng dẫn tới giáo trình "Quản trị Dữ liệu Web hiện đại"
+>   của cùng tác giả, nơi có RDF, OWL, SPARQL.
+> - Mục 0 ý 4, mục 3 ("nguồn mở chỉ xuất hiện ở các mục Vượt ngưỡng"): bản đồ Vượt ngưỡng (mục 4.3) và bản đồ công
+>   nghệ (mục 6.7) có cả dịch vụ đóng như BigQuery, MISA, Salesforce; còn tầng cơ bản thì giáo trình cho bắt đầu "0 đồng
+>   (dùng bản miễn phí hoặc mã nguồn mở)".
+> - Mục 3.5 "không có ngưỡng SLA cố định": chỉ đúng với DX-Ticket; chương 9–11 có ngưỡng cụ thể.
+> - Tệp chưa nói tới quản trị AI, an toàn dữ liệu và Luật Bảo vệ dữ liệu cá nhân 91/2025/QH15.
 
 ---
 
