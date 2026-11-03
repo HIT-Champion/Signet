@@ -19,6 +19,7 @@ Idempotency, giới hạn, chỉ người tạo xem được lô và dòng của
 
 import asyncio
 import hashlib
+import json
 import uuid
 
 import pytest
@@ -384,3 +385,84 @@ def test_database_down_is_503(lab, clerk):
     assert r.status_code == 503
     assert r.json()["detail"]["code"] == "database_unavailable"
     assert lab.imports.jobs == {}
+
+
+# --- lô nạp nguồn dữ liệu công khai (?open_data=, #445) ------------------------------------------------------------
+
+SOURCE = "cong-bao"
+
+
+def write_source(root, files: dict[str, bytes]) -> None:
+    """Bản chụp một nguồn như seed/du-lieu-mo/<mã>/: tệp và manifest.json đúng khuôn open_data.py đọc."""
+    folder = root / SOURCE
+    folder.mkdir(parents=True)
+    for name, data in files.items():
+        (folder / name).write_bytes(data)
+    (folder / "manifest.json").write_text(json.dumps({
+        "source": SOURCE, "name": "Công báo (thử)", "publisher": "Văn phòng Chính phủ",
+        "home_url": "https://congbao.example.vn/", "reuse_basis": "Điều 15 Luật Sở hữu trí tuệ", "licence": None,
+        "fetched_at": "2026-10-30T02:18:58+07:00", "max_age_days": 400,
+        "files": [{"file": name, "url": f"https://cdn.example.vn/tai?f={name}", "bytes": len(data),
+                   "sha256": hashlib.sha256(data).hexdigest(), "fetched_at": "2026-10-30T02:18:51+07:00", "meta": {}}
+                  for name, data in files.items()]}), encoding="utf-8")
+
+
+@pytest.fixture
+def open_lab(monkeypatch, tmp_path, settings, scanner, store, verifier, meili, vault):
+    write_source(tmp_path / "du-lieu-mo", {"a.pdf": PDF})
+    with make_lab(monkeypatch, tmp_path, settings, scanner=scanner, store=store, verifier=verifier, meili=meili,
+                  vault=vault, open_data_dir=str(tmp_path / "du-lieu-mo")) as lab:
+        yield lab
+
+
+def test_open_data_batch_records_one_lineage_run_from_the_manifest(open_lab, clerk):
+    data = ndjson(doc(1, files=["a.pdf"]), doc(2, files=["a.pdf"]), doc(1, files=["a.pdf"]))   # dòng 3 trùng dòng 1
+    key = {"Idempotency-Key": "lo-cong-bao-1"}
+    r = open_lab.post(clerk, data, archive=zip_bytes({"a.pdf": PDF}), params={"open_data": SOURCE}, headers=key)
+    assert r.status_code == 202, r.text
+    job_id = r.json()["id"]
+    assert open_lab.job(job_id)["options"]["open_data"]["source"] == SOURCE
+    assert open_lab.imports.audit[0]["diff"]["open_data"] == SOURCE
+    assert open_lab.hasura.lineage == []                # lô chưa xong: chưa có run
+    open_lab.drain()
+    (row,) = open_lab.hasura.lineage
+    assert (row["job"], row["event_type"], row["run_id"], row["tenant_id"]) == (
+        "moc.open_data.load.cong-bao", "COMPLETE", job_id, str(TENANT_A))
+    assert row["inputs"] == ["https://congbao.example.vn/a.pdf"]
+    assert row["outputs"] == ["postgres://postgres:5432/moc.office.documents"]
+    (source,) = row["event"]["inputs"]
+    assert source["facets"]["version"]["datasetVersion"] == hashlib.sha256(PDF).hexdigest()
+    assert source["facets"]["dataSource"]["uri"] == "https://cdn.example.vn/tai?f=a.pdf"
+    assert "2026-10-30T02:18:51+07:00" in source["facets"]["documentation"]["description"]
+    # số văn bản mới, không tính dòng trùng
+    assert row["event"]["outputs"][0]["outputFacets"]["outputStatistics"]["rowCount"] == 2
+    # gửi lại cùng khóa: đúng lô cũ, không thêm run; cùng khóa mà bỏ open_data là lô khác
+    again = open_lab.post(clerk, data, archive=zip_bytes({"a.pdf": PDF}), params={"open_data": SOURCE}, headers=key)
+    assert again.status_code == 200 and again.json()["id"] == job_id
+    plain = open_lab.post(clerk, data, archive=zip_bytes({"a.pdf": PDF}), headers=key)
+    assert plain.status_code == 409 and plain.json()["detail"]["code"] == "idempotency_conflict"
+    open_lab.drain()
+    assert len(open_lab.hasura.lineage) == 1
+
+
+def test_open_data_batch_must_use_the_files_of_the_manifest(open_lab, clerk):
+    cases = [
+        (zip_bytes({"a.pdf": PDF + b"sua"}), [doc(1, files=["a.pdf"])]),           # khác SHA-256 của manifest
+        (zip_bytes({"a.pdf": PDF, "b.pdf": PDF}), [doc(1, files=["a.pdf", "b.pdf"])]),  # b.pdf không có trong manifest
+        (None, [doc(1)]),                                                          # không dòng nào trỏ tệp của nguồn
+    ]
+    for archive, rows in cases:
+        r = open_lab.post(clerk, ndjson(*rows), archive=archive, params={"open_data": SOURCE})
+        assert r.status_code == 422, r.text
+        assert r.json()["detail"]["code"] == "open_data_mismatch"
+    assert open_lab.imports.jobs == {} and list(open_lab.spool_dir.iterdir()) == []
+
+
+def test_unknown_source_is_refused_and_plain_batches_record_no_lineage(open_lab, clerk):
+    r = open_lab.post(clerk, ndjson(doc(1, files=["a.pdf"])), archive=zip_bytes({"a.pdf": PDF}),
+                      params={"open_data": "khong-co"})
+    assert r.status_code == 422 and r.json()["detail"]["code"] == "unknown_source"
+    assert open_lab.imports.jobs == {}
+    assert open_lab.post(clerk, ndjson(doc(1, files=["a.pdf"])), archive=zip_bytes({"a.pdf": PDF})).status_code == 202
+    open_lab.drain()
+    assert open_lab.hasura.lineage == []

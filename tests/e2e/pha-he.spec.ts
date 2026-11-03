@@ -46,6 +46,10 @@ test('phả hệ số liệu: biểu đồ ← khung nhìn ← bảng, chỉ lã
     'office.archived_document_facts']) await expect(sources).toContainText(name)
   await expect(director.getByTestId('lineage-graph').locator('svg').first()).toBeVisible()
   await expect(director.getByTestId('lineage-archive-totals')).toBeVisible()
+  // nguồn công khai A (make seed nạp qua API nạp lô, ?open_data=, #445): lượt nạp và tệp của Công báo có phả hệ
+  const loads = director.getByTestId('lineage-loads')
+  await expect(loads).toContainText('cong-bao-gddt')
+  await expect(loads).toContainText('congbao.chinhphu.vn')
 
   // mọi biểu đồ: đủ bốn khung nhìn của trang Điều hành
   await director.getByTestId('lineage-chart').selectOption('')

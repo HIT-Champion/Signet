@@ -264,6 +264,24 @@
             "description": "Vào sổ từng văn bản sau khi tiếp nhận (cấp số đến, khởi chạy quy trình, báo lãnh đạo). Lô có vào sổ tối đa MOC_IMPORT_REGISTER_MAX_ROWS dòng"
           },
           {
+            "name": "open_data",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Mã nguồn dữ liệu công khai mà lô nạp lại (thư mục trong MOC_OPEN_DATA_DIR, vd cong-bao-gddt): tệp các dòng trỏ tới phải có trong manifest.json của nguồn, đúng SHA-256. Lô xong thì ghi phả hệ OpenLineage, job moc.open_data.load.<mã> (#445)",
+              "title": "Open Data"
+            },
+            "description": "Mã nguồn dữ liệu công khai mà lô nạp lại (thư mục trong MOC_OPEN_DATA_DIR, vd cong-bao-gddt): tệp các dòng trỏ tới phải có trong manifest.json của nguồn, đúng SHA-256. Lô xong thì ghi phả hệ OpenLineage, job moc.open_data.load.<mã> (#445)"
+          },
+          {
             "name": "Idempotency-Key",
             "in": "header",
             "required": false,
@@ -319,7 +337,7 @@
             "description": "`too_large` (thân yêu cầu, tệp dữ liệu MOC_IMPORT_DATA_MAX_MB, zip MOC_IMPORT_ZIP_MAX_MB, tổng cỡ tệp các dòng trỏ tới — mỗi lần trỏ tính một lần — MOC_IMPORT_STORE_MAX_MB) · `too_many_rows` (MOC_IMPORT_MAX_ROWS; register=true: MOC_IMPORT_REGISTER_MAX_ROWS)"
           },
           "422": {
-            "description": "`infected` / `unscannable` — chính tệp dữ liệu bị trạm quét chặn, đã ghi `file.rejected` vào sổ kiểm toán, không tạo lô"
+            "description": "`infected` / `unscannable` — chính tệp dữ liệu bị trạm quét chặn, đã ghi `file.rejected` vào sổ kiểm toán, không tạo lô · `unknown_source` — `open_data` không phải nguồn công khai dùng được trên máy chủ · `open_data_mismatch` — tệp các dòng trỏ tới không có trong manifest của nguồn hoặc khác SHA-256"
           },
           "429": {
             "description": "`too_many_imports` — đơn vị đã có MOC_IMPORT_MAX_OPEN lô chưa xong (kèm `Retry-After`)"

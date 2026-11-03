@@ -14,9 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-# Phả hệ dữ liệu (F3.9): sự kiện OpenLineage của job nộp lưu. svc-files ghi bằng khóa quản trị; không vai trò nào
-# ghi, sửa được (trigger CSDL chặn sửa, xóa). Lãnh đạo đơn vị và văn thư (người quản lý hồ sơ nộp lưu) xem phả hệ của
-# đơn vị mình; sự kiện không chứa tên hồ sơ hay trích yếu.
+# Phả hệ dữ liệu (F3.9): sự kiện OpenLineage của job nộp lưu và của lượt nạp nguồn dữ liệu công khai (#445). svc-files
+# ghi bằng khóa quản trị; không vai trò nào ghi, sửa được (trigger CSDL chặn sửa, xóa). Lãnh đạo đơn vị và văn thư
+# (người quản lý hồ sơ nộp lưu, người nạp lô) xem phả hệ của đơn vị mình; sự kiện không chứa tên hồ sơ hay trích yếu —
+# lượt nạp chỉ có tên tệp, URL tải của nguồn công khai.
 table:
   name: lineage_events
   schema: core

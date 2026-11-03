@@ -91,7 +91,9 @@ from .imports import api as imports_api
 from .imports.runner import Importer, IncomingHandler
 from .imports.spool import Spool
 from .imports.store import ImportStore
+from .lineage import Lineage
 from .ocr import run_ocr
+from .open_data import OpenData
 from .openbao import with_secrets
 from .sealed import SealError, Vault, VaultError, run_check_pdf, run_watermark, seal, unseal
 from .search import Cursor, Indexer, MeiliClient, SearchError, SearchQuery, search_documents
@@ -797,13 +799,15 @@ def create_app(
         # kho)
         incoming = IncomingHandler(hasura, import_store, ingest_bytes, discard,
                                    max_file_bytes=settings.max_upload_bytes, sealing=vault is not None)
+        # lô nạp nguồn công khai (?open_data=, #445) xong thì ghi phả hệ OpenLineage như job nộp lưu
         importer = Importer(import_store, {incoming.kind: incoming}, spool, interval_s=settings.import_interval_s,
-                            chunk=settings.import_chunk)
+                            chunk=settings.import_chunk, lineage=Lineage(hasura.admin, settings.openlineage_url))
         # Nạp lô văn bản đến: POST /api/imports/{kind}, GET /api/imports… — imports/api.py
         imports_api.install(app, settings=settings, store=import_store, handlers=importer.handlers, spool=spool,
                             principal=current_principal, quarantine=quarantine, clean_filename=clean_filename,
                             max_body=settings.import_data_max_bytes + settings.import_zip_max_bytes
-                            + MULTIPART_OVERHEAD)
+                            + MULTIPART_OVERHEAD,
+                            open_data=OpenData(settings.open_data_dir) if settings.open_data_dir else None)
     app.state.importer = importer
 
     @app.get(

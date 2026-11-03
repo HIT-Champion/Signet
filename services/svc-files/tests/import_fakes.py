@@ -58,6 +58,13 @@ class ActionHasura(FakeHasura):
     lose_register: int = 0    # số lần registerIncoming vào sổ xong rồi mất phản hồi
     register_error: HasuraError | None = None
     numbers: Counter = field(default_factory=Counter)
+    lineage: list[dict] = field(default_factory=list)            # dòng core.lineage_events đã ghi (#445)
+
+    async def admin(self, query: str, variables: dict, headers: dict | None = None) -> dict:
+        if "insert_core_lineage_events_one" in query:
+            self.lineage.append(json.loads(json.dumps(variables["o"])))
+            return {"insert_core_lineage_events_one": {"id": len(self.lineage)}}
+        return await super().admin(query, variables, headers)
 
     async def act_as(self, *, role: str, tenant_id, user_id: str, department_id: str | None, request_id: str,
                      query: str, variables: dict, timeout_s: float | None = None) -> dict:

@@ -133,6 +133,7 @@ Tham số:
 | `kind` | đường dẫn | ✓ | `"incoming"` | Loại lô; hiện có incoming (văn bản đến) |
 | `format` | query |  | `"ndjson", "csv" hoặc null` | Thiếu thì đoán theo đuôi tên tệp (.ndjson, .jsonl, .csv) rồi theo Content-Type |
 | `register` | query |  | `boolean` | Vào sổ từng văn bản sau khi tiếp nhận (cấp số đến, khởi chạy quy trình, báo lãnh đạo). Lô có vào sổ tối đa MOC_IMPORT_REGISTER_MAX_ROWS dòng. Mặc định `false`. |
+| `open_data` | query |  | `string hoặc null` | Mã nguồn dữ liệu công khai mà lô nạp lại (thư mục trong MOC_OPEN_DATA_DIR, vd cong-bao-gddt): tệp các dòng trỏ tới phải có trong manifest.json của nguồn, đúng SHA-256. Lô xong thì ghi phả hệ OpenLineage, job moc.open_data.load.<mã> (#445) |
 | `Idempotency-Key` | header |  | `string hoặc null` | Tùy chọn, 1–200 ký tự ASCII in được: gửi lại cùng khóa trả đúng lô cũ |
 
 Thân yêu cầu `multipart/form-data`:
@@ -153,7 +154,7 @@ Trả về:
 | 403 | `forbidden` — không phải văn thư · `unknown_tenant` |  |
 | 409 | `idempotency_conflict` — cùng Idempotency-Key mà khác tệp, định dạng hoặc register |  |
 | 413 | `too_large` (thân yêu cầu, tệp dữ liệu MOC_IMPORT_DATA_MAX_MB, zip MOC_IMPORT_ZIP_MAX_MB, tổng cỡ tệp các dòng trỏ tới — mỗi lần trỏ tính một lần — MOC_IMPORT_STORE_MAX_MB) · `too_many_rows` (MOC_IMPORT_MAX_ROWS; register=true: MOC_IMPORT_REGISTER_MAX_ROWS) |  |
-| 422 | `infected` / `unscannable` — chính tệp dữ liệu bị trạm quét chặn, đã ghi `file.rejected` vào sổ kiểm toán, không tạo lô |  |
+| 422 | `infected` / `unscannable` — chính tệp dữ liệu bị trạm quét chặn, đã ghi `file.rejected` vào sổ kiểm toán, không tạo lô · `unknown_source` — `open_data` không phải nguồn công khai dùng được trên máy chủ · `open_data_mismatch` — tệp các dòng trỏ tới không có trong manifest của nguồn hoặc khác SHA-256 |  |
 | 429 | `too_many_imports` — đơn vị đã có MOC_IMPORT_MAX_OPEN lô chưa xong (kèm `Retry-After`) |  |
 | 503 | `imports_disabled` (MOC_IMPORT_INTERVAL_S=0) · `busy` (chỗ giữ zip đầy, kèm `Retry-After`) · `scanner_unavailable` · `database_unavailable` |  |
 
