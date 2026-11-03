@@ -222,10 +222,10 @@ test('tiếng Anh: trạng thái qua hai cấp, câu báo theo mã trả lời; 
     setLocale('en')
     assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Awaiting the head of department' })
     assert.equal(trangThai({ endedAt: null, data: { quyetDinhBoMon: 'dong-y' } }).nhan,
-      'Accepted by the department, awaiting the dean')
+      'Accepted by the department, awaiting the director')
     assert.deepEqual([xong({ quyetDinhBoMon: 'tu-choi' }), xong({ quyetDinhKhoa: 'dong-y' }),
       xong({ quyetDinhKhoa: 'tu-choi' }), xong({})],
-    ['Declined by the department', 'Approved', 'Declined by the faculty', 'Closed'])
+    ['Declined by the department', 'Approved', 'Declined by the director', 'Closed'])
     assert.equal(docTraLoi(401, null).message, 'Your session has expired. Reload the page to sign in again.')
     assert.equal(docTraLoi(503, null).message, 'The Signet workflow service is not responding. Try again in a few '
       + 'minutes.')
@@ -233,7 +233,7 @@ test('tiếng Anh: trạng thái qua hai cấp, câu báo theo mã trả lời; 
     assert.equal(docTraLoi(422, { errors: { ngayMoi: 'x-moc-date' } }).message,
       'Some fields are not valid: see the message under each field.')
     for (const key of Object.values(LOI)) assert.doesNotMatch(t(key), VIET, key)
-    assert.equal(t('notice.forwarded'), 'Accepted. The request goes to the faculty dean for approval.')
+    assert.equal(t('notice.forwarded'), 'Accepted. The request goes to the director for approval.')
     assert.equal(t('mine.sentAt', { time: '26/10/2026 14:05' }), 'Sent 26/10/2026 14:05')
   } finally {
     setLocale('vi')
@@ -276,7 +276,7 @@ test('form dựng từ schema bằng tiếng Anh: nhãn, lựa chọn, gợi ý,
   assert.deepEqual(summary(boMon, { quyetDinhBoMon: 'dong-y', ghiChuBoMon: 'OK' }, 'en').map((r) => [r.label, r.value]),
     [["Head of department's decision", 'Approve'], ["Head of department's note", 'OK']])
   assert.deepEqual(summary(khoa, { quyetDinhKhoa: 'tu-choi' }, 'vi').map((r) => [r.label, r.value]),
-    [['Quyết định của lãnh đạo khoa', 'Không đồng ý'], ['Ghi chú của lãnh đạo khoa', '—']])
+    [['Quyết định của lãnh đạo đơn vị', 'Không đồng ý'], ['Ghi chú của lãnh đạo đơn vị', '—']])
   // câu chung theo ngôn ngữ của form, không theo ngôn ngữ đang dùng
   const lyDo = fields(don, 'vi').find((f) => f.name === 'lyDo')
   try {

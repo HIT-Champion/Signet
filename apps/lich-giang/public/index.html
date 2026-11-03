@@ -24,7 +24,7 @@
        phần tử, data-i18n-<thuộc tính> là thuộc tính, khóa ở i18n.js (tests/i18n.test.js kiểm chữ ở đây khớp bảng) -->
   <title data-i18n="page.title">Đổi, bù lịch giảng — Signet</title>
   <meta name="description" data-i18n-content="page.description"
-        content="Signet — giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh đạo khoa duyệt">
+        content="Signet — giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh đạo đơn vị duyệt">
   <link rel="icon" href="/lich-giang/favicon.svg" type="image/svg+xml">
   <!-- phông Be Vietnam Pro: @font-face của gói npm @fontsource/be-vietnam-pro, Dockerfile chép vào fonts/ như
        apps/ca-nhan -->
@@ -71,8 +71,8 @@
 
       <section id="gui-don" class="phan" aria-labelledby="tieu-de-gui-don">
         <h1 id="tieu-de-gui-don" tabindex="-1" data-i18n="request.heading">Đề nghị đổi lịch, dạy bù</h1>
-        <p class="hint" data-i18n="request.hint">Trưởng bộ môn của bạn xem trước, rồi lãnh đạo khoa phê duyệt. Kết quả
-          hiện ở phần "Đề nghị của tôi".</p>
+        <p class="hint" data-i18n="request.hint">Trưởng bộ môn của bạn xem trước, rồi lãnh đạo đơn vị phê duyệt. Kết
+          quả hiện ở phần "Đề nghị của tôi".</p>
         <div id="form-don" class="khung-form"></div>
       </section>
 
@@ -85,7 +85,7 @@
       <section id="viec-can-duyet" class="phan" aria-labelledby="tieu-de-viec-can-duyet" hidden>
         <h1 id="tieu-de-viec-can-duyet" tabindex="-1" data-i18n="review.heading">Việc cần duyệt</h1>
         <p class="hint" data-i18n="review.hint">Đề nghị đang chờ quyết định của bạn: trưởng bộ môn duyệt đề nghị của
-          giảng viên trong bộ môn, lãnh đạo khoa phê duyệt đề nghị bộ môn đã đồng ý. Người gửi đọc được ghi chú.</p>
+          giảng viên trong bộ môn, lãnh đạo đơn vị phê duyệt đề nghị bộ môn đã đồng ý. Người gửi đọc được ghi chú.</p>
         <p id="khong-co-viec" class="empty" data-i18n="review.empty" hidden>Không còn đề nghị nào chờ duyệt.</p>
         <ul id="danh-sach-viec" class="danh-sach"></ul>
       </section>

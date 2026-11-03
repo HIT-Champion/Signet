@@ -31,6 +31,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   các cấp tách khối riêng (#505).
 - Thẻ việc cần duyệt của Đổi, bù lịch giảng và Đơn nghỉ phép ghi tên người gửi đề nghị (#506).
 - Thanh trên của Văn phòng điện tử hiện tên ngắn của đơn vị (Trường CNTT & TT) nếu có, rê chuột thấy tên đầy đủ (#466).
+- Đổi, bù lịch giảng gọi cấp duyệt thứ hai là lãnh đạo đơn vị như Văn phòng điện tử, thay cho lãnh đạo khoa (#537).
 
 ### Đã sửa lỗi
 - Nâng cấp máy có dữ liệu thật không còn tự lùi vì smoke cần tài khoản mẫu: bỏ smoke khi tắt client `moc-cli`, chọn

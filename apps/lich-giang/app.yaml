@@ -23,7 +23,7 @@
 
 name: lich-giang
 title: Đổi, bù lịch giảng
-description: Giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh đạo khoa duyệt trên quy trình của lõi
+description: Giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh đạo đơn vị duyệt trên quy trình của lõi
 version: 1.0.0
 path: /lich-giang
 

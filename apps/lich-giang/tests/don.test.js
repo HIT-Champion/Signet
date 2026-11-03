@@ -72,14 +72,14 @@ test('trả lời: 2xx là xong, 422 giữ lỗi từng trường, mã khác th�
 test('trạng thái đề nghị qua hai cấp: chờ bộ môn, chờ khoa, kết quả của từng cấp', () => {
   assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Chờ trưởng bộ môn duyệt' })
   assert.deepEqual(trangThai({ endedAt: null, data: { quyetDinhBoMon: 'dong-y' } }),
-    { ma: 'cho', nhan: 'Bộ môn đã đồng ý, chờ khoa phê duyệt' })
+    { ma: 'cho', nhan: 'Bộ môn đã đồng ý, chờ lãnh đạo đơn vị phê duyệt' })
   const xong = '2026-10-26T03:00:00Z'
   assert.deepEqual(trangThai({ endedAt: xong, data: { quyetDinhBoMon: 'tu-choi' } }),
     { ma: 'tu-choi', nhan: 'Bộ môn không đồng ý' })
   assert.deepEqual(trangThai({ endedAt: xong, data: { quyetDinhBoMon: 'dong-y', quyetDinhKhoa: 'dong-y' } }),
     { ma: 'dong-y', nhan: 'Đã duyệt' })
   assert.deepEqual(trangThai({ endedAt: xong, data: { quyetDinhBoMon: 'dong-y', quyetDinhKhoa: 'tu-choi' } }),
-    { ma: 'tu-choi', nhan: 'Khoa không duyệt' })
+    { ma: 'tu-choi', nhan: 'Lãnh đạo đơn vị không duyệt' })
   assert.equal(trangThai({ endedAt: xong, data: null }).ma, 'xong')
   assert.equal(trangThai(undefined).ma, 'cho')
   // quyết định của bước vừa gửi, bước nào cũng được

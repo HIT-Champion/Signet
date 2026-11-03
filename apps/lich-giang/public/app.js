@@ -15,8 +15,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Đổi, bù lịch giảng: đăng nhập, nạp ba form từ lõi (JSON Schema), vẽ ba phần — Gửi đề nghị, Đề nghị của tôi, Việc cần
-// duyệt (chỉ hiện khi có việc: trưởng bộ môn, lãnh đạo khoa). Mọi dữ liệu đi qua API quy trình chung của lõi bằng token
-// của người dùng; lõi kiểm lại form và quyết định ai thấy việc nào. Chữ gán bằng textContent, không bao giờ gán HTML.
+// duyệt (chỉ hiện khi có việc: trưởng bộ môn, lãnh đạo đơn vị). Mọi dữ liệu đi qua API quy trình chung của lõi bằng
+// token của người dùng; lõi kiểm lại form và quyết định ai thấy việc nào. Chữ gán bằng textContent, không gán HTML.
 // Chữ lấy từ bảng dịch vi/en (i18n.js); phần đang hiện giữ lại để đổi ngôn ngữ thì vẽ lại ngay, không mất chữ đang gõ
 // trong form.
 
@@ -163,7 +163,7 @@ function dungTheViec(task, forms, draft) {
   const name = nguoiGui(task)
   if (name) li.append(make('p', { className: 'gio', textContent: t('review.from', { name }) }))
   li.append(make('p', { className: 'gio', textContent: sentAt }), bangDon(rows))
-  // bước của khoa: lãnh đạo khoa đọc ý kiến của trưởng bộ môn trước khi quyết định
+  // bước của lãnh đạo đơn vị: đọc ý kiến của trưởng bộ môn trước khi quyết định
   if (task.formKey === FORM_KHOA) li.append(...ketQuaDuyet(forms, task.data, [forms.boMon]))
   if (task.dueAt) {
     li.append(make('p', { className: 'gio', textContent: t('review.due', { time: ngayGio(task.dueAt) }) }))

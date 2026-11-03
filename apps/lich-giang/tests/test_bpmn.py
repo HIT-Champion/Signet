@@ -16,10 +16,10 @@
 
 """Quy trình của Đổi, bù lịch giảng (workflow/doi-lich-giang.bpmn20.xml) đọc bằng xml.etree, không cần Flowable: chỉ
 phần tử lõi nhận cho ứng dụng cài thêm, không mã chạy trên máy chủ; hai cấp duyệt đúng dạng nhóm mà quy trình văn bản
-của lõi dùng (trưởng bộ môn: nhóm trưởng phòng của văn bản đi; lãnh đạo khoa: nhóm lãnh đạo của văn bản đến); bộ môn
-không đồng ý thì dừng, không tới khoa; mọi nút đi được từ lúc gửi tới một kết thúc; mỗi cổng rẽ phủ đúng các quyết định
-của form bước trước nó; sơ đồ vẽ đủ mọi nút. Lõi vẫn tự kiểm lúc cài — test này giữ tệp của ứng dụng không trượt khỏi
-danh sách đó. Chạy: python3 -m unittest discover -s apps/lich-giang/tests (make test)."""
+của lõi dùng (trưởng bộ môn: nhóm trưởng phòng của văn bản đi; lãnh đạo đơn vị: nhóm lãnh đạo của văn bản đến); bộ môn
+không đồng ý thì dừng, không tới lãnh đạo đơn vị; mọi nút đi được từ lúc gửi tới một kết thúc; mỗi cổng rẽ phủ đúng
+các quyết định của form bước trước nó; sơ đồ vẽ đủ mọi nút. Lõi vẫn tự kiểm lúc cài — test này giữ tệp của ứng dụng
+không trượt khỏi danh sách đó. Chạy: python3 -m unittest discover -s apps/lich-giang/tests (make test)."""
 
 from __future__ import annotations
 
@@ -87,7 +87,7 @@ class Bpmn(unittest.TestCase):
         self.assertEqual(start[0].get(FLOWABLE + "formKey"), "lich-giang.don")
         self.assertEqual(start[0].get(FLOWABLE + "initiator"), "initiator")
         self.assertEqual(tasks["boMon"].get("name"), "Trưởng bộ môn duyệt")
-        self.assertEqual(tasks["khoa"].get("name"), "Lãnh đạo khoa phê duyệt")
+        self.assertEqual(tasks["khoa"].get("name"), "Lãnh đạo đơn vị phê duyệt")
         manifest = (APP / "app.yaml").read_text(encoding="utf-8")
         self.assertIn("processes: [workflow/doi-lich-giang.bpmn20.xml]", manifest)
         self.assertRegex(manifest, r"\n    lich-giang\.don: forms/don\.json\n")
@@ -126,7 +126,7 @@ class Bpmn(unittest.TestCase):
         self.assertEqual(targets["khoa"], {"dong-y": "daDuyet", "tu-choi": "khoaTuChoi"})
         names = {e.get("id"): e.get("name") for e in self.process.findall("b:endEvent", NS)}
         self.assertEqual(names, {"daDuyet": "Đã duyệt", "boMonTuChoi": "Bộ môn không đồng ý",
-                                 "khoaTuChoi": "Khoa không duyệt"})
+                                 "khoaTuChoi": "Lãnh đạo đơn vị không duyệt"})
 
     def test_every_node_is_on_a_path_from_start_to_an_end(self) -> None:
         nodes = {el.get("id"): tag(el) for el in self.process if tag(el) != "sequenceFlow"}

@@ -24,8 +24,8 @@
   Hai cấp duyệt:
     boMon   trưởng bộ môn của chính bộ môn người gửi: nhóm t:<tenantId>:d:<departmentId>:manager, như bước duyệt cấp
             phòng của văn bản đi (services/svc-workflow/processes/van-ban-di.bpmn20.xml)
-    khoa    lãnh đạo khoa: nhóm t:<tenantId>:director, như bước chỉ đạo của văn bản đến (van-ban-den.bpmn20.xml)
-  Bộ môn không đồng ý thì dừng, không tới khoa.
+    khoa    lãnh đạo đơn vị: nhóm t:<tenantId>:director, như bước chỉ đạo của văn bản đến (van-ban-den.bpmn20.xml)
+  Bộ môn không đồng ý thì dừng, không tới lãnh đạo đơn vị.
   Biến:
     tenantId, departmentId   đơn vị, bộ môn của người gửi — lõi đặt từ token lúc khởi chạy
     initiator                người gửi (sub)
@@ -54,10 +54,10 @@
     <sequenceFlow id="f4" name="Không đồng ý" sourceRef="ketQuaBoMon" targetRef="boMonTuChoi">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${quyetDinhBoMon == 'tu-choi'}]]></conditionExpression>
     </sequenceFlow>
-    <userTask id="khoa" name="Lãnh đạo khoa phê duyệt" flowable:formKey="lich-giang.khoa"
+    <userTask id="khoa" name="Lãnh đạo đơn vị phê duyệt" flowable:formKey="lich-giang.khoa"
               flowable:candidateGroups="t:${tenantId}:director"/>
     <sequenceFlow id="f5" sourceRef="khoa" targetRef="ketQuaKhoa"/>
-    <exclusiveGateway id="ketQuaKhoa" name="Khoa phê duyệt?"/>
+    <exclusiveGateway id="ketQuaKhoa" name="Lãnh đạo đơn vị phê duyệt?"/>
     <sequenceFlow id="f6" name="Đồng ý" sourceRef="ketQuaKhoa" targetRef="daDuyet">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${quyetDinhKhoa == 'dong-y'}]]></conditionExpression>
     </sequenceFlow>
@@ -66,7 +66,7 @@
     </sequenceFlow>
     <endEvent id="daDuyet" name="Đã duyệt"/>
     <endEvent id="boMonTuChoi" name="Bộ môn không đồng ý"/>
-    <endEvent id="khoaTuChoi" name="Khoa không duyệt"/>
+    <endEvent id="khoaTuChoi" name="Lãnh đạo đơn vị không duyệt"/>
   </process>
   <!-- Sơ đồ để mở bằng trình vẽ BPMN; động cơ quy trình không đọc phần này -->
   <bpmndi:BPMNDiagram id="soDo">

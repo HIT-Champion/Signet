@@ -27,7 +27,7 @@ export const STORAGE_KEY = 'moc.locale'
 export const MESSAGES = Object.freeze({
   vi: Object.freeze({
     'page.title': 'Đổi, bù lịch giảng — Signet',
-    'page.description': 'Signet — giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh đạo khoa duyệt',
+    'page.description': 'Signet — giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh đạo đơn vị duyệt',
     'page.skip': 'Bỏ qua, tới nội dung chính',
     'page.brand': 'Đổi, bù lịch giảng',
     'page.tagline': 'Signet · ứng dụng ngành trên lõi',
@@ -49,8 +49,8 @@ export const MESSAGES = Object.freeze({
     'tab.mine': 'Đề nghị của tôi',
     'tab.review': 'Việc cần duyệt',
     'request.heading': 'Đề nghị đổi lịch, dạy bù',
-    'request.hint': 'Trưởng bộ môn của bạn xem trước, rồi lãnh đạo khoa phê duyệt. Kết quả hiện ở phần "Đề nghị của '
-      + 'tôi".',
+    'request.hint': 'Trưởng bộ môn của bạn xem trước, rồi lãnh đạo đơn vị phê duyệt. Kết quả hiện ở phần '
+      + '"Đề nghị của tôi".',
     'request.submit': 'Gửi đề nghị',
     'mine.heading': 'Đề nghị của tôi',
     'mine.empty': 'Bạn chưa gửi đề nghị nào.',
@@ -58,7 +58,7 @@ export const MESSAGES = Object.freeze({
     'mine.endedAt': 'Kết thúc lúc {time}',
     'review.heading': 'Việc cần duyệt',
     'review.hint': 'Đề nghị đang chờ quyết định của bạn: trưởng bộ môn duyệt đề nghị của giảng viên trong bộ môn, '
-      + 'lãnh đạo khoa phê duyệt đề nghị bộ môn đã đồng ý. Người gửi đọc được ghi chú.',
+      + 'lãnh đạo đơn vị phê duyệt đề nghị bộ môn đã đồng ý. Người gửi đọc được ghi chú.',
     'review.empty': 'Không còn đề nghị nào chờ duyệt.',
     'review.sentAt': 'Đề nghị gửi lúc {time}',
     'review.from': 'Người đề nghị: {name}',
@@ -68,11 +68,11 @@ export const MESSAGES = Object.freeze({
     'state.approved': 'Đã duyệt',
     'state.ended': 'Đã kết thúc',
     'state.pendingDepartment': 'Chờ trưởng bộ môn duyệt',
-    'state.pendingFaculty': 'Bộ môn đã đồng ý, chờ khoa phê duyệt',
+    'state.pendingFaculty': 'Bộ môn đã đồng ý, chờ lãnh đạo đơn vị phê duyệt',
     'state.declinedDepartment': 'Bộ môn không đồng ý',
-    'state.declinedFaculty': 'Khoa không duyệt',
+    'state.declinedFaculty': 'Lãnh đạo đơn vị không duyệt',
     'notice.sent': 'Đã gửi đề nghị. Trưởng bộ môn của bạn sẽ xem trước; theo dõi ở "Đề nghị của tôi".',
-    'notice.forwarded': 'Đã đồng ý. Đề nghị chuyển lên lãnh đạo khoa phê duyệt.',
+    'notice.forwarded': 'Đã đồng ý. Đề nghị chuyển lên lãnh đạo đơn vị phê duyệt.',
     'notice.approved': 'Đã phê duyệt. Người gửi thấy kết quả trong "Đề nghị của tôi".',
     'notice.declined': 'Đã không đồng ý. Người gửi thấy kết quả trong "Đề nghị của tôi".',
     'error.loadForms': 'Không nạp được mẫu đề nghị từ Signet: {error}',
@@ -139,7 +139,7 @@ export const MESSAGES = Object.freeze({
   en: Object.freeze({
     'page.title': 'Teaching schedule changes — Signet',
     'page.description': 'Signet — lecturers ask to reschedule or make up a class; the head of department and the '
-      + 'faculty dean approve it on the core workflow',
+      + 'director approve it on the core workflow',
     'page.skip': 'Skip to main content',
     'page.brand': 'Teaching schedule changes',
     'page.tagline': 'Signet · industry app on the core',
@@ -160,7 +160,7 @@ export const MESSAGES = Object.freeze({
     'tab.mine': 'My requests',
     'tab.review': 'To review',
     'request.heading': 'Reschedule or make up a class',
-    'request.hint': 'Your head of department reviews it first, then the faculty dean approves it. The outcome '
+    'request.hint': 'Your head of department reviews it first, then the director approves it. The outcome '
       + 'appears under "My requests".',
     'request.submit': 'Send request',
     'mine.heading': 'My requests',
@@ -169,7 +169,7 @@ export const MESSAGES = Object.freeze({
     'mine.endedAt': 'Closed {time}',
     'review.heading': 'Requests to review',
     'review.hint': 'Requests waiting for your decision: heads of department review requests from their lecturers, '
-      + 'the faculty dean approves requests the department has accepted. The requester can read your note.',
+      + 'the director approves requests the department has accepted. The requester can read your note.',
     'review.empty': 'No requests are waiting for review.',
     'review.sentAt': 'Request sent {time}',
     'review.from': 'Requested by {name}',
@@ -179,11 +179,11 @@ export const MESSAGES = Object.freeze({
     'state.approved': 'Approved',
     'state.ended': 'Closed',
     'state.pendingDepartment': 'Awaiting the head of department',
-    'state.pendingFaculty': 'Accepted by the department, awaiting the dean',
+    'state.pendingFaculty': 'Accepted by the department, awaiting the director',
     'state.declinedDepartment': 'Declined by the department',
-    'state.declinedFaculty': 'Declined by the faculty',
+    'state.declinedFaculty': 'Declined by the director',
     'notice.sent': 'Request sent. Your head of department will review it first; follow it under "My requests".',
-    'notice.forwarded': 'Accepted. The request goes to the faculty dean for approval.',
+    'notice.forwarded': 'Accepted. The request goes to the director for approval.',
     'notice.approved': 'Request approved. The requester sees the outcome under "My requests".',
     'notice.declined': 'Request declined. The requester sees the outcome under "My requests".',
     'error.loadForms': 'Could not load the forms from Signet: {error}',
