@@ -131,6 +131,7 @@ biến môi trường để ở PR và tài liệu của tính năng.
 | `bang-tin` | `apps/bang-tin` — Bảng tin đơn vị, ứng dụng thứ ba, cắm bằng `moc app install` | Frontend · Backend |
 | `nghi-phep` | `apps/nghi-phep` — Đơn nghỉ phép, ứng dụng thứ tư, quy trình chạy trên lõi (#301) | Frontend · Backend |
 | `lich-giang` | `apps/lich-giang` — Đổi, bù lịch giảng, ứng dụng ngành (Tầng 3), hai cấp duyệt trên lõi | Frontend · Backend |
+| `sinh` | `apps/sinh` — Ứng dụng sinh từ bảng: menu, danh sách, biểu mẫu dựng từ `/rest/v1` của PostgREST (#560) | Frontend |
 | `ai` | Trợ lý hỏi đáp, đọc văn bản đến, OCR trong `svc-files` (`assist/`, `docread/`, `ocr.py`); Ollama | AI |
 | `data` | Nạp lô và nguồn công khai (`imports/`, `open_data.py`), nộp lưu nóng → lạnh (`archive.py`), phả hệ (`lineage.py`) | AI |
 | `ops` | Compose, reconciler, sao lưu, giám sát, OpenBao | Backend |
@@ -190,8 +191,8 @@ trình soạn thảo mở sẵn mẫu; các dòng bắt đầu bằng `#` tự b
 # <loại>(<phạm vi>): <mô tả ngắn bằng tiếng Anh, không chấm cuối; cả dòng ≤ 72 ký tự>
 #
 # Loại:    feat fix perf refactor docs test build ci chore revert
-# Phạm vi: gateway auth db workflow files realtime office ca-nhan bang-tin nghi-phep lich-giang ai data ops cli scripts
-#          e2e ci deps docs release
+# Phạm vi: gateway auth db workflow files realtime office ca-nhan bang-tin nghi-phep lich-giang sinh ai data ops cli
+#          scripts e2e ci deps docs release
 #
 # Thân (tùy chọn, tiếng Anh): VÌ SAO thay đổi. Xuống dòng ở 72 ký tự.
 #

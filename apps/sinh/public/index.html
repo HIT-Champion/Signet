@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  Copyright 2026 Signet Team
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+
+  SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- chữ tĩnh để sẵn bằng tiếng Việt (ngôn ngữ mặc định); app.js gán lại theo ngôn ngữ đã chọn: data-i18n là chữ của
+       phần tử, data-i18n-<thuộc tính> là thuộc tính, khóa ở i18n.js (tests/i18n.test.js kiểm chữ ở đây khớp bảng) -->
+  <title data-i18n="page.title">Ứng dụng sinh từ bảng — Signet</title>
+  <meta name="description" data-i18n-content="page.description"
+        content="Signet — ứng dụng dựng tự động từ bảng mô tả trong Studio, API do PostgREST sinh">
+  <link rel="icon" href="/sinh/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/sinh/style.css">
+  <!-- thư viện trước, mã của trang sau: cả hai chạy theo thứ tự sau khi đọc xong trang -->
+  <script src="/sinh/lib/oidc-client-ts.min.js" defer></script>
+  <script src="/sinh/app.js" type="module"></script>
+</head>
+<body>
+  <a class="bo-qua" href="#noi-dung" data-i18n="page.skip">Bỏ qua, tới nội dung chính</a>
+  <header class="top">
+    <a class="brand" href="/sinh/">
+      <img src="/sinh/favicon.svg" alt="" width="28" height="28">
+      <span><strong data-i18n="page.brand">Ứng dụng sinh từ bảng</strong>
+        <small data-i18n="page.tagline">Signet · Studio + PostgREST</small></span>
+    </a>
+    <nav class="top-nav" aria-label="Ứng dụng" data-i18n-aria-label="nav.apps">
+      <a href="/" data-i18n="nav.office">Văn phòng điện tử</a>
+      <span id="nguoi" class="who" data-i18n="status.signingIn">Đang đăng nhập…</span>
+      <!-- tên ngôn ngữ kia viết bằng chính tiếng đó; lang của nút đổi theo (lang.other) -->
+      <button id="doi-ngon-ngu" type="button" class="btn ghost" lang="en" data-i18n="lang.switch"
+              data-i18n-lang="lang.other">English</button>
+      <button id="thoat" type="button" class="btn ghost" data-i18n="nav.logout" hidden>Đăng xuất</button>
+    </nav>
+  </header>
+
+  <main id="noi-dung" tabindex="-1">
+    <p id="tin" class="status" role="status" data-i18n="status.loading">Đang nạp mô tả các bảng…</p>
+    <div id="loi" class="loi" role="alert" hidden></div>
+
+    <div id="ung-dung" hidden>
+      <!-- mỗi bảng có COMMENT ON TABLE trong schema sinh là một mục; app.js dựng từ GET /rest/v1/ -->
+      <nav id="menu" class="tabs" aria-label="Các ứng dụng sinh từ bảng" data-i18n-aria-label="nav.tables"></nav>
+      <p id="khong-co-bang" class="empty" data-i18n="apps.empty" hidden>Chưa có bảng nào có chú thích (COMMENT ON
+        TABLE) trong schema sinh.</p>
+
+      <section id="bang" class="phan" aria-labelledby="tieu-de-bang" hidden>
+        <h1 id="tieu-de-bang" tabindex="-1"></h1>
+        <p id="mo-ta-bang" class="hint" hidden></p>
+        <h2 data-i18n="create.heading">Thêm mới</h2>
+        <div id="form-moi" class="khung-form"></div>
+        <h2 data-i18n="list.heading">Danh sách</h2>
+        <p id="khong-co-dong" class="empty" data-i18n="list.empty" hidden>Chưa có dòng nào.</p>
+        <p id="dem-dong" class="gio" hidden></p>
+        <ul id="danh-sach" class="danh-sach"></ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="foot" data-i18n="page.footer">
+    Trang này không viết riêng cho bảng nào: menu, danh sách và biểu mẫu dựng từ mô tả API mà PostgREST sinh từ các
+    bảng trong schema sinh. Thêm cột trong Studio thì ô nhập hiện ở đây ngay.
+  </footer>
+</body>
+</html>
