@@ -1095,11 +1095,14 @@ Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dư
     policy permissive `moc_mo` (`using (true)`);
   - trigger sổ kiểm toán chuỗi băm `core.audit()` như bảng của lõi; `TRUNCATE` bị chặn.
 
-  Lệnh gỡ một trong các thứ trên bị hủy, kể cả xóa hay đổi tên cột chuẩn và `drop schema sinh`. View, hàm, thủ tục,
-  rule, aggregate không tạo được trong `sinh`, vì chúng chạy bằng quyền chủ bảng, vượt RLS. Mỗi lệnh DDL, kể cả lệnh
-  xóa, ghi một dòng sổ kiểm toán (`action = 'ddl'`) rồi báo PostgREST nạp lại lược đồ. Đổi tên schema cần quyền
-  `CREATE` trên database, mà `moc_studio` không có. Hàm của khung chạy bằng vai trò `moc_harness`: không phải
-  superuser, không đăng nhập.
+  Lệnh gỡ một trong các thứ trên bị hủy, kể cả xóa hay đổi tên cột chuẩn và `drop schema sinh`. Khung cấm view, hàm,
+  thủ tục, rule, aggregate trong `sinh`: view chạy bằng quyền chủ bảng nên vượt RLS, hàm thì lộ ra `/rest/v1/rpc`. Mỗi
+  lệnh DDL, kể cả lệnh xóa, ghi một dòng sổ kiểm toán (`action = 'ddl'`) rồi báo PostgREST nạp lại lược đồ. Đổi tên
+  schema cần quyền `CREATE` trên database, mà `moc_studio` không có. Hai hàm gắn khung (`ap_khung`) và ghi sổ
+  (`ghi_ddl`) là `SECURITY DEFINER`, chủ là `moc_harness`: không phải superuser, không đăng nhập; các hàm kiểm còn lại
+  chạy bằng quyền người gõ lệnh. DDL của superuser và của `moc_harness` không qua khung, không vào sổ, để migration chạy
+  như cũ; bù lại, `sinh_khung.kiem_tat_ca()` ở cuối `make seed` và trong test CSDL hủy nếu bảng nào của `sinh` thiếu
+  khung.
 - **Lý do:**
   - Quyền của ứng dụng sinh nằm một chỗ là CSDL. PostgREST thấy bảng, cột mới ngay và dựa hẳn vào RLS mà khung đã bật;
     không phải khai metadata cho từng bảng như Hasura.

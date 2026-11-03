@@ -1267,9 +1267,10 @@ ssh -L 3400:127.0.0.1:3400 server    # then open http://localhost:3400
   `moc_mo` policies, disabling or dropping the harness triggers, dropping or renaming the `tenant_id`, `created_by` or
   `created_at` columns, `drop schema sinh`, creating views, functions, procedures or rules in `sinh`: the command is
   cancelled and Studio shows an error starting with `khung:`. That is by design, not an incident.
-- **Every DDL command, drops included, writes one audit log row** (`action = 'ddl'`, `entity = 'sinh'`, no unit):
-  which command, on which object, when, and by which database role. Through Studio the role is always `moc_studio`:
-  Studio has no login of its own, so the log cannot tell which operator. `make audit` checks those rows too.
+- **Every DDL command from Studio, drops included, writes one audit log row** (`action = 'ddl'`, `entity = 'sinh'`, no
+  unit): which command, on which object, when, and by which database role. Through Studio the role is always
+  `moc_studio`: Studio has no login of its own, so the log cannot tell which operator. `make audit` checks those rows
+  too.
 - **No outbound calls.** Studio's AI assistant is off (`OPENAI_API_KEY` empty; it only accepts OpenAI) and telemetry is
   off (`NEXT_TELEMETRY_DISABLED=1`). The CI test rig on 4 November 2026 saw no outbound connection from Studio.
 - **New keys** in `.env`: `MOC_REST_DB_PASSWORD` (password of `authenticator`, the role PostgREST connects as),

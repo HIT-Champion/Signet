@@ -1129,9 +1129,9 @@ ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
 - **Khung hủy lệnh gỡ bảo vệ.** Tắt RLS, xóa hay sửa policy `moc_don_vi`, `moc_mo`, tắt hay xóa trigger của khung, xóa
   hay đổi tên cột `tenant_id`, `created_by`, `created_at`, `drop schema sinh`, tạo view, hàm, thủ tục, rule trong
   `sinh`: lệnh bị hủy, Studio hiện lỗi bắt đầu bằng `khung:`. Đó là đúng thiết kế, không phải sự cố.
-- **Mỗi lệnh DDL ghi một dòng sổ kiểm toán**, kể cả lệnh xóa (`action = 'ddl'`, `entity = 'sinh'`, không thuộc đơn vị
-  nào): lệnh gì, trên đối tượng nào, lúc nào, bởi vai trò CSDL nào. Qua Studio vai trò luôn là `moc_studio`: Studio
-  không có đăng nhập riêng nên sổ không biết người vận hành nào. `make audit` kiểm cả các dòng đó.
+- **Mỗi lệnh DDL qua Studio ghi một dòng sổ kiểm toán**, kể cả lệnh xóa (`action = 'ddl'`, `entity = 'sinh'`, không
+  thuộc đơn vị nào): lệnh gì, trên đối tượng nào, lúc nào, bởi vai trò CSDL nào. Qua Studio vai trò luôn là
+  `moc_studio`: Studio không có đăng nhập riêng nên sổ không biết người vận hành nào. `make audit` kiểm cả các dòng đó.
 - **Không gọi ra ngoài.** Trợ lý AI của Studio tắt (`OPENAI_API_KEY` rỗng; nó chỉ nhận OpenAI), telemetry tắt
   (`NEXT_TELEMETRY_DISABLED=1`). Bộ thử CI ngày 04/11/2026 không thấy Studio mở kết nối nào ra ngoài.
 - **Khóa mới** trong `.env`: `MOC_REST_DB_PASSWORD` (mật khẩu `authenticator`, PostgREST nối bằng vai trò này),
