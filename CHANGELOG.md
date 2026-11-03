@@ -20,6 +20,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Cổng xác thực `/api/verify` trả JSON-LD cho văn bản hợp lệ: `@id` là URL in trong mã QR, từ vựng Dublin Core Terms
   và schema.org (#540).
 - Điều hành: chốt kỳ số liệu theo tháng, bản chép không sửa, xóa được, mã băm vào sổ kiểm toán (#542).
+- Khung CSDL cho ứng dụng sinh từ Supabase Studio: bảng trong schema `sinh` tự có cột đơn vị, RLS, sổ kiểm toán;
+  lệnh gỡ bảo vệ bị hủy; sao lưu tạo lại vai trò mới (#562).
 - Phả hệ dữ liệu có lượt nạp nguồn công khai: tệp đối chiếu manifest trên máy chủ, mỗi lượt là một run OpenLineage,
   trang Phả hệ có mục riêng (#445).
 
