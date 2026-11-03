@@ -1060,6 +1060,7 @@ người dùng hay số văn bản, thông báo lỗi; lý do chi tiết chỉ v
 | `quy-trinh` | Quy trình | `/readyz` của svc-workflow; Flowable còn mà Hasura mất: `degraded` | `down` |
 | `luu-tru` | Lưu trữ tệp | `HeadBucket` bucket tệp trên SeaweedFS | `down` |
 | `tim-kiem` | Tìm kiếm | `/health` của Meilisearch | `degraded` |
+| `api-du-lieu` | API dữ liệu | `/ready` của PostgREST (`MOC_REST_READY_URL`, cổng quản trị 3001, chỉ trong mạng nội bộ; #561) | `degraded` |
 | `tro-ly-ai` | Trợ lý AI | Mô hình viết câu trả lời có trong Ollama: `ok`; chỉ còn mô hình nhúng: `degraded`; không có mô hình nào, `MOC_AI_URL` rỗng hay `MOC_ASK_ENABLED=false`: `off` | `degraded` |
 
 - **Chống khuếch đại:** kết quả lưu đệm `MOC_STATUS_CACHE_S` giây cho mọi người gọi; hết hạn thì chỉ một lượt dò chạy,
@@ -1355,6 +1356,7 @@ Két chưa sẵn sàng thì thử lại tới 60 giây; két từ chối (`400`/
 | `MOC_VERSION` | `dev` | Phiên bản hiện ở trang trạng thái; compose truyền cùng thẻ image. Chỉ nhận `[0-9A-Za-z._+-]`, tối đa 64 ký tự, lạ thì hiện `dev` |
 | `MOC_GATEWAY_STATUS_URL` | `http://apisix:7085/status/ready` | Điểm sẵn sàng của APISIX; rỗng: Cổng API `off` |
 | `MOC_WORKFLOW_URL` | `http://svc-workflow:8000` | svc-workflow cho dòng Quy trình (`/readyz`); rỗng: `off` |
+| `MOC_REST_READY_URL` | `http://rest:3001/ready` | PostgREST cho dòng API dữ liệu (#561); rỗng: `off` |
 | `MOC_STATUS_CACHE_S` · `MOC_STATUS_TIMEOUT_S` | `10` · `3` | Lưu đệm kết quả trạng thái (≥ 1) · hạn mỗi lần dò một thành phần (0–10) |
 | `MOC_OPEN_DATA_DIR` | `/srv/du-lieu-mo` | Thư mục bản chụp nguồn dữ liệu công khai cho `open_data` của `/api/status` (đường dẫn tuyệt đối); rỗng: `[]` |
 | `MOC_IMPORT_INTERVAL_S` | `2` | Chu kỳ vòng nền nạp lô khi rảnh; `0` tắt vòng nền **và** API tạo lô trả `503 imports_disabled` (không nhận lô sẽ không bao giờ chạy) |
