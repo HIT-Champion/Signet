@@ -127,10 +127,11 @@ def modules(root: pathlib.Path) -> dict[str, pathlib.Path]:
 
 
 def _strip_sql(sql: str) -> str:
-    # một lượt từ trái sang: chú thích nào mở trước thì nuốt chú thích kia nằm trong nó (#547)
+    # một lượt từ trái sang: chú thích nào mở trước thì nuốt chú thích kia nằm trong nó (#547); thay bằng dấu cách như
+    # PostgreSQL để "from/* x */office.t" không dính thành "fromoffice.t"
     # shortcut: không theo chú thích /* */ lồng nhau và "--", "/*" trong chuỗi '…'; migration hiện không có, gặp thì
     # dùng tokenizer
-    return re.sub(r"/\*.*?\*/|--[^\n]*", "", sql, flags=re.S)
+    return re.sub(r"/\*.*?\*/|--[^\n]*", " ", sql, flags=re.S)
 
 
 def migrations(root: pathlib.Path) -> list[tuple[str, str]]:
