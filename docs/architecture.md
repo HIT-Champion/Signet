@@ -560,13 +560,14 @@ CSDL và metadata Hasura:
 
 Danh sách phải gỡ trước khi tách (§4.7). Kiểm kê tự động trên mã hiện tại: `python3 scripts/ranh_gioi_loi.py` đọc mã
 Python của hai dịch vụ, migration và metadata Hasura, in mọi chỗ lõi → Văn phòng theo năm mặt (import, dữ liệu, CSDL,
-metadata, vai trò); danh sách đã biết ở [`scripts/ranh_gioi_loi.txt`](../scripts/ranh_gioi_loi.txt), nhóm theo thứ
-tự tách. `make test` (CI) là chốt chặn lùi: chỗ dính mới thì đỏ, chỗ đã gỡ mà danh sách còn cũng đỏ, nên danh sách
-chỉ ngắn dần; mô-đun nhóm lõi không được có chỗ dính nào (#484). Kiểm kê #484 thêm bốn chỗ ngoài những gì đã viết dưới
-đây: trigger `notifications_restricted` trên `core.notifications` chạy hàm `office.notifications_restricted` (che nội
-dung văn bản hạn chế trong thông báo, phải còn tác dụng sau mọi bước tách); `tu_dong.py` đọc `office.documents` khi
-robot báo kèm văn bản; `config.py` của `svc-workflow` import `sla.py`, `suggest.py` của Văn phòng; quyền Hasura của
-tám bảng `core` và bảy mô-đun dùng chung viết cứng vai trò văn thư.
+metadata, vai trò); danh sách đã biết ở [`scripts/ranh_gioi_loi.txt`](../scripts/ranh_gioi_loi.txt), nhóm theo thứ tự
+tách. `make test` (CI) là chốt chặn lùi: chỗ dính mới thì đỏ, chỗ đã gỡ mà danh sách còn cũng đỏ, nên chỗ dính mới chỉ
+vào danh sách khi PR nói rõ vì sao chưa tránh được (như #445: `lineage.py` ghi tên đầu ra `office.documents` của lượt
+nạp, nhóm 5, gỡ cùng loại lô nạp cố định); mô-đun nhóm lõi không được có chỗ dính nào (#484). Kiểm kê #484 thêm bốn chỗ
+ngoài những gì đã viết dưới đây: trigger `notifications_restricted` trên `core.notifications` chạy hàm
+`office.notifications_restricted` (che nội dung văn bản hạn chế trong thông báo, phải còn tác dụng sau mọi bước tách);
+`tu_dong.py` đọc `office.documents` khi robot báo kèm văn bản; `config.py` của `svc-workflow` import `sla.py`,
+`suggest.py` của Văn phòng; quyền Hasura của tám bảng `core` và bảy mô-đun dùng chung viết cứng vai trò văn thư.
 
 - **Mã.** Theo `docs/api/openapi/svc-files.json` có 20 route công khai — 2 lõi, 8 dáng nghiệp vụ, 10 Văn phòng — cộng
   3 route nội bộ đều của Văn phòng. Đã gỡ ở #302. Bước 1 của §4.7: mô-đun dáng nghiệp vụ không còn gọi vào gói
