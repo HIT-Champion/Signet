@@ -443,30 +443,32 @@ git switch deploy && git merge -S --no-ff vX.Y.Z -m "deploy vX.Y.Z" && git push 
 ## Quét mã độc (ClamAV)
 
 Mọi tệp tải lên đều qua ClamAV trước khi lưu. Container `clamav` tự tải chữ ký mới (freshclam, mỗi ngày một lần),
-người vận hành không phải làm gì. Có một hạn chế (#287): mỗi lần clamd nạp lại chữ ký, nó ngừng quét tới khi nạp xong.
-Đã đo: khoảng 10 giây trên máy CI, 8 giây bằng một container thử trên máy chạy bản online; máy bận hay yếu có thể
-tới khoảng 1 phút. Lý do là compose đặt `ConcurrentDatabaseReload no` để đỡ RAM (#288 đo lại lựa chọn này).
-Clamd nạp lại vào hai lúc:
+người vận hành không phải làm gì. Mỗi lần có chữ ký mới, clamd nạp bộ mới song song và vẫn quét bằng bộ cũ tới khi bộ
+mới sẵn sàng (compose để `ConcurrentDatabaseReload` mặc định của ClamAV), nên tải lên không phải chờ. Clamd nạp lại vào
+hai lúc:
 
 - mỗi ngày một lần, ngay sau khi freshclam tải bản chữ ký mới;
 - khoảng 10 phút sau khi ClamAV khởi động (`make up`, nâng cấp, khởi động lại máy), nếu đúng lúc khởi động freshclam
   tải được bản mới.
 
+**RAM lúc nạp lại gần gấp đôi**, vì clamd giữ hai bộ chữ ký tới khi nạp xong. Đo trên máy CI (#288, ClamAV 1.5.4,
+3,6 triệu chữ ký): lúc thường 956 MiB, lúc nạp lên 1,9 GiB trong khoảng 10 giây rồi về lại 956 MiB. Máy bận hay yếu có
+thể nạp lâu hơn. Với máy 8 GB chạy profile mặc định (khoảng 4,6 GiB), lúc nạp lại cả hệ thống lên khoảng 5,6 GiB; bật
+thêm mô hình ngôn ngữ thì cần 16 GB như ở `README.md`, mục Yêu cầu hệ thống.
+
 Cách nhận ra và xử lý:
 
 - **Người dùng thấy:** tệp đứng ở "Đang tải lên và quét virus…". Quá 60 giây (`CLAMAV_TIMEOUT_S` của `svc-files`) thì
-  báo trạm quét mã độc chưa sẵn sàng (`503 scanner_unavailable`), tệp chưa được lưu. Trang trạng thái có thể báo
-  "Quét mã độc" gián đoạn trong lúc đó.
+  báo trạm quét mã độc chưa sẵn sàng (`503 scanner_unavailable`), tệp chưa được lưu. Việc này không do nạp lại chữ ký:
+  clamd chưa nạp xong lần đầu sau khi khởi động (khoảng 1 phút), hoặc container `clamav` không chạy. Trang trạng thái
+  có thể báo "Quét mã độc" gián đoạn trong lúc đó.
 - **Xử lý:** chờ khoảng 1 phút rồi tải lại. Không cần khởi động lại gì: khởi động lại `clamav` chỉ làm nó nạp chữ ký
   lại từ đầu.
 - **Nhận ra trong nhật ký:** trên máy chủ, trong thư mục cài, chạy `docker compose logs clamav`. Lúc bắt đầu nạp lại
   có dòng "SelfCheck: Database modification detected. Forcing reload" hoặc "Clamd successfully notified about the
-  update", rồi "Reading databases from /var/lib/clamav". Nạp xong có "Database correctly reloaded".
-- **Kiểm tải lên ngay sau khi nâng cấp:** nhật ký có "daily.cld updated" (hay "daily.cvd updated") kèm "Clamd was NOT
-  notified" nghĩa là khoảng 10 phút sau khi khởi động clamd sẽ tự nạp lại. Muốn kiểm ngay thì cho nạp luôn: chạy
-  `docker compose exec -T clamav clamdscan --reload`, chờ dòng "Database correctly reloaded" rồi mới tải lên.
-- **Tải chữ ký mới ngay, không chờ lượt hằng ngày.** Ví dụ trước khi nâng cấp, để lúc khởi động lại chữ ký đã mới
-  nhất và clamd không phải nạp lại giữa chừng. Lệnh:
+  update", rồi "Reading databases from /var/lib/clamav". Nạp xong có "Database correctly reloaded" và "Activating the
+  newly loaded database".
+- **Tải chữ ký mới ngay, không chờ lượt hằng ngày.** Lệnh:
 
   ```bash
   docker compose exec -T clamav freshclam --log=/tmp/freshclam-tay.log
@@ -476,9 +478,8 @@ Cách nhận ra và xử lý:
     lệnh báo "Failed to lock the log file" rồi dừng, không cập nhật gì.
   - **Chạy bằng root vẫn an toàn.** Lệnh bỏ quyền root theo `DatabaseOwner`, nên tệp chữ ký vẫn thuộc user `clamav`
     và freshclam nền vẫn cập nhật tiếp được.
-  - **Có bản mới thì clamd nạp lại ngay.** freshclam báo "Clamd successfully notified about the update"; tải lên dừng
-    tới khi nhật ký có "Database correctly reloaded". Đo bằng một container thử trên máy chạy bản online: khoảng 8
-    giây; khi máy đang bận có thể lâu hơn.
+  - **Có bản mới thì clamd nạp lại ngay.** freshclam báo "Clamd successfully notified about the update"; trong lúc
+    nạp, tải lên vẫn được quét bằng bộ cũ, nạp xong nhật ký có "Database correctly reloaded".
   - **Đã mới nhất** thì lệnh chỉ báo "database is up-to-date".
   - **Vẫn báo lỗi khóa** thì có thể freshclam nền đang tự cập nhật: chờ 1 phút rồi chạy lại.
 

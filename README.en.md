@@ -229,7 +229,7 @@ license of every package, transitive ones included, is checked automatically wit
 | Docker Engine | 24.0 | with the `docker compose` v2 plugin 2.17+ and `docker buildx` |
 | GNU Make | 4.0 | runs the commands |
 | Python | 3.10 | standard library only, nothing to install: sample data, smoke tests, demos, backup, install and operations commands |
-| RAM | 8 GB | the default profiles (19 services, 18 running continuously) measured about 4.6 GiB on release 1.3.0 (`docker stats`, 2026-10-31; ClamAV 0.9 GiB, Meilisearch 0.75 GiB, Keycloak 0.6 GiB, APISIX 0.5 GiB, Hasura 0.4 GiB); the AI profile (`ai`, both default models loaded) adds about 3.2 GiB, so plan on 16 GB |
+| RAM | 8 GB | the default profiles (19 services, 18 running continuously) measured about 4.6 GiB on release 1.3.0 (`docker stats`, 2026-10-31; ClamAV 0.9 GiB, up to 1.9 GiB for about 10 seconds at each signature reload, Meilisearch 0.75 GiB, Keycloak 0.6 GiB, APISIX 0.5 GiB, Hasura 0.4 GiB); the AI profile (`ai`, both default models loaded) adds about 3.2 GiB, so plan on 16 GB |
 | Free disk | 10 GB | images about 5 GB; AI models about 2 GB more |
 
 Every tool used to build Signet is open-source software. No closed-source or home-made tool is needed.

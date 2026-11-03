@@ -219,7 +219,7 @@ gián tiếp, được kiểm tự động bằng `make license-audit`.
 | Docker Engine | 24.0 | kèm plugin `docker compose` v2 từ 2.17 và `docker buildx` |
 | GNU Make | 4.0 | điều phối lệnh |
 | Python | 3.10 | chỉ thư viện chuẩn, không cài thêm gì: dữ liệu mẫu, smoke, demo, sao lưu, cài đặt và các lệnh vận hành |
-| RAM | 8 GB | profile mặc định (19 dịch vụ, 18 chạy liên tục) đo được khoảng 4,6 GiB khi chạy bản 1.3.0 (`docker stats`, 31/10/2026; ClamAV 0,9 GiB, Meilisearch 0,75 GiB, Keycloak 0,6 GiB, APISIX 0,5 GiB, Hasura 0,4 GiB); bật mô hình AI (profile `ai`, hai mô hình mặc định đã nạp) thêm khoảng 3,2 GiB, nên cần 16 GB |
+| RAM | 8 GB | profile mặc định (19 dịch vụ, 18 chạy liên tục) đo được khoảng 4,6 GiB khi chạy bản 1.3.0 (`docker stats`, 31/10/2026; ClamAV 0,9 GiB, lên 1,9 GiB trong khoảng 10 giây mỗi lần nạp lại chữ ký, Meilisearch 0,75 GiB, Keycloak 0,6 GiB, APISIX 0,5 GiB, Hasura 0,4 GiB); bật mô hình AI (profile `ai`, hai mô hình mặc định đã nạp) thêm khoảng 3,2 GiB, nên cần 16 GB |
 | Đĩa trống | 10 GB | image khoảng 5 GB; mô hình AI thêm khoảng 2 GB |
 
 Toàn bộ công cụ dùng để dựng Signet đều là phần mềm nguồn mở. Không cần bất kỳ công cụ nguồn đóng hay tự chế nào.

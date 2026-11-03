@@ -505,33 +505,34 @@ git switch deploy && git merge -S --no-ff vX.Y.Z -m "deploy vX.Y.Z" && git push 
 ## Malware scanning (ClamAV)
 
 Every uploaded file goes through ClamAV before it is stored. The `clamav` container downloads new signatures by itself
-(freshclam, once a day); the operator has nothing to do. There is one limitation (#287): each time clamd reloads its
-signatures, it stops scanning until the reload is done. Measured: about 10 seconds on the CI machine, 8 seconds with a
-test container on the machine that runs the online instance; a busy or weak machine may take up to about 1 minute. The
-reason is that compose sets `ConcurrentDatabaseReload no` to save RAM (#288 measures this choice again). Clamd reloads
-at two moments:
+(freshclam, once a day); the operator has nothing to do. Each time there are new signatures, clamd loads the new set
+alongside the old one and keeps scanning with the old set until the new one is ready (compose leaves
+`ConcurrentDatabaseReload` at the ClamAV default), so uploads do not wait. Clamd reloads at two moments:
 
 - once a day, right after freshclam downloads a new signature version;
 - about 10 minutes after ClamAV starts (`make up`, an upgrade, a machine restart), if freshclam happened to download a
   new version at startup.
 
+**RAM nearly doubles during a reload**, because clamd holds both signature sets until the reload is done. Measured on
+the CI machine (#288, ClamAV 1.5.4, 3.6 million signatures): 956 MiB normally, up to 1.9 GiB for about 10 seconds
+during a reload, then back to 956 MiB. A busy or weak machine may take longer to reload. On an 8 GB machine running the
+default profiles (about 4.6 GiB), the whole system reaches about 5.6 GiB during a reload; with the language model on,
+plan on 16 GB as in `README.md`, System requirements.
+
 How to recognise it and what to do:
 
 - **What users see:** the file stays at "Uploading and scanning for malware…". After 60 seconds
   (`CLAMAV_TIMEOUT_S` of `svc-files`) it reports that the malware scanner is not ready (`503 scanner_unavailable`), and
-  the file has not been stored. The status page may show "Malware scanning" as down during that time.
+  the file has not been stored. A signature reload does not cause this: clamd has not finished its first load after
+  starting (about 1 minute), or the `clamav` container is not running. The status page may show "Malware scanning" as
+  down during that time.
 - **What to do:** wait about 1 minute, then upload again. Nothing needs restarting: restarting `clamav` only makes it
   load the signatures again from the start.
 - **How to spot it in the logs:** on the server, in the install folder, run `docker compose logs clamav`. When a reload
   starts there is a line "SelfCheck: Database modification detected. Forcing reload" or "Clamd successfully notified
-  about the update", then "Reading databases from /var/lib/clamav". When it is done there is "Database correctly
-  reloaded".
-- **Testing uploads right after an upgrade:** a log line "daily.cld updated" (or "daily.cvd updated") with "Clamd was
-  NOT notified" means clamd will reload by itself about 10 minutes after startup. To test right away, make it reload
-  now: run `docker compose exec -T clamav clamdscan --reload`, wait for the line "Database correctly reloaded", and only
-  then upload.
-- **Downloading new signatures now, without waiting for the daily round.** For example before an upgrade, so that the
-  signatures are already the newest at restart and clamd does not have to reload midway. The command:
+  about the update", then "Reading databases from /var/lib/clamav". When it is done there are "Database correctly
+  reloaded" and "Activating the newly loaded database".
+- **Downloading new signatures now, without waiting for the daily round.** The command:
 
   ```bash
   docker compose exec -T clamav freshclam --log=/tmp/freshclam-tay.log
@@ -542,8 +543,8 @@ How to recognise it and what to do:
   - **Running as root is still safe.** The command drops root privileges according to `DatabaseOwner`, so the
     signature files still belong to the `clamav` user and the background freshclam can keep updating them.
   - **If there is a new version, clamd reloads at once.** freshclam reports "Clamd successfully notified about the
-    update"; uploads stop until the log shows "Database correctly reloaded". Measured with a test container on the
-    machine that runs the online instance: about 8 seconds; it may take longer while the machine is busy.
+    update"; during the reload uploads are still scanned with the old set, and when it is done the log shows "Database
+    correctly reloaded".
   - **Already up to date:** the command only reports "database is up-to-date".
   - **Still a lock error:** the background freshclam may be updating by itself; wait 1 minute and run it again.
 
