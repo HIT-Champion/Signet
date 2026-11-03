@@ -1138,7 +1138,8 @@ ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
 - **Khóa mới** trong `.env`: `MOC_REST_DB_PASSWORD` (mật khẩu `authenticator`, PostgREST nối bằng vai trò này),
   `MOC_STUDIO_DB_PASSWORD` (mật khẩu `moc_studio`), `MOC_STUDIO_META_KEY` (khóa mã hóa chuỗi kết nối giữa Studio và
   postgres-meta), `MOC_STUDIO_JWT_SECRET` (JWT nội bộ của Studio); cổng `MOC_STUDIO_PORT` (mặc định 3400). `make env`
-  sinh cho bản cài mới; `make install` (cả khi nâng cấp) thêm các dòng còn thiếu vào `.env` của bản cài.
+  sinh cho bản cài mới. Với `.env` cũ, `make up`, `make check` và các lệnh `make *-up` tự thêm khóa còn thiếu (giá trị
+  ngẫu nhiên, không in ra, #574); `make install` (cả khi nâng cấp) thêm các dòng còn thiếu vào `.env` của bản cài.
 - **Khóa ký của Keycloak.** PostgREST không tự tải khóa như Hasura: dịch vụ `rest-init` chạy một lần sau khi Hasura đã
   áp migration: bật đăng nhập và đặt mật khẩu cho `authenticator`, `moc_studio`, rồi lấy JWKS của realm ghi ra tệp cho
   PostgREST đọc; `rest` chờ `rest-init` xong mới chạy. `rest-init` chạy lại ở mỗi lần `make up` hay nâng cấp. Đổi khóa
