@@ -325,6 +325,13 @@ services:
       SUPABASE_SERVICE_KEY: khong-dung
       AUTH_JWT_SECRET: ${MOC_STUDIO_JWT_SECRET:?Đặt MOC_STUDIO_JWT_SECRET trong .env (make install tự thêm)}
       OPENAI_API_KEY: ""
+    healthcheck:
+      # image không khai healthcheck; như compose mẫu của Supabase, sẵn sàng khi API của Studio trả 200
+      test: [CMD, node, -e, "fetch('http://localhost:3000/api/platform/profile').then(r => process.exit(r.ok ? 0 : 1),
+        () => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
     mem_limit: 512m
     depends_on:
       meta: {condition: service_healthy}
