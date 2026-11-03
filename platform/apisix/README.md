@@ -3,13 +3,15 @@
 APISIX chạy standalone (không etcd, không Admin API): route trong `apisix.yaml`, cấu hình trong `config.yaml`,
 giá trị `${{TÊN}}` lấy từ biến môi trường. Đây là cổng duy nhất mở ra ngoài (`MOC_HTTP_PORT`). Chủ: #14.
 
-- Danh sách trắng: `/realms/<realm>/*`, `/resources/*` → Keycloak; `/v1/graphql` → Hasura; `/api/files*`,
-  `/api/search` → svc-files; `/ca-nhan`, `/ca-nhan/*` (chỉ GET, HEAD) → `app-ca-nhan`, Không gian cá nhân
+- Danh sách trắng: `/realms/<realm>/*`, `/resources/*` → Keycloak; `/v1/graphql` → Hasura; `/rest/v1`,
+  `/rest/v1/*` → PostgREST (schema `sinh`, bỏ tiền tố, cần token; #561); `/api/files*`, `/api/search` → svc-files;
+  `/ca-nhan`, `/ca-nhan/*` (chỉ GET, HEAD) → `app-ca-nhan`, Không gian cá nhân
   ([`docs/them-ung-dung.md`](../../docs/them-ung-dung.md)); còn lại → giao diện Văn phòng điện tử.
 - Đường quản trị bị chặn tường minh (404): `/admin`, `/realms/*` khác realm của Signet, `/console`, `/v1/*`,
   `/v2/*`, `/healthz`, `/flowable-rest/*`.
-- Kiểm JWT ở biên (`openid-connect`, chỉ Bearer, khóa qua JWKS nội bộ của Keycloak); Hasura và svc-files
-  vẫn kiểm lại. Tiêu đề `X-Hasura-Admin-Secret` từ ngoài vào bị gỡ, cả tên cũ `X-Hasura-Access-Key`
+- Kiểm JWT ở biên (`openid-connect`, chỉ Bearer, khóa qua JWKS nội bộ của Keycloak); Hasura, PostgREST và svc-files
+  vẫn kiểm lại (PostgREST không kiểm `iss`: chỉ cổng kiểm). Tiêu đề `X-Hasura-Admin-Secret` từ ngoài vào bị gỡ,
+  cả tên cũ `X-Hasura-Access-Key`
   (Hasura 2.51 đã không nhận — gỡ để phòng xa).
 - Giới hạn đăng nhập theo IP (`MOC_RATE_LOGIN_PER_MIN`) đếm chung cho đường cấp token, biểu mẫu đăng nhập và **mọi
   POST khác vào realm** (route `dang-nhap-post`): viết khác đường (`…/token/`, `…/token;x`) không né được bộ đếm.

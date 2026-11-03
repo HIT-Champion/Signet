@@ -225,10 +225,11 @@ class StubAi:
 
 
 class Network:
-    """Thay mạng nội bộ cho các lần dò HTTP: APISIX, Keycloak, svc-workflow."""
+    """Thay mạng nội bộ cho các lần dò HTTP: APISIX, Keycloak, svc-workflow, PostgREST."""
 
     def __init__(self) -> None:
         self.gateway = 200
+        self.rest = 200
         self.workflow: tuple[int, dict] = (200, {"status": "ok", "checks": {"hasura": True, "flowable": True}})
         self.fail: Exception | None = None
         self.seen: list[str] = []
@@ -243,6 +244,8 @@ class Network:
             return httpx2.Response(200, json=JWKS)
         if request.url.path == "/readyz":
             return httpx2.Response(self.workflow[0], json=self.workflow[1])
+        if request.url.path == "/ready":
+            return httpx2.Response(self.rest)
         return httpx2.Response(404)
 
 
@@ -276,7 +279,8 @@ def status_client(settings: Settings, parts: dict, verifier) -> TestClient:
     return TestClient(app)
 
 
-EXPECTED = ["cong-api", "dang-nhap", "csdl", "ket-khoa", "quet-ma-doc", "quy-trinh", "luu-tru", "tim-kiem", "tro-ly-ai"]
+EXPECTED = ["cong-api", "dang-nhap", "csdl", "ket-khoa", "quet-ma-doc", "quy-trinh", "luu-tru", "tim-kiem",
+            "api-du-lieu", "tro-ly-ai"]
 
 
 def test_api_status_all_ok_without_token(parts, verifier):
@@ -298,10 +302,10 @@ def test_api_status_all_ok_without_token(parts, verifier):
     assert body["ai"] == {"enabled": False, "model": None, "semantic": False}
     assert set(body["components"][0]) == {"id", "layer", "label", "software", "status"}
     assert leaks(r.text) == []
-    # dò đúng nơi: máy chủ trạng thái của APISIX, JWKS của realm, /readyz của svc-workflow
+    # dò đúng nơi: máy chủ trạng thái của APISIX, JWKS của realm, /readyz của svc-workflow, /ready của PostgREST
     assert sorted(parts["net"].seen) == ["GET http://apisix:7085/status/ready",
                                  "GET http://keycloak:8080/realms/moc/protocol/openid-connect/certs",
-                                 "GET http://svc-workflow:8000/readyz"]
+                                 "GET http://rest:3001/ready", "GET http://svc-workflow:8000/readyz"]
 
 
 def test_api_status_everything_down_leaks_nothing(parts, verifier):
@@ -510,7 +514,7 @@ def test_metrics_lists_every_component_not_off(parts, verifier):
     up = component_up(r.text)
     assert list(up) == [x for x in EXPECTED if x != "tro-ly-ai"]   # trợ lý AI tắt theo cấu hình: không có dòng
     assert {k: v for k, (_, v) in up.items()} == dict.fromkeys(up, "1")
-    assert {k for k, (crit, _) in up.items() if crit == "false"} == {"ket-khoa", "tim-kiem"}
+    assert {k for k, (crit, _) in up.items() if crit == "false"} == {"ket-khoa", "tim-kiem", "api-du-lieu"}
     assert leaks(r.text) == []
 
 
@@ -581,3 +585,15 @@ def test_last_backup_takes_latest_of_backup_rows_and_restored_runs():
 ])
 def test_last_backup_none_when_unknown(data):
     assert run(hasura_replying(data, []).last_backup()) is None
+
+
+def test_api_status_rest_down_only_degrades(parts, verifier):
+    # PostgREST (#561) không thiết yếu: mất nó thì /rest/v1 ngừng, Signet vẫn phục vụ; URL rỗng thì tắt theo cấu hình
+    parts["net"].rest = 503
+    with status_client(status_settings(), parts, verifier) as c:
+        body = c.get("/api/status").json()
+    assert body["status"] == "degraded"
+    assert {x["id"]: x["status"] for x in body["components"]}["api-du-lieu"] == "down"
+    with status_client(status_settings(MOC_REST_READY_URL=""), parts, verifier) as c:
+        body = c.get("/api/status").json()
+    assert {x["id"]: x["status"] for x in body["components"]}["api-du-lieu"] == "off"
