@@ -198,7 +198,10 @@ chuyên viên, lãnh đạo): mặt bằng kho, phòng máy chủ đỏ, kho 1 x
 **Trên giao diện** (lãnh đạo, `truongkhoa`): trang Điều hành, nút "Nguồn số liệu" trên biểu đồ "Thời gian xử lý theo
 tháng xong" → trang Phả hệ số liệu lọc đúng biểu đồ đó: đồ thị biểu đồ ← khung nhìn ← bảng ← manifest của lượt nộp lưu
 (nét đứt: bước `commit` ghi lại vào CSDL), bảng nguồn bên dưới. Chọn "Mọi biểu đồ" để thấy cả dải nộp lưu (bảng →
-Parquet → gói lưu trữ, số dòng đã kiểm); nút "Tải OpenLineage (.jsonl)" xuất cùng phả hệ ở dạng chuẩn mở.
+Parquet → gói lưu trữ, số dòng đã kiểm); nút "Tải OpenLineage (.jsonl)" xuất cùng phả hệ ở dạng chuẩn mở. Bốn thông
+tư thật mà `make seed` nạp từ Công báo hiện thành nhánh `congbao.chinhphu.vn` → "Nạp dữ liệu công khai" →
+`office.documents`; mục "Lượt nạp dữ liệu công khai gần nhất" ghi tệp bản chụp đã đối chiếu manifest và số văn bản mới
+của từng nguồn (#445).
 
 **Nếu giám khảo hỏi:**
 

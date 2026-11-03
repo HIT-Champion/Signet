@@ -65,8 +65,13 @@ người rồi bấm **Cấp quyền xem**, hoặc bấm **Gỡ** để thu lạ
 - **Phả hệ số liệu**: cho biết mỗi biểu đồ của trang Điều hành lấy số từ khung nhìn nào, khung nhìn đó đọc bảng nào,
   kèm kết quả kiểm chất lượng của lượt nộp lưu gần nhất. Bấm **Tải OpenLineage (.jsonl)** để tải về. Chi tiết:
   [`demo-script.md`](../demo-script.md), mục "Phả hệ và kiểm chất lượng".
+  - Văn bản nạp từ nguồn công khai có nhánh riêng trên đồ thị: nút tên miền của nguồn (vd `congbao.chinhphu.vn`) →
+    **Nạp dữ liệu công khai** → bảng `office.documents`.
+  - **Lượt nạp dữ liệu công khai gần nhất**: mỗi nguồn một dòng, gồm các tệp của bản chụp mà lượt nạp dùng (đã đối
+    chiếu SHA-256 với manifest của nguồn), số văn bản mới (không tính dòng trùng, dòng lỗi) và lúc nạp xong. Tệp
+    OpenLineage tải về có cả các lượt nạp này.
 
-  ![Trang Phả hệ số liệu: đồ thị từ bảng tới khung nhìn tới biểu đồ](../anh/huong-dan/pha-he.png)
+  ![Trang Phả hệ số liệu: đồ thị từ nguồn công khai và bảng tới khung nhìn tới biểu đồ](../anh/huong-dan/pha-he.png)
 - **Số đo**: bốn chỉ số trước và sau khi dùng hệ thống, theo [`dac-ta-san-pham.md`](../dac-ta-san-pham.md) mục 8,
   kèm điểm góp ý trung bình của người dùng. Cách đo từng chỉ số: [`so-lieu-sau.md`](../so-lieu-sau.md).
 - **Tự chẩn đoán**: trả lời bộ câu về mức trưởng thành số theo bốn không gian Con người, Quy trình, Dữ liệu, Trí tuệ,
