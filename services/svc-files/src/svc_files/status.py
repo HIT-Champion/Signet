@@ -297,8 +297,9 @@ def judge_workflow(r: httpx2.Response) -> str:
 
 
 def default_board(settings: Settings, *, scanner: Any, store: Any, hasura: Any, meili: Any, vault: Any, ai: Any,
-                  transport: httpx2.AsyncBaseTransport | None = None) -> StatusBoard:
-    """Bảng trạng thái nối với các client sẵn có của svc-files; ``transport`` thay mạng thật trong test."""
+                  open_data: OpenData | None = None, transport: httpx2.AsyncBaseTransport | None = None) -> StatusBoard:
+    """Bảng trạng thái nối với các client sẵn có của svc-files; ``transport`` thay mạng thật trong test. ``open_data``:
+    bộ đọc nguồn công khai dùng chung với API nạp lô; thiếu thì dựng từ MOC_OPEN_DATA_DIR."""
     http = httpx2.AsyncClient(timeout=settings.status_timeout_s, transport=transport, follow_redirects=False)
     # API ngoài (#430) viết câu trả lời được cả khi không có Ollama (khi đó không nhúng, chỉ tìm từ khóa); nhúng qua
     # API ngoài (MOC_EMBED_API=openai) cũng vậy. Không bao giờ có URL hay khóa của API ở đây
@@ -342,6 +343,8 @@ def default_board(settings: Settings, *, scanner: Any, store: Any, hasura: Any, 
         Component("tim-kiem", "du-lieu", "Tìm kiếm", "Meilisearch", from_bool(meili.ping), critical=False),
         Component("tro-ly-ai", "tri-tue", "Trợ lý AI", ai_software, ai_check, critical=False),
     ]
+    if open_data is None and settings.open_data_dir:
+        open_data = OpenData(settings.open_data_dir)
     return StatusBoard(components, version=settings.version, ai_info=ai_info, last_backup=hasura.last_backup,
-                       open_data=OpenData(settings.open_data_dir) if settings.open_data_dir else None,
+                       open_data=open_data,
                        ttl_s=settings.status_cache_s, timeout_s=settings.status_timeout_s, closers=[http.aclose])
