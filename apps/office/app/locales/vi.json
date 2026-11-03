@@ -1300,7 +1300,7 @@
   },
   "periodClose": {
     "title": "Chốt kỳ số liệu",
-    "hint": "Chốt một tháng đã qua: số liệu được ghi một lần, không sửa, không xóa được; mã băm vào sổ kiểm toán. Văn bản đến chưa xong và quá hạn là số tại lúc chốt, không phải số cuối tháng: muốn đúng số cuối kỳ thì chốt vào ngày cuối tháng.",
+    "hint": "Chốt một tháng đã qua: số liệu được ghi một lần, không sửa, không xóa được; mã băm vào sổ kiểm toán. Văn bản đến chưa xong và quá hạn là số tại lúc chốt, không phải số cuối tháng: muốn sát số cuối kỳ thì chốt ngay đầu tháng sau.",
     "month": "Tháng cần chốt",
     "submit": "Chốt kỳ",
     "confirm": "Chốt số liệu tháng {month}? Sau khi chốt không sửa, không xóa được.",

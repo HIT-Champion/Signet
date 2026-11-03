@@ -126,7 +126,8 @@ Mục tiêu: mọi câu hỏi điều hành trả lời được bằng số li�
       một lần, dùng chung — nên mỗi báo cáo là một view viết tay (cụm ③, mức Một phần)
 - [ ] Đường ống thu thập — làm sạch — đồng bộ từ sự kiện [P] sang kho phân tích riêng: dashboard đang đọc thẳng view
       trên CSDL nghiệp vụ
-- [ ] Đóng băng số liệu chuỗi thời gian: chưa có kho chuỗi thời gian riêng, chưa chụp số liệu theo kỳ (cụm ③)
+- [ ] Đóng băng số liệu chuỗi thời gian: chưa có kho chuỗi thời gian riêng; số liệu điều hành đã chốt được theo
+      tháng, bản chép không sửa được, `make audit` so lại mã băm (#542) (cụm ③)
 
 ## Giai đoạn 4 — [I] Không gian Trí tuệ Nhân tạo
 
