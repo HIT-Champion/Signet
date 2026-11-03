@@ -27,6 +27,8 @@
 | 16 | [Vì sao cài ứng dụng bằng dòng lệnh, không có nút trên giao diện?](#16-vì-sao-cài-ứng-dụng-bằng-dòng-lệnh-không-có-nút-trên-giao-diện) | Tiêu chí 9, nguyên lý (iv) |
 | 17 | [Kho lạnh có thật sự tách khỏi kho nóng không?](#17-kho-lạnh-có-thật-sự-tách-khỏi-kho-nóng-không) | Nguyên lý (i), cụm ④ |
 | 18 | [Sản phẩm tên Signet, sao lệnh và cấu hình vẫn là `moc`?](#18-sản-phẩm-tên-signet-sao-lệnh-và-cấu-hình-vẫn-là-moc) | PoF #3, #6 |
+| 19 | [Hasura cũng sinh API từ bảng, sao còn thêm PostgREST?](#19-hasura-cũng-sinh-api-từ-bảng-sao-còn-thêm-postgrest) | Tiêu chí 7, 10 |
+| 20 | [Vậy lõi dựng trên Supabase à? Phần của đội ở đâu?](#20-vậy-lõi-dựng-trên-supabase-à-phần-của-đội-ở-đâu) | Tiêu chí 7 |
 
 ## 1. Open-Core nằm ở đâu, ứng dụng khác dùng lại lõi thế nào?
 
@@ -268,7 +270,9 @@ chính tệp đó, không viết mã giao diện (`apps/nghi-phep/public/schema-
 của Văn phòng điện tử vẫn viết trong mã (#303). Form của ứng dụng cắm thêm có trang Dựng form cho quản trị đơn vị
 (`/ung-dung/dung-form`, #403): khai trường, xem trước, tải tệp JSON Schema để đặt vào gói ứng dụng. Chưa có trình
 thiết kế quy trình trên giao diện (bpmn-js bị loại vì giấy phép). Quy trình của ứng dụng cắm thêm mới là quy trình
-duyệt: chưa có timer, bước tự động, gọi API ra ngoài; form chưa có tệp đính kèm (#325). Thông báo gửi trong ứng dụng qua
+duyệt: chưa có timer, bước tự động, gọi API ra ngoài; form chưa có tệp đính kèm (#325).
+Ứng dụng sinh từ bảng (Studio, PostgREST, trang `/sinh`) chưa có quy trình duyệt, tệp đính kèm hay thông báo; bảng tạo
+trong Studio chưa nằm trong git ([`them-ung-dung.md`](../them-ung-dung.md) mục 8.5). Thông báo gửi trong ứng dụng qua
 WebSocket (Centrifugo) và, khi cấu hình, qua email, webhook chat, SMS, Zalo; SMS, Zalo do từng người tự bật, email chưa
 cho từng người tắt, SMS và Zalo chưa thử với tài khoản thật. Một máy, không chịu lỗi nhiều nút, chưa đo tải; bản online
 chạy trên một máy Windows qua WSL2 và Cloudflare Tunnel, chưa lên VPS thật. Ký số chỉ minh họa bằng CA nội bộ, chưa liên
@@ -286,9 +290,11 @@ của `apps/office`, lấy dữ liệu từ lõi qua cổng như mọi trang kh�
 còn lại đi theo phần mềm nguồn mở dùng nguyên bản, và không cái nào là màn hình nghiệp vụ:
 
 - Bàn điều khiển cho người vận hành máy chủ: trang quản trị Keycloak, Grafana, và khi bật profile thì Parseable (log),
-  Mailpit (hộp thư thử). Cả bốn chỉ nghe `127.0.0.1`, từ xa phải qua đường hầm SSH. Cổng công khai duy nhất là
+  Mailpit (hộp thư thử), Supabase Studio (profile `studio`, tạo bảng cho ứng dụng sinh). Cả năm chỉ nghe `127.0.0.1`,
+  từ xa phải qua đường hầm SSH. Cổng công khai duy nhất là
   APISIX, và route `chan` của cổng chặn `/admin`, `/console`, `/realms/*` (trừ realm của Signet), `/flowable-rest/*`
-  cùng các API nội bộ. Không ứng dụng nào gọi tới các bàn này.
+  cùng các API nội bộ. Không ứng dụng nào gọi tới các bàn này. Studio là bàn của người vận hành nền tảng, thấy dữ liệu
+  mọi đơn vị nên không dành cho quản trị đơn vị; người dùng làm việc với bảng sinh ở trang `/sinh` của tầng ứng dụng.
 - Trang đăng nhập của Keycloak (theme `signet`): theo OIDC, người dùng nhập mật khẩu, và mã TOTP với vai trò bắt buộc
   (văn thư, lãnh đạo, tổ trưởng, quản trị đơn vị), ở trang của dịch vụ danh tính chứ không ở ứng dụng. Nhờ vậy không
   ứng dụng nào thấy mật khẩu, và mọi ứng dụng dùng chung một lần đăng nhập. Theme chỉ thêm CSS, logo và câu chữ tiếng
@@ -296,7 +302,8 @@ còn lại đi theo phần mềm nguồn mở dùng nguyên bản, và không c�
 - Không có giao diện: Hasura tắt console (`HASURA_GRAPHQL_ENABLE_CONSOLE: "false"`); Flowable dùng bản REST, không có
   giao diện (QĐ-009).
 
-**Bằng chứng:** `docker-compose.yml` (cổng của Keycloak, Grafana, Parseable, Mailpit gắn `127.0.0.1`);
+**Bằng chứng:** `docker-compose.yml` (cổng của Keycloak, Grafana, Parseable, Mailpit và Studio, `MOC_STUDIO_PORT`,
+gắn `127.0.0.1`);
 `platform/apisix/apisix.yaml` (route `keycloak` chỉ mở realm `${MOC_REALM}`, route `chan`);
 [`docs/architecture.md`](../architecture.md) §2 và QĐ-009; README, bảng địa chỉ ở mục "Chạy thử";
 [`docs/van-hanh.md`](../van-hanh.md) mục "Giám sát".
@@ -367,3 +374,36 @@ kiểm, biến `MOC_*` nằm trong `.env` của mọi bản cài. Vì vậy đ�
 **Bằng chứng:** README mục "Tài liệu" (ghi chú về tên mã); `.github/workflows/release.yml` (tên gói phát hành);
 `docker-compose.yml` (`HASURA_GRAPHQL_JWT_SECRET`: issuer `${MOC_PUBLIC_URL}/realms/${MOC_REALM:-moc}`);
 `platform/apisix/apisix.yaml` (`discovery` theo `MOC_REALM`).
+
+## 19. Hasura cũng sinh API từ bảng, sao còn thêm PostgREST?
+
+Hasura sinh GraphQL, nhưng quyền nằm ở metadata: mỗi bảng mới phải track rồi khai quyền cho từng vai trò, đúng phần
+viết tay mà hội đồng vòng trường chỉ ra. Hasura lại nối bằng siêu người dùng nên không dùng được RLS của PostgreSQL.
+PostgREST thấy bảng, cột mới ngay khi được báo nạp lại lược đồ, và dựa hẳn vào RLS mà khung của đội bật cho mọi bảng
+trong schema `sinh`: quyền của ứng dụng sinh nằm một chỗ là CSDL. Lõi và Văn phòng điện tử vẫn dùng GraphQL, vì giao
+diện Văn phòng (khoảng 23.500 dòng trong `apps/office/app`) đã viết trên đó. Hai kiểu API là chủ ý: GraphQL cho nghiệp
+vụ viết tay, REST cho bảng sinh. Cả hai dùng cùng một token Keycloak, cùng cổng APISIX, cùng WAF. RLS là cơ chế mới
+với Signet và chỉ bảo đảm trên đường `/rest/v1`.
+
+**Bằng chứng:** [`docs/architecture.md`](../architecture.md) QĐ-014; [`docs/them-ung-dung.md`](../them-ung-dung.md) mục
+8; `db/tests/test_sinh.py` (hai đơn vị không thấy dòng của nhau, policy thêm sau không làm lộ chéo);
+`scripts/kiem_sinh.py` chạy trong job "Chạy thử: e2e" của CI trên hệ thống dựng thật, WAF bật, token Keycloak của hai
+đơn vị (#568).
+
+## 20. Vậy lõi dựng trên Supabase à? Phần của đội ở đâu?
+
+Không. Signet dùng ba thành phần nguyên bản, ghim digest: Studio và postgres-meta của Supabase, cùng PostgREST (dự án
+độc lập mà Supabase dùng). Signet không dùng Supabase Auth (Keycloak làm đăng nhập một lần), Storage (`svc-files` kiểm
+dịch mọi tệp), Realtime, Edge Functions hay image CSDL của Supabase. Phần của đội:
+- khung bằng SQL gắn vào mọi bảng tạo trong Studio: cách ly đơn vị bằng RLS, cột chuẩn lấy từ token, sổ kiểm toán chuỗi
+  băm, chặn lệnh gỡ các bảo vệ đó;
+- nối token Keycloak vào PostgREST qua APISIX, không sửa realm;
+- trang `/sinh` dựng danh sách, biểu mẫu từ OpenAPI mà PostgREST sinh.
+
+Đó là nguyên tắc Open-Core của Signet: điều phối phần mềm nguồn mở trưởng thành, không viết lại. Signet không "tự sinh
+toàn bộ backend": quy trình vẫn là BPMN viết tay chạy trên Flowable, chưa có trình vẽ quy trình. Lý do cũ không dùng
+Supabase (sợ yếu ở tính nguyên gốc) đã đính chính, có ghi ngày.
+
+**Bằng chứng:** [`docs/architecture.md`](../architecture.md) §1.1, QĐ-014; [`olp-2026-de-thi.md`](olp-2026-de-thi.md)
+đoạn "Vì sao không đứng trên Supabase" và dòng đính chính; [`DEPENDENCIES.md`](../../DEPENDENCIES.md) (ba image, giấy
+phép Apache-2.0, MIT); migration `1792281604400_sinh_khung`.

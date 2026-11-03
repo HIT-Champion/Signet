@@ -103,6 +103,15 @@ in_dest() { (cd "$DEST" && "$@"); }
 
 running() { docker ps -q --filter "label=com.docker.compose.project.working_dir=$DEST"; }
 
+# Dừng svc-files trước, chờ quá một lượt thu (scrape_interval 15 giây) rồi mới dừng cả trang: lượt thu trượt làm
+# Prometheus đánh dấu hết hạn mọi chuỗi của nó. Dừng thẳng thì không có dấu đó, Prometheus chạy lại còn trả
+# moc_component_up của bản trước 5 phút, smoke của bản kế (lùi thì là smoke của bản cũ) trượt (#576)
+stop_site() {
+  in_dest docker compose stop svc-files
+  sleep 20
+  in_dest docker compose down
+}
+
 # Đủ RAM, không có reconciler chạy xen — kiểm trước khi đổi gì
 preflight() {
   local avail
@@ -293,7 +302,7 @@ print(max(r["run"] for r in json.load(sys.stdin)["runs"] if r["complete"]))')
   PHASE=giua
   NEXT="$0 lui $DEST <mã nguồn Signet $old> $run"
   step "Dừng trang"
-  in_dest docker compose down
+  stop_site
   step "Cài $new"
   (cd "$SRC" && MOC_VERSION="$new" make install PREFIX="$DEST")
   step "Chạy (Hasura áp migration mới)"
@@ -334,7 +343,7 @@ sys.exit(0 if any(r["run"] == sys.argv[1] and r["complete"] for r in json.load(s
   NEXT="$0 lui $DEST $old_src $run   # chạy lại được"
   [ -f "$old_src/.env" ] || (cd "$old_src" && make env)
   step "Dừng trang"
-  in_dest docker compose down
+  stop_site
   step "Cài lại $ver"
   (cd "$old_src" && MOC_VERSION="$ver" make install PREFIX="$DEST")
   step "Khôi phục lượt $run: dừng, thay CSDL, tệp, két rồi chạy lại"

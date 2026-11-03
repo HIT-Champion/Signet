@@ -4,7 +4,7 @@ Signet chia hai tầng. Tầng 1 là lõi không giao diện: định danh (Keyc
 (PostgreSQL + Hasura), tệp và kiểm dịch (`svc-files`), quy trình (`svc-workflow`, Flowable), sổ kiểm toán chuỗi băm.
 Tầng 2 là ứng dụng, gọi lõi qua cổng như mọi client khác. Văn phòng điện tử (`apps/office`) là ứng dụng đầu tiên.
 
-Có hai cách cắm thêm một ứng dụng:
+Có ba cách cắm thêm một ứng dụng:
 
 - **Một lệnh, không sửa tệp nào của lõi** (mục 1): viết `apps/<thư mục>/app.yaml` rồi
   `python3 scripts/moc.py app install apps/<thư mục>/app.yaml`. Ví dụ: **Bảng tin đơn vị** (`apps/bang-tin`), ứng
@@ -12,6 +12,9 @@ Có hai cách cắm thêm một ứng dụng:
 - **Làm tay** (mục 3, giữ làm tham chiếu): sửa realm, route, compose, thêm migration và metadata vào lõi — cách đã
   dùng cho **Không gian cá nhân P.A.R.A** (`apps/ca-nhan`), ứng dụng thứ hai. Cách này vẫn cần cho ứng dụng muốn
   thành một phần của lõi (cùng phiên bản, cùng bản cài, có trong mọi bản chạy).
+- **Sinh từ bảng, không viết máy chủ** (mục 8): người vận hành nền tảng tạo bảng trong Supabase Studio; PostgREST sinh
+  ngay REST API `/rest/v1/<bảng>` và OpenAPI; trang chung `/sinh` dựng danh sách và biểu mẫu từ OpenAPI đó. Ví dụ:
+  **Quản lý yêu cầu** (bảng `sinh.yeu_cau`). Chưa có quy trình duyệt cho cách này.
 
 ## 1. Một lệnh: `moc app install`
 
@@ -608,3 +611,90 @@ cùng đơn vị Trường CNTT & TT: chuyên viên `giangvienktpm` và trưởn
 Thẻ việc cần duyệt ghi "Người gửi: …" (Đổi, bù lịch giảng: "Người đề nghị: …") lấy từ `initiatorName` của API chung
 (#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: một bước
 duyệt, không ủy quyền, không hủy đơn đã gửi.
+
+## 8. Sinh từ bảng: Studio, PostgREST và trang `/sinh`
+
+Dùng khi ứng dụng chủ yếu là một bảng dữ liệu của đơn vị: xem danh sách, thêm, sửa. Không viết manifest, image, client
+Keycloak, migration hay metadata Hasura. Thành phần: Studio và postgres-meta của Supabase (profile `studio`, tắt mặc
+định), PostgREST (dịch vụ `rest`), một khung bằng SQL của đội và trang `/sinh` ([`architecture.md`](architecture.md)
+QĐ-014).
+
+### 8.1. Các bước
+
+1. Người vận hành nền tảng bật profile `studio` và mở Studio qua đường hầm SSH ([`van-hanh.md`](van-hanh.md) mục
+   "Ứng dụng sinh từ bảng").
+2. Tạo bảng trong schema `sinh`. Mô tả của bảng (`COMMENT ON TABLE`) là tên ứng dụng trên menu của `/sinh`; mô tả của
+   cột (`COMMENT ON COLUMN`) là nhãn ô nhập. Bảng không có mô tả là bảng phụ, không lên menu. Muốn có ô chọn thì cột
+   dùng kiểu enum của PostgreSQL (trong Studio: Database → Enumerated Types): OpenAPI của PostgREST chỉ ghi danh sách
+   giá trị cho kiểu enum; cột có `CHECK` hiện thành ô chữ.
+3. Khung tự thêm cột chuẩn, bật RLS theo đơn vị, gắn sổ kiểm toán (8.2). PostgREST nạp lại lược đồ ngay.
+4. Người dùng mở `/sinh/`: dòng đầu của mô tả bảng là tên trên menu, phần còn lại là lời giới thiệu. Danh sách (50 dòng
+   mới nhất) và biểu mẫu thêm, sửa dựng từ OpenAPI của `GET /rest/v1/` qua `schema-form.js` (chép từ `apps/nghi-phep`).
+   Cột chuẩn và khóa chính một cột không có ô nhập; cột json, mảng chưa có ô. Dòng đầu mô tả cột là nhãn, các dòng sau
+   là gợi ý dưới ô. Bảng kiểu cột → ô nhập: [`apps/sinh/README.md`](../apps/sinh/README.md). Cột `NOT NULL` không có giá
+   trị mặc định là bắt buộc. Thêm một cột trong Studio rồi quay lại tab `/sinh` thì ô nhập mới hiện ngay, chữ đã gõ giữ
+   nguyên; không sửa mã, không khởi động lại dịch vụ nào.
+
+Trang `/sinh` là một ứng dụng cài bằng manifest như mọi ứng dụng khác (`apps/sinh`, client `app-sinh`, schema riêng
+rỗng `trang_sinh`, #564): cài một lần bằng `python3 scripts/moc.py app install apps/sinh/app.yaml`; gỡ thì bảng trong
+`sinh` vẫn còn. Trang chỉ gửi token của người dùng tới `/rest/v1` qua cổng. Gọi API trực tiếp:
+[`api/README.md`](api/README.md) mục 9.
+
+### 8.2. Khung gắn gì vào mỗi bảng
+
+| Mỗi bảng trong `sinh` tự có | Nên người gọi `/rest/v1` không thể |
+|---|---|
+| Cột `tenant_id`, `created_by`, `created_at`, do trigger `moc_cot_chuan` đặt từ token | Ghi các cột đó: gửi giá trị nào cũng bị thay bằng giá trị từ token, sửa dòng thì giữ giá trị cũ |
+| RLS, policy đơn vị `moc_don_vi` dạng RESTRICTIVE theo claim `x-hasura-tenant-id` | Đọc, sửa, xóa dòng của đơn vị khác, kể cả khi gửi `tenant_id` của đơn vị đó. Policy thêm sau không mở được dòng của đơn vị khác |
+| Trigger sổ kiểm toán `core.audit()`, như bảng của lõi | Thêm, sửa, xóa mà không để lại dòng sổ trong chuỗi băm |
+| Trigger chặn `TRUNCATE` | Xóa dữ liệu của mọi đơn vị trong một lệnh |
+
+Token thiếu claim đơn vị thì không thấy dòng nào. Gọi không có token thì nhận `401`: không có vai trò ẩn danh.
+
+Trong Studio, khung hủy các lệnh sau: tắt RLS; xóa hay sửa policy `moc_don_vi`, `moc_mo`; tắt hay xóa trigger của khung;
+xóa hay đổi tên cột `tenant_id`, `created_by`, `created_at`; `drop schema sinh`; tạo view, hàm, thủ tục, rule, aggregate
+trong `sinh` (view chạy bằng quyền chủ bảng nên vượt RLS, hàm thì lộ ra `/rest/v1/rpc`). `moc_studio` không có quyền
+`CREATE` trên database nên không đổi tên được schema `sinh`. Mỗi lệnh DDL thành công, kể cả lệnh xóa bảng,
+cột, ghi một dòng sổ (`action = 'ddl'`: lệnh gì, trên đối tượng nào, vai trò CSDL nào; qua Studio luôn là `moc_studio`).
+Kiểm: `db/tests/test_sinh.py` (#565); `scripts/kiem_sinh.py` trên hệ thống dựng thật, WAF bật, trong job e2e của CI
+(#568).
+
+### 8.3. Mô hình tin cậy: khác `moc app install`
+
+| | Cài bằng manifest (mục 1.4) | Sinh từ bảng |
+|---|---|---|
+| Lúc chạy SQL | Chỉ lúc cài: migration trong git, một giao dịch, kiểm trước `COMMIT` | Bất cứ lúc nào trong Studio; mỗi câu tự commit; khung kiểm từng lệnh DDL |
+| Vai trò CSDL | `moc_appdb_<schema>`, `NOLOGIN`, không mật khẩu | `moc_studio`, đăng nhập bằng mật khẩu trong cấu hình của postgres-meta |
+| Ai lọc theo đơn vị | Hasura, theo quyền khai trong manifest | RLS của PostgreSQL, cơ chế mới với lõi, chỉ bảo đảm trên đường `/rest/v1` |
+| Hàm, view | Ép `SECURITY DEFINER`, cấm view `security_invoker` | Không tạo được trong `sinh` |
+| Ai dùng | Quản trị viên chạy lệnh trên máy chủ | Chỉ người vận hành nền tảng |
+
+**Người dùng Studio được tin trên mọi đơn vị.** Studio nối bằng `moc_studio`, chủ các bảng trong `sinh`. RLS bật nhưng
+không `FORCE`, nên chủ bảng vượt RLS: Studio thấy dòng của mọi đơn vị và chạy được SQL trong `sinh`. Vì vậy quản trị
+viên của một đơn vị không được dùng Studio, và Studio không mở qua cổng. Schema `sinh` dùng chung: bảng một người tạo
+thì mọi đơn vị đều có, mỗi đơn vị chỉ thấy dòng của mình. `moc_studio` không thấy schema `core`, `office`, `personal`.
+Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser, không đăng nhập); PostgREST nối bằng
+`authenticator`, chỉ chuyển được sang năm vai trò người dùng, không bao giờ sang `moc_studio`.
+
+### 8.4. Chọn đường nào
+
+| Cần | Đường |
+|---|---|
+| Một bảng dữ liệu của đơn vị: danh sách, thêm, sửa | Mục 8 |
+| Quy trình duyệt (BPMN, form) | Manifest có `workflow` (mục 1.10) |
+| Máy chủ riêng, nghe sự kiện của lõi, giao diện riêng | Manifest (mục 1) |
+| Thành phần đi cùng mọi bản cài của lõi | Làm tay (mục 3) |
+
+### 8.5. Giới hạn
+
+- Bảng, cột tạo trong Studio không nằm trong git; sổ kiểm toán chỉ ghi lại các lệnh DDL. Chưa có lệnh xuất riêng
+  schema `sinh`: dựng lại trên máy khác bằng `moc backup restore` cả CSDL ([`van-hanh.md`](van-hanh.md)).
+- Chưa nối quy trình duyệt, tệp đính kèm (`svc-files`), thông báo hay sự kiện của lõi (`core.app_events`) cho bảng
+  sinh.
+- Mọi vai trò người dùng có cùng quyền đọc, ghi trong đơn vị (khung cấp `select`, `insert`, `update`, `delete` cho
+  cả năm vai trò). Muốn hẹp hơn (vd chỉ lãnh đạo sửa) thì người vận hành thêm trong Studio một policy dạng
+  `RESTRICTIVE`: policy permissive thêm sau không thu hẹp được, vì `moc_mo` đã mở cả đơn vị.
+- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; chưa có ô cho cột json, jsonb,
+  mảng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
+  ([`apps/sinh/README.md`](../apps/sinh/README.md) mục "Chưa làm").
+- Hai kiểu API: Văn phòng điện tử và lõi dùng GraphQL, ứng dụng sinh dùng REST.

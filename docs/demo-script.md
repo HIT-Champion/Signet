@@ -44,6 +44,8 @@ gửi mô hình và trong nhật ký (`make demo-che-pii`, F4.4) là bằng ch�
 [mục này](#ngoài-4-nguyên-lý-che-thông-tin-cá-nhân--make-demo-che-pii). Màn cảnh báo vận hành ra chuông của quản trị
 đơn vị (`make demo-canh-bao`, F3.13, dưới hai phút) là bằng chứng cho cụm ⑥ — xem
 [mục cuối](#ngoài-4-nguyên-lý-cảnh-báo-vận-hành-ra-chuông--make-demo-canh-bao).
+Màn ứng dụng sinh từ bảng (Supabase Studio, PostgREST, trang `/sinh`) chạy trên giao diện, chưa có lệnh `make` —
+xem [mục này](#ngoài-4-nguyên-lý-ứng-dụng-sinh-từ-bảng--thêm-trường-trước-hội-đồng).
 
 ## (i) Nóng → lạnh — `make demo-nong-lanh`
 
@@ -935,6 +937,55 @@ trong danh sách của chuông); bấm vào mở trang `/trang-thai`.
 - *"CSDL sập thì sao?"* Cảnh báo về chính sự cố đó không ghi được vào chuông cho tới khi PostgreSQL, Hasura,
   `svc-workflow` chạy lại (`svc-workflow` trả 503, Alertmanager gửi lại); trong lúc đó chỉ Grafana, Prometheus thấy.
 
+## Ngoài 4 nguyên lý: ứng dụng sinh từ bảng — thêm trường trước hội đồng
+
+**Điều muốn chứng minh:**
+
+- Thêm một ứng dụng dạng bảng không phải viết máy chủ, migration hay quyền: người vận hành tạo bảng trong Supabase
+  Studio, PostgREST sinh API, trang `/sinh` dựng biểu mẫu từ API đó.
+- Thêm một trường lúc hệ thống đang chạy: ô nhập mới hiện ngay, không sửa dòng mã nào, không khởi động lại.
+- Bảng sinh ra vẫn theo luật của lõi: mỗi đơn vị chỉ thấy dòng của mình, mọi thay đổi vào sổ kiểm toán, lệnh gỡ bảo vệ
+  bị hủy.
+
+**Chuẩn bị** (trước buổi, xem checklist): profile `studio` đang chạy; bảng mẫu `sinh.yeu_cau` "Quản lý yêu cầu"
+có sẵn từ `make seed`; kiểu enum `sinh.muc_uu_tien` (`thấp`, `vừa`, `cao`) tạo sẵn trong Studio ở Database →
+Enumerated Types, để lúc diễn chỉ còn một thao tác thêm cột. Phải là enum: cột có `CHECK` thì `/sinh` chỉ hiện ô chữ,
+vì PostgREST không mô tả `CHECK`. Trên bản online, Studio chỉ nghe `127.0.0.1` của máy chủ nên máy trình chiếu mở
+đường hầm SSH từ trước ([`van-hanh.md`](van-hanh.md) mục "Ứng dụng sinh từ bảng"); trên máy dự phòng thì mở thẳng
+`http://127.0.0.1:3400`.
+
+**Trên giao diện** (khoảng 60–75 giây):
+
+1. Tab `/sinh/#/yeu_cau`, đăng nhập sẵn bằng `vanthu` (đơn vị CNTT): menu có **Quản lý yêu cầu**; biểu mẫu có Tiêu
+   đề, Nội dung, Hạn xử lý, Trạng thái; danh sách bên dưới.
+2. Tab Studio, Table Editor, schema `sinh`, bảng `yeu_cau`: Insert column, tên `muc_uu_tien`, kiểu `muc_uu_tien`,
+   mặc định `vừa`, Description "Mức ưu tiên" (ô này là `COMMENT ON COLUMN`, trang dùng làm nhãn). Bấm Save.
+3. Quay lại tab `/sinh`, không tải lại: ô chọn **Mức ưu tiên** đã có, chữ đang gõ dở vẫn còn. Gõ tiêu đề "Máy in
+   tầng 3 hỏng", chọn `cao`, bấm Thêm: dòng mới lên đầu danh sách, có "Mức ưu tiên: cao".
+
+**Còn giờ, hoặc khi giám khảo hỏi:**
+
+4. Đăng nhập `vanthukt` (đơn vị Kinh tế): **Quản lý yêu cầu** không có dòng nào của đơn vị CNTT.
+5. Đăng nhập `quantri` (quản trị đơn vị CNTT) trong hồ sơ trình duyệt riêng (checklist T-5 phút), mở Sổ kiểm toán: dòng
+   thêm yêu cầu (bảng `sinh.yeu_cau`) nằm trong chuỗi băm như dòng của Văn phòng điện tử. Dòng `ddl` của lệnh thêm cột
+   không gắn đơn vị nào nên không hiện ở trang này.
+6. Trong Studio, thử tắt RLS của bảng `yeu_cau`: lệnh bị hủy, lỗi bắt đầu bằng `khung:`.
+
+**Nếu giám khảo hỏi:**
+
+- *"Hasura cũng sinh API, sao thêm PostgREST?"* Hasura giữ cho Văn phòng điện tử (GraphQL); PostgREST cho bảng sinh vì
+  nó thấy bảng, cột mới ngay và dựa hẳn vào RLS của khung ([`architecture.md`](architecture.md) QĐ-014;
+  [`du-thi/hoi-dap-hoi-dong.md`](du-thi/hoi-dap-hoi-dong.md) câu 19).
+- *"Vậy lõi là Supabase?"* Không: dùng Studio, postgres-meta của Supabase và PostgREST; phần của đội là khung và trang
+  `/sinh` (câu 20).
+- *"Ai được vào Studio?"* Chỉ người vận hành nền tảng, qua đường hầm SSH: Studio là chủ bảng, thấy dữ liệu mọi đơn vị.
+  Quản trị đơn vị không dùng Studio.
+- *"Có quy trình duyệt cho bảng này không?"* Chưa: quy trình vẫn là BPMN viết tay, khai trong manifest
+  ([`them-ung-dung.md`](them-ung-dung.md) mục 1.10). Signet không tự sinh toàn bộ backend.
+
+**Còn gì chưa làm?** Bảng tạo trong Studio chưa nằm trong git; bảng sinh chưa có tệp đính kèm, thông báo, quy trình;
+chưa có lệnh `make demo-sinh`.
+
 ## Phương án dự phòng
 
 Bản trình diễn chính là bản online <https://signet.htechcs.com>: từ 31/10/2026 là bản cài `/opt/moc` trên một máy
@@ -1023,6 +1074,10 @@ chạy không tải được tệp hay cổng ngắt vài giây:
   `python3 scripts/moc.py backup restore <lượt>` (hỏi lại trước khi thay dữ liệu; Signet dừng trong lúc khôi phục). Chỉ
   làm khi còn thời gian, không thì sang máy dự phòng.
 
+**Màn ứng dụng sinh từ bảng hỏng** (Studio không mở, ô mới không hiện sau khi bấm F5, bấm Thêm báo lỗi): sang video
+của màn này quay lúc tập, nói rõ đó là bản quay. Không mở terminal sửa trước hội đồng. Sau buổi: xóa cột `muc_uu_tien`
+để lần sau diễn lại được.
+
 **Video quay sẵn:** lớp cuối, không phụ thuộc mạng hay máy chủ. Lưu trên máy trình chiếu và một USB, không đưa vào
 repo ([`git_flow.md`](git_flow.md)).
 
@@ -1049,6 +1104,10 @@ repo ([`git_flow.md`](git_flow.md)).
       máy có 4G để phát Wi-Fi.
 - [ ] Máy chạy bản online và máy trình chiếu: tắt chế độ ngủ, hoãn cập nhật hệ điều hành (máy Windows khởi động lại
       thì phải có người đăng nhập, xem [phương án dự phòng](#phương-án-dự-phòng)); máy trình chiếu cắm sạc.
+- [ ] Màn ứng dụng sinh từ bảng: bản sẽ trình bày (online và máy dự phòng) đã có #565, #569, #563, #564 và bật profile
+      `studio`; cài trang nếu chưa có (`python3 scripts/moc.py app install apps/sinh/app.yaml`); `/sinh/` mở được
+      **Quản lý yêu cầu**; kiểu enum `sinh.muc_uu_tien` đã có; cột `muc_uu_tien` chưa có (lần tập trước đã thêm thì
+      xóa cột trong Studio, giữ kiểu enum).
 
 ### T-1 giờ
 
@@ -1060,6 +1119,8 @@ repo ([`git_flow.md`](git_flow.md)).
       (mặc định 30). Nhiều giám khảo cùng quét QR thì dùng 4G, hoặc nâng giới hạn trong `/opt/moc/.env` rồi
       `docker compose up -d apisix` (chỉ trên máy demo).
 - [ ] Máy dự phòng đang chạy (`make ps`), đã đăng nhập sẵn; video mở sẵn, dừng ở khung đầu.
+- [ ] Màn ứng dụng sinh từ bảng: mở đường hầm SSH tới Studio trên máy trình chiếu; tab Studio ở bảng
+      `sinh.yeu_cau`, tab `/sinh` đăng nhập sẵn `vanthu`.
 
 ### T-5 phút
 
