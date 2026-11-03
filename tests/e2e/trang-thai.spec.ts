@@ -25,7 +25,7 @@ import { shot } from './helpers'
 
 const LAYERS = ['nguoi-dung', 'loi', 'quy-trinh', 'du-lieu', 'tri-tue']
 const COMPONENTS = ['cong-api', 'dang-nhap', 'csdl', 'ket-khoa', 'quet-ma-doc', 'quy-trinh', 'luu-tru', 'tim-kiem',
-  'tro-ly-ai']
+  'api-du-lieu', 'tro-ly-ai']
 
 test('trạng thái hệ thống: không cần đăng nhập, đủ thành phần theo tầng', async ({ browser }) => {
   const outsider = await (await browser.newContext()).newPage()

@@ -72,6 +72,12 @@ upstreams:
     keepalive_pool: {size: 320, idle_timeout: 25, requests: 1000}
     nodes:
       "hasura:8080": 1
+  # PostgREST (#561): API REST tự sinh từ bảng của schema sinh. Cũng chạy Warp như Hasura nên giữ kết nối rảnh 25 giây
+  - id: rest
+    type: roundrobin
+    keepalive_pool: {size: 320, idle_timeout: 25, requests: 1000}
+    nodes:
+      "rest:3000": 1
   - id: svc-files
     type: roundrobin
     nodes:
@@ -521,6 +527,18 @@ routes:
           # khóa quản trị Hasura không bao giờ được đi từ ngoài vào; tên cũ X-Hasura-Access-Key thì Hasura 2.51
           # đã không nhận, gỡ để phòng xa
           remove: [X-Hasura-Admin-Secret, X-Hasura-Access-Key]
+
+  # Ứng dụng sinh (#561): PostgREST trên schema sinh. can-token kiểm chữ ký, hạn và iss (PostgREST không kiểm iss);
+  # PostgREST đặt vai trò CSDL theo claim x-hasura-default-role, RLS lọc theo x-hasura-tenant-id. PostgREST nghe ở
+  # gốc: bỏ tiền tố. GET /rest/v1/ là mô tả OpenAPI, cũng cần token
+  - id: rest
+    uris: ["/rest/v1", "/rest/v1/*"]
+    methods: [GET, HEAD, POST, PATCH, DELETE]
+    upstream_id: rest
+    plugin_config_id: can-token
+    plugins:
+      proxy-rewrite:
+        regex_uri: ["^/rest/v1/?(.*)$", "/$1"]
 
   - id: svc-files
     uris: ["/api/files", "/api/files/*", "/api/search", "/api/documents/*", "/api/registers/*", "/api/case-files/*",
