@@ -102,11 +102,11 @@ python3 scripts/moc.py backup restore 20261020-020000   # khôi phục một lư
   [`trien-khai.md`](trien-khai.md) mục 7 thì RPO tối đa 24 giờ: khôi phục là mất mọi thay đổi từ lượt gần nhất tới lúc
   sự cố. Muốn mất ít hơn thì cho cron chạy `backup create` dày hơn; lượt sau chỉ thêm phần đã đổi, mỗi lượt tạm dừng
   ghi vài giây lúc dump CSDL.
-- **Thời gian khôi phục (RTO)**: CI đo ở mỗi lần chạy, tại
-  job `chay-thu`, phần `sao-luu`, bước "Sao lưu, xóa dữ liệu, khôi phục rồi kiểm lại". Đó là thời gian của `backup
-  restore` từ lúc bắt đầu tới khi mọi dịch vụ chạy lại khỏe, in ở phần tóm tắt của job. Số này đo trên dữ liệu mẫu nhỏ
-  của CI: dữ liệu thật nhiều hơn thì restic chép lại lâu hơn, và số đó chưa gồm thời gian phát hiện sự cố, quyết định
-  khôi phục. Muốn có số của đơn vị thì diễn tập trên một máy khác bằng kho sao lưu thật.
+- **Thời gian khôi phục (RTO)**: CI đo ở mỗi lần chạy, tại job `chay-thu`, phần `sao-luu`, bước "Sao lưu, xóa dữ liệu,
+  khôi phục rồi kiểm lại". Đó là thời gian của `backup restore` từ lúc bắt đầu tới khi mọi dịch vụ chạy lại khỏe, in ở
+  phần tóm tắt của job. Bốn lượt CI trên `develop` ngày 03/11/2026 đo được từ 75 đến 87 giây. Số này đo trên dữ liệu mẫu
+  nhỏ của CI: dữ liệu thật nhiều hơn thì restic chép lại lâu hơn, và số đó chưa gồm thời gian phát hiện sự cố, quyết
+  định khôi phục. Muốn có số của đơn vị thì diễn tập trên một máy khác bằng kho sao lưu thật.
 - **Quy tắc 3-2-1** (ba bản dữ liệu, trên hai loại phương tiện, một bản ở ngoài đơn vị): Signet tự làm bản thứ hai (kho
   restic). Hai phần còn lại do người vận hành: đặt kho trên ổ khác hoặc NAS (`MOC_BACKUP_DIR`, mục trên) và chép kho ra
   ngoài đơn vị (`rsync`). Kho còn chung ổ với dữ liệu, hoặc chưa có bản ở ngoài đơn vị, thì chưa đạt 3-2-1. Bản chép

@@ -116,11 +116,12 @@ python3 scripts/moc.py backup restore 20261020-020000   # restore one specific s
   [`trien-khai.md`](trien-khai.md) section 7, the RPO is at most 24 hours: a restore loses every change made between
   the latest snapshot and the incident. To lose less, have cron run `backup create` more often; each later run adds
   only what changed and pauses writes for a few seconds while the databases are dumped.
-- **The time to restore (RTO)** is measured by CI on every run, in
-  job `chay-thu`, phần `sao-luu`, bước "Sao lưu, xóa dữ liệu, khôi phục rồi kiểm lại" (the restore drill). It is the time
-  `backup restore` takes from start until every service is healthy again, printed in the job summary. It is measured
-  on CI's small sample data: real data takes restic longer to copy back, and the figure leaves out the time to notice
-  the incident and decide to restore. For the unit's own figure, rehearse on another machine with the real repository.
+- **The time to restore (RTO)** is measured by CI on every run, in job `chay-thu`, phần `sao-luu`, bước "Sao lưu, xóa dữ
+  liệu, khôi phục rồi kiểm lại" (the restore drill). It is the time `backup restore` takes from start until every
+  service is healthy again, printed in the job summary. Four CI runs on `develop` on 3 November 2026 measured 75 to 87
+  seconds. It is measured on CI's small sample data: real data takes restic longer to copy back, and the figure leaves
+  out the time to notice the incident and decide to restore. For the unit's own figure, rehearse on another machine with
+  the real repository.
 - **The 3-2-1 rule** (three copies of the data, on two kinds of media, one copy outside the unit): Signet makes the
   second copy itself (the restic repository). The operator does the rest: put the repository on another disk or a NAS
   (`MOC_BACKUP_DIR`, above) and copy it outside the unit (`rsync`). While the repository shares a disk with the data,
