@@ -708,6 +708,8 @@ jobs:
         run: |
           G="git -c user.name=ci -c user.email=ci@localhost"
           git init -q --bare "$RUNNER_TEMP/moc.git"
+          # git ≥ 2.47 chạy bảo trì sau push ở nền: ghi commit-graph đúng lúc clone hardlink objects/ thì clone chết (#551)
+          git -C "$RUNNER_TEMP/moc.git" config maintenance.auto false
           git push -q "$RUNNER_TEMP/moc.git" HEAD:refs/heads/deploy
           git clone -q -b deploy "$RUNNER_TEMP/moc.git" "$RUNNER_TEMP/moc-src"
           cd "$RUNNER_TEMP/moc"
