@@ -1148,9 +1148,9 @@ ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
   `moc_studio`, `moc_harness`, năm vai trò người dùng) không nằm trong pg_dump: `moc backup restore` tạo lại chúng
   (danh sách cố định, chạy lại được) trước khi khôi phục; mật khẩu và quyền đăng nhập do `rest-init` đặt lại khi khởi
   động. `rest`, `meta` tạm dừng trong lúc dump CSDL.
-- **Tài nguyên.** Bộ thử CI ngày 04/11/2026 (dữ liệu mẫu): `rest` 18 MiB, `studio` 189 MiB, `meta` 106 MiB; trần
-  128 MiB, 512 MiB, 256 MiB. PostgREST có thêm cổng quản trị 3001 (`/ready`) chỉ trong mạng compose, cho
-  `/api/status`.
+- **Tài nguyên.** Đo trong CI ngày 04/11/2026 trên hệ thống đầy đủ, dữ liệu mẫu (#568): `rest` 25 MiB, `studio` 190 MiB,
+  `meta` 114 MiB; trần 128 MiB, 512 MiB, 256 MiB. PostgREST có thêm cổng quản trị 3001 (`/ready`) chỉ trong mạng
+  compose, cho `/api/status`.
 - **Giới hạn.** Bảng, cột tạo trong Studio không nằm trong git, chỉ có dòng DDL trong sổ. Chưa có lệnh xuất riêng
   schema `sinh`: dựng lại trên máy khác bằng `moc backup restore` cả CSDL. Schema `sinh` dùng chung mọi đơn vị. Bảng
   sinh chưa có quy trình duyệt, tệp đính kèm, thông báo.

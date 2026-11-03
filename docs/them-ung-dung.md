@@ -637,8 +637,8 @@ QĐ-014).
 
 Trang `/sinh` là một ứng dụng cài bằng manifest như mọi ứng dụng khác (`apps/sinh`, client `app-sinh`, schema riêng
 rỗng `trang_sinh`, #564): cài một lần bằng `python3 scripts/moc.py app install apps/sinh/app.yaml`; gỡ thì bảng trong
-`sinh` vẫn còn. Trang chỉ gửi token của người dùng tới `/rest/v1` qua cổng.
-
+`sinh` vẫn còn. Trang chỉ gửi token của người dùng tới `/rest/v1` qua cổng. Gọi API trực tiếp:
+[`api/README.md`](api/README.md) mục 9.
 
 ### 8.2. Khung gắn gì vào mỗi bảng
 
@@ -656,7 +656,8 @@ xóa hay đổi tên cột `tenant_id`, `created_by`, `created_at`; `drop schema
 trong `sinh` (view chạy bằng quyền chủ bảng nên vượt RLS, hàm thì lộ ra `/rest/v1/rpc`). `moc_studio` không có quyền
 `CREATE` trên database nên không đổi tên được schema `sinh`. Mỗi lệnh DDL thành công, kể cả lệnh xóa bảng,
 cột, ghi một dòng sổ (`action = 'ddl'`: lệnh gì, trên đối tượng nào, vai trò CSDL nào; qua Studio luôn là `moc_studio`).
-Kiểm: `db/tests/test_sinh.py` (#565).
+Kiểm: `db/tests/test_sinh.py` (#565); `scripts/kiem_sinh.py` trên hệ thống dựng thật, WAF bật, trong job e2e của CI
+(#568).
 
 ### 8.3. Mô hình tin cậy: khác `moc app install`
 
