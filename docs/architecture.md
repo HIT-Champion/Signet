@@ -72,13 +72,14 @@ chạy, chuỗi đó đi như sau: danh tính Keycloak [H] đi trong token tới
 văn bản, giao việc và sự kiện đó qua Hasura, đúng quyền người xem; tác tử [I] có danh tính riêng (vai trò Hasura
 `agent`), việc của nó vào sổ kiểm toán, và nó chỉ gợi ý — người quyết.
 
-Profile của `docker-compose.yml` chia theo **tầng**, không theo trục: `core` là Tầng 1 (16 dịch vụ, trong đó
-`keycloak-fonts` chạy một lần rồi thoát), `app` là Tầng 2 (`app-office`, `app-ca-nhan`, `app-tai-lieu-api`); `make up`
-bật cả hai. Phần tùy chọn có profile riêng: `ai` (Ollama), `iot` (Scorpio, PostGIS), `logs` (Vector, Parseable), `trace`
-(Jaeger), `wiki` (DokuWiki), `tu-dong` (Node-RED), `mail` (Mailpit), `tunnel` (cloudflared); `ai-pull`, `iot-sim`,
-`backup` chỉ dùng khi gọi `make ai-model`, `make demo-it-ot`, `make backup` hay `make restore`. Kế hoạch dời việc đổi
-profile sang Phase 1, dự kiến `core / app / ops / ai` ([`ke-hoach-phat-trien.md`](du-thi/ke-hoach-phat-trien.md), cuối
-Phase 0); hiện là `core`, `app` cộng các phần tùy chọn ở trên, không có profile `ops`.
+Profile của `docker-compose.yml` chia theo **tầng**, không theo trục: `core` là Tầng 1 (18 dịch vụ, trong đó
+`keycloak-fonts`, `rest-init` chạy một lần rồi thoát), `app` là Tầng 2 (`app-office`, `app-ca-nhan`,
+`app-tai-lieu-api`); `make up` bật cả hai. Phần tùy chọn có profile riêng: `ai` (Ollama), `iot` (Scorpio, PostGIS),
+`logs` (Vector, Parseable), `trace` (Jaeger), `wiki` (DokuWiki), `tu-dong` (Node-RED), `mail` (Mailpit), `tunnel`
+(cloudflared), `studio` (Supabase Studio, postgres-meta; QĐ-014); `ai-pull`, `iot-sim`, `backup` chỉ dùng khi gọi
+`make ai-model`, `make demo-it-ot`, `make backup` hay `make restore`. Kế hoạch dời việc đổi profile sang Phase 1, dự
+kiến `core / app / ops / ai` ([`ke-hoach-phat-trien.md`](du-thi/ke-hoach-phat-trien.md), cuối Phase 0); hiện là `core`,
+`app` cộng các phần tùy chọn ở trên, không có profile `ops`.
 
 ### 1.3. Ràng buộc tài nguyên
 
@@ -101,10 +102,12 @@ của ba câu, đúng mức đã kiểm:
 | 2. Cài dưới một giờ | **Chưa đo** với người ngoài đội trên máy sạch | `ROADMAP.md`, giai đoạn 5 |
 | 3. Không dịch vụ trả phí bắt buộc | Đạt | [`trien-khai.md`](trien-khai.md) §5, §5b |
 
-- **Câu 1.** `make up` bật profile `core` và `app` (19 dịch vụ, 18 chạy liên tục). Đo bằng `docker stats` trên bản
+- **Câu 1.** `make up` bật profile `core` và `app` (21 dịch vụ, 19 chạy liên tục). Đo bằng `docker stats` trên bản
   online 1.3.0 ngày 31/10/2026: khoảng 4,6 GiB, chưa bật mô hình; số đo cũ 3,2–3,5 GB lấy từ trước khi thêm vài dịch
   vụ. Máy đề xuất 4 vCPU, 8 GB RAM, 40 GB đĩa. Bật mô hình ngôn ngữ (profile `ai`, Ollama giới hạn mặc định 6 GB — dịch
-  vụ `ollama` trong `docker-compose.yml`) thêm khoảng 3,2 GiB khi đã nạp hai mô hình mặc định, cần máy 16 GB.
+  vụ `ollama` trong `docker-compose.yml`) thêm khoảng 3,2 GiB khi đã nạp hai mô hình mặc định, cần máy 16 GB. Từ #569,
+  `rest` (PostgREST) thêm khoảng 18 MiB vào profile mặc định; bật profile `studio` thêm khoảng 300 MiB (Studio 189 MiB,
+  postgres-meta 106 MiB). Hai số này đo trên bộ thử CI ngày 04/11/2026 với dữ liệu mẫu, chưa đo trên bản online.
 - **Câu 2.** Cài từ mã nguồn bằng `make env`, `make up`, `make seed`; `make install PREFIX=…` cài ra ngoài thư mục mã
   nguồn (F1.8).
 - **Câu 3.** Mô hình chạy tại chỗ; Cloudflare Tunnel chỉ là một cách lên mạng (profile `tunnel`, tắt mặc định), máy có
@@ -145,7 +148,8 @@ flowchart LR
     end
     subgraph KGD["[D] Dữ liệu"]
       HA["Hasura 2.51 CE<br/>GraphQL, quyền từng dòng"]
-      PG[("PostgreSQL 16<br/>core · office · personal")]
+      PG[("PostgreSQL 16<br/>core · office · personal · sinh")]
+      RS["PostgREST 14.18<br/>REST cho schema sinh, RLS"]
       MS["Meilisearch 1.54<br/>tìm toàn văn"]
       SW[("SeaweedFS 4.48<br/>kho tệp S3")]
       SC["Scorpio 6.0 NGSI-LD<br/>cảm biến IoT · profile iot"]
@@ -164,6 +168,7 @@ flowchart LR
       JG["Jaeger 2.22<br/>truy vết · profile trace"]
       LG["Vector 0.59 + Parseable 3.2<br/>log tập trung · profile logs"]
       BK["restic 0.19<br/>sao lưu · moc backup"]
+      ST["Supabase Studio + postgres-meta<br/>profile studio · chỉ 127.0.0.1"]
     end
   end
   subgraph NGOAI["Ngoài hệ thống — kênh thông báo, tắt mặc định"]
@@ -186,6 +191,7 @@ flowchart LR
   WK -.->|"OIDC: chỉ qua cổng"| GW
   GW -->|"/realms/moc, /realms/moc/*, /resources/*"| KC
   GW -->|"/v1/graphql"| HA
+  GW -->|"/rest/v1, /rest/v1/*"| RS
   GW -->|"/api/files, /api/files/*, /api/search,<br/>/api/documents/*, /api/registers/*"| SF
   GW -->|"/api/case-files/*, /api/imports, /api/imports/*"| SF
   GW -->|"/api/verify, /api/verify/*, /api/status<br/>không cần token"| SF
@@ -193,6 +199,8 @@ flowchart LR
   GW -->|"/api/workflow/* — quy trình của ứng dụng cắm thêm"| WF
   HA -->|"9 Actions"| WF
   HA -->|"SQL"| PG
+  RS -->|"SQL: authenticator → vai trò người dùng"| PG
+  ST -.->|"SQL: moc_studio, người vận hành"| PG
   WF -->|"REST, external worker"| FL
   WF -->|"đẩy thông báo"| CE
   WF -->|"GraphQL: vai trò service, agent"| HA
@@ -259,7 +267,7 @@ vụ của đội nằm chung "Nền chung" vì cả hai phục vụ nhiều kh�
 | Nền chung | APISIX 3.18.0 · `svc-files`, `svc-workflow` (Python 3.13, FastAPI 0.143) · ClamAV 1.5.4 · OpenBao 2.7.1 · sổ kiểm toán chuỗi băm · pyHanko 0.37.0 · bộ che thông tin cá nhân |
 | [H] Nhân sự | Keycloak 26.7.5 · Không gian cá nhân P.A.R.A (ứng dụng thứ hai) · DokuWiki 2026-07-14c (profile `wiki`) |
 | [P] Quy trình | Flowable REST 8.0.0 · 9 Hasura Actions · JSON Schema dùng chung (Ajv 8.20.0, jsonschema 4.26) · Centrifugo 6.9.7 · hộp thư đi trong CSDL · nạp lô · Mailpit v1.31.4 (demo) · Node-RED 5.0.8 (profile `tu-dong`) |
-| [D] Dữ liệu | PostgreSQL 16 · Hasura CE v2.51.0 · SeaweedFS 4.48 · Meilisearch CE v1.54.3 · DuckDB 1.5.6 · phả hệ OpenLineage · dashboard ECharts 6.1.0 · Scorpio 6.0.2 và PostGIS 16-3.5 (profile `iot`) |
+| [D] Dữ liệu | PostgreSQL 16 · Hasura CE v2.51.0 · SeaweedFS 4.48 · Meilisearch CE v1.54.3 · DuckDB 1.5.6 · phả hệ OpenLineage · dashboard ECharts 6.1.0 · Scorpio 6.0.2 và PostGIS 16-3.5 (profile `iot`) · PostgREST v14.18 · Supabase Studio, postgres-meta v0.100.0 (profile `studio`) |
 | [I] Trí tuệ | Ollama 0.35.1 (profile `ai`) · Qwen3-1.7B, Qwen3-Embedding-0.6B · Tesseract 5.5.0 · truy xuất có nguồn tự viết · ba tác tử |
 | Vận hành | Prometheus 3.15.0, Alertmanager 0.34.1, Grafana OSS 13.2.3 · Vector 0.59.0, Parseable 3.2.4 (profile `logs`) · restic 0.19.1 · reconciler GitOps · cloudflared 2026.10.0 (profile `tunnel`) |
 
@@ -307,6 +315,9 @@ vụ của đội nằm chung "Nền chung" vì cả hai phục vụ nhiều kh�
 |---|---|---|---|---|---|
 | PostgreSQL | 16 | Một máy chủ CSDL: CSDL `moc` (schema `core`, `office`, `personal`), CSDL riêng `keycloak`, `flowable` (QĐ-002) | ③ | `db/migrations/default/`, `db/initdb/` | F1.3 Hoàn thiện |
 | Hasura GraphQL Engine CE | v2.51.0 | GraphQL tự sinh, quyền theo vai trò và đơn vị tới từng dòng; khóa quản trị không bao giờ đi từ ngoài vào | ③ | `db/metadata/` | F1.3 Hoàn thiện |
+| PostgREST | v14.18 | REST và OpenAPI tự sinh từ bảng trong schema `sinh` (`/rest/v1`); vai trò CSDL lấy từ token Keycloak, cách ly đơn vị bằng RLS của khung | ③ | dịch vụ `rest` trong `docker-compose.yml` | — (QĐ-014) |
+| Supabase Studio, postgres-meta | 2026.10.12, v0.100.0 | Người vận hành nền tảng tạo bảng, thêm cột trong `sinh` (profile `studio`, chỉ nghe `127.0.0.1`); nối CSDL bằng `moc_studio` | ③ | dịch vụ `studio`, `meta` | — (QĐ-014) |
+| Khung ứng dụng sinh *(mã của đội)* | — | Gắn đơn vị, RLS, sổ kiểm toán vào mọi bảng của `sinh`; hủy lệnh gỡ các bảo vệ đó | ② ③ ⑥ | `db/migrations/default/1792281604400_sinh_khung/` | — (QĐ-014) |
 | SeaweedFS | 4.48 | Kho tệp S3: bucket nóng `moc-files`; bucket lạnh `moc-cold` có Object Lock cho mốc neo sổ kiểm toán và gói nộp lưu (QĐ-010) | ④ | `svc_files/storage.py`, `svc_files/anchors.py`, `svc_files/archive.py` | F1.5 Hoàn thiện |
 | Meilisearch CE | v1.54.3 | Tìm toàn văn văn bản, cả chữ trong PDF; chỉ mục đoạn `chunks` của trợ lý hỏi đáp (tìm lai từ khóa và véc-tơ). Chỉ trả id, Hasura quyết ai đọc được | ④ | `svc_files/search.py`, `svc_files/texts.py`, `svc_files/assist/meili.py` | F1.7, F2.7 Hoàn thiện |
 | DuckDB | 1.5.6, thư viện trong `svc-files` | Ghi bảng của hồ sơ nộp lưu thành Parquet; phòng đọc đọc lại; trang Điều hành đếm văn bản đã nộp lưu trên các gói (#304) | ③ ④ | `svc_files/archive.py`, `svc_files/archive_stats.py` | F3.8 Hoàn thiện (giao diện hồ sơ, phòng đọc: #124) |
@@ -699,14 +710,15 @@ tương ứng của tệp đó trống (#484).
 Mỗi lựa chọn công cụ được ghi lại theo mẫu: *bối cảnh → phương án đã cân nhắc → quyết định → hệ quả*.
 
 QĐ-001…QĐ-007 giữ nguyên văn lúc ghi. QĐ-008…QĐ-012 ghi lại những quyết định đã làm, có trong mã, mà trước đây chưa có
-bản ghi; QĐ-013 ghi WAF, gộp ở #130. Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dưới, không sửa vào QĐ.
+bản ghi; QĐ-013 ghi WAF, gộp ở #130; QĐ-014 ghi ứng dụng sinh từ bảng (Studio, PostgREST), gộp ở #565, #569, #563.
+Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dưới, không sửa vào QĐ.
 
 | QĐ | Câu lúc ghi | Hiện trạng |
 |---|---|---|
 | QĐ-001 | "mọi tệp mã phải mang header Apache-2.0 (CI cưỡng chế)" | Vẫn đúng với tệp mã; tệp không chèn được header (JSON, ảnh, Markdown…) khai giấy phép trong `REUSE.toml` |
 | QĐ-002 | "dùng chung cho mọi thành phần, tách bằng schema hoặc database riêng" | Đúng, trừ Scorpio: broker bắt buộc phần mở rộng `postgis` nên có CSDL PostGIS riêng (profile `iot`) |
 | QĐ-002 | "tài liệu vận hành ở giai đoạn 5 phải có quy trình sao lưu và phục hồi rõ ràng" | Đã có: `make backup`, `make restore` (restic, F3.4), [`van-hanh.md`](van-hanh.md) mục "Sao lưu và khôi phục" |
-| QĐ-003 | "Cần điều phối khoảng 8–12 dịch vụ"; "profile theo trục" | `make up` dựng 19 dịch vụ (16 của `core`, 3 của `app`), 18 chạy liên tục, `keycloak-fonts` chạy một lần; profile chia theo tầng và phần tùy chọn (§1.2) |
+| QĐ-003 | "Cần điều phối khoảng 8–12 dịch vụ"; "profile theo trục" | `make up` dựng 21 dịch vụ (18 của `core`, 3 của `app`), 19 chạy liên tục, `keycloak-fonts` và `rest-init` chạy một lần; profile chia theo tầng và phần tùy chọn (§1.2) |
 
 ### QĐ-001: Chọn Apache-2.0 làm giấy phép dự án
 
@@ -1048,6 +1060,81 @@ bản ghi; QĐ-013 ghi WAF, gộp ở #130. Câu nào của QĐ cũ đã lệch 
   Loại trừ CRS gỡ theo id, chỉ trên đúng đường và khóa, mỗi cái có lý do (`platform/apisix/README.md`); dò trên
   7 389 yêu cầu dựng từ chữ của dữ liệu mẫu, gửi như giao diện gửi: không chữ mẫu nào bị chặn nhầm.
 
+### QĐ-014: Ứng dụng sinh từ bảng: Studio, postgres-meta của Supabase và PostgREST cạnh Hasura, khung bằng SQL
+
+> **Trạng thái:** gộp ở #565 (khung CSDL), #569 (dịch vụ), #563 (cổng). Lý do cũ không dùng Supabase ở
+> [`du-thi/olp-2026-de-thi.md`](du-thi/olp-2026-de-thi.md) giữ nguyên, có dòng đính chính trỏ về đây.
+
+- **Bối cảnh:** ban giám khảo vòng trường nhận xét thêm một ứng dụng vẫn phải tự viết nhiều: SQL, YAML quyền Hasura,
+  BPMN, JSON Schema, `server.py`, `Dockerfile`, giao diện (`apps/nghi-phep` 3.472 dòng, `apps/lich-giang` 3.788 dòng,
+  đếm mọi tệp trong git bằng `wc -l`, kể cả test). Điều họ chờ là mô tả chức năng, hệ thống tự sinh CSDL và API, đội
+  chỉ làm giao diện. Đề gợi ý mô hình headless Supabase, Strapi, Directus
+  ([`du-thi/olp-2026-de-thi.md`](du-thi/olp-2026-de-thi.md) §3.3).
+- **Phương án:**
+  - (A) Studio và postgres-meta của Supabase cùng PostgREST, trên PostgreSQL 16 của lõi, cạnh Hasura, thêm một khung
+    bằng SQL;
+  - (B) thay Hasura bằng PostgREST cho mọi thứ: phải viết lại Văn phòng điện tử (khoảng 23.500 dòng trong
+    `apps/office/app` gọi GraphQL) và hai dịch vụ của đội;
+  - (C) đổi image CSDL sang `supabase/postgres` 17, giữ Hasura: phải nâng PostgreSQL 16 lên 17 trên dữ liệu thật;
+  - (D) bật console của Hasura cho người vận hành tạo bảng: Hasura không dùng RLS, mỗi bảng mới phải track và khai quyền
+    bằng metadata, nên vẫn là việc viết tay.
+
+  Directus (giấy phép không phải OSI) và Strapi (mã EE độc quyền nằm chung gói) đã bị loại ở bảng giấy phép của
+  [`du-thi/olp-2026-de-thi.md`](du-thi/olp-2026-de-thi.md) §5.1.
+- **Quyết định:** (A).
+  - Dịch vụ `rest` (PostgREST, profile `core`) chỉ nghe trong mạng compose; cổng mở `/rest/v1`, `/rest/v1/*` cho
+    người có token.
+  - Dịch vụ `studio`, `meta` (profile `studio`, tắt mặc định). Studio chỉ nghe `127.0.0.1`, không qua cổng.
+  - Bảng của ứng dụng sinh nằm ở schema `sinh`; hàm của khung ở `sinh_khung`. Không bảng `sinh` nào được track trong
+    Hasura.
+  - Giữ Keycloak (đăng nhập một lần, TOTP, mỗi đơn vị một Organization), Flowable (Supabase không chạy BPMN), APISIX,
+    Hasura, `svc-files`.
+- **Khung** *(mã của đội, migration `1792281604400_sinh_khung`)*: mỗi bảng tạo trong `sinh` tự có
+  - cột `tenant_id`, `created_by`, `created_at`, do trigger đặt từ token; người gọi gửi gì cũng không ghi được;
+  - RLS, với policy đơn vị `moc_don_vi` dạng **RESTRICTIVE** (policy thêm sau không mở được dòng của đơn vị khác) và
+    policy permissive `moc_mo` (`using (true)`);
+  - trigger sổ kiểm toán chuỗi băm `core.audit()` như bảng của lõi; `TRUNCATE` bị chặn.
+
+  Lệnh gỡ một trong các thứ trên bị hủy, kể cả xóa hay đổi tên cột chuẩn và `drop schema sinh`. Khung cấm view, hàm,
+  thủ tục, rule, aggregate trong `sinh`: view chạy bằng quyền chủ bảng nên vượt RLS, hàm thì lộ ra `/rest/v1/rpc`. Mỗi
+  lệnh DDL, kể cả lệnh xóa, ghi một dòng sổ kiểm toán (`action = 'ddl'`) rồi báo PostgREST nạp lại lược đồ. Đổi tên
+  schema cần quyền `CREATE` trên database, mà `moc_studio` không có. Hai hàm gắn khung (`ap_khung`) và ghi sổ
+  (`ghi_ddl`) là `SECURITY DEFINER`, chủ là `moc_harness`: không phải superuser, không đăng nhập; các hàm kiểm còn lại
+  chạy bằng quyền người gõ lệnh. DDL của superuser và của `moc_harness` không qua khung, không vào sổ, để migration chạy
+  như cũ; bù lại, `sinh_khung.kiem_tat_ca()` ở cuối `make seed` và trong test CSDL hủy nếu bảng nào của `sinh` thiếu
+  khung.
+- **Lý do:**
+  - Quyền của ứng dụng sinh nằm một chỗ là CSDL. PostgREST thấy bảng, cột mới ngay và dựa hẳn vào RLS mà khung đã bật;
+    không phải khai metadata cho từng bảng như Hasura.
+  - Cùng token Keycloak, cùng claim với Hasura (`https://hasura.io/jwt/claims`). Vai trò PostgreSQL lấy từ
+    `x-hasura-default-role`, nên không sửa realm của đơn vị nào.
+  - Không nâng PostgreSQL, không đụng Văn phòng điện tử. Chỉ thêm image ghim digest, giấy phép OSI: Studio,
+    postgres-meta Apache-2.0; PostgREST MIT. Dùng nguyên bản, chỉ cấu hình (§1.1); phần của đội là khung.
+- **Hệ quả:**
+  - **RLS là cơ chế mới** của hệ thống. Lõi trước đây không dùng RLS ở đâu; cách ly đơn vị của lõi và Văn phòng vẫn ở
+    metadata Hasura, và Hasura nối bằng superuser nên vượt RLS. RLS của khung chỉ bảo đảm trên đường `/rest/v1`.
+  - **Studio chỉ dành cho người vận hành nền tảng**, không cho quản trị đơn vị. Studio nối bằng `moc_studio`, chủ các
+    bảng trong `sinh`. RLS bật nhưng không `FORCE`: chủ bảng vượt RLS, nên Studio thấy dòng của mọi đơn vị và chạy được
+    SQL trong `sinh`. Không `FORCE` vì nó không chặn được thật (chủ bảng tự tạo được policy cho mình) mà lại làm Studio
+    và dữ liệu mẫu thấy 0 dòng. Schema `sinh` dùng chung: bảng một người tạo thì mọi đơn vị đều có. Studio không có
+    đăng nhập riêng; vào qua đường hầm SSH như trang quản trị Keycloak, Grafana.
+  - Dòng sổ `ddl` không chống được người dùng Studio: `moc_studio` gọi được hàm ghi dòng đó, nên tự ghi thêm được dòng
+    `ddl` dưới tên mình. Dòng đã ghi thì vẫn nằm trong chuỗi băm, sửa hay xóa đều bị `make audit` phát hiện. Qua Studio,
+    người làm luôn ghi là `moc_studio`: sổ không biết người vận hành nào.
+  - Hai kiểu API, có chủ ý: GraphQL (Hasura) cho lõi và Văn phòng điện tử, REST (PostgREST) cho ứng dụng sinh.
+  - PostgREST không tự tải khóa của Keycloak như Hasura: dịch vụ chạy một lần `rest-init` lấy JWKS của realm sau khi
+    Hasura đã áp migration, ghi ra tệp cho PostgREST đọc, ở mỗi lần `make up` hay nâng cấp. Keycloak đổi khóa ký giữa
+    chừng thì phải chạy lại `rest-init` và `rest`: chưa tự nạp lại. PostgREST không kiểm `iss`; cổng kiểm chữ ký, hạn
+    và `iss` trước (`can-token`); chấp nhận vì chỉ có một realm.
+  - Bảng, cột tạo trong Studio không nằm trong git, chỉ có dòng `ddl` trong sổ. Dựng lại trên máy khác phải khôi phục
+    cả CSDL bằng `moc backup restore`; chưa có lệnh xuất riêng schema `sinh`.
+  - Vai trò mới (`authenticator`, `moc_studio`, `moc_harness`, năm vai trò người dùng) không nằm trong pg_dump:
+    `moc backup restore` tạo lại chúng trước khi khôi phục, `rest-init` đặt lại mật khẩu khi khởi động.
+  - Trợ lý AI của Studio để tắt: nó chỉ nhận khóa OpenAI, trái luật không phụ thuộc dịch vụ đóng.
+  - Quy trình vẫn là BPMN viết tay trên Flowable, chưa có trình vẽ quy trình: đây không phải "tự sinh toàn bộ backend".
+  - RAM thêm, đo trên bộ thử CI ngày 04/11/2026 với dữ liệu mẫu: `rest` 18 MiB, `studio` 189 MiB, `meta` 106 MiB
+    (§1.3). Lúc đo, Studio không mở kết nối nào ra ngoài.
+
 ## 6. Chỗ còn yếu
 
 Gom lại để người đọc không phải tìm ở nhiều nơi; chi tiết và mức ở nguồn ghi cuối mỗi dòng.
@@ -1062,9 +1149,13 @@ Gom lại để người đọc không phải tìm ở nhiều nơi; chi tiết 
 - **Một máy, một PostgreSQL**: điểm lỗi đơn (QĐ-002), không tự mở rộng, không chịu lỗi nhiều nút (QĐ-003); sổ kiểm toán
   là một chuỗi băm, mọi giao dịch ghi sổ xếp hàng ở dòng `core.audit_head`; chưa đo tải
   ([`du-thi/hoi-dap-hoi-dong.md`](du-thi/hoi-dap-hoi-dong.md) §3).
-- **CSDL**: Hasura nối bằng `POSTGRES_USER`, là siêu người dùng; quyền theo vai trò chỉ nằm ở metadata Hasura, chưa có
-  vai trò CSDL quyền hẹp ([`trien-khai.md`](trien-khai.md) §8). Mốc neo sổ kiểm toán ra bucket khóa ghi là để chặn đúng
-  đường siêu người dùng viết lại sổ (`svc_files/anchors.py`).
+- **CSDL**: Hasura nối bằng `POSTGRES_USER`, là siêu người dùng; quyền theo vai trò của lõi và Văn phòng điện tử chỉ
+  nằm ở metadata Hasura ([`trien-khai.md`](trien-khai.md) §8). Vai trò CSDL quyền hẹp và RLS mới có ở ứng dụng sinh
+  (schema `sinh`, đường `/rest/v1`, QĐ-014); Studio nối bằng chủ bảng nên chỉ dành cho người vận hành nền tảng. Mốc neo
+  sổ kiểm toán ra bucket khóa ghi là để chặn đúng đường siêu người dùng viết lại sổ (`svc_files/anchors.py`).
+- **Ứng dụng sinh từ bảng** (QĐ-014): hai kiểu API (GraphQL, REST); bảng tạo trong Studio không nằm trong git, chỉ có
+  dấu vết trong sổ kiểm toán, ghi dưới tên `moc_studio`; log của `rest` chưa vào log tập trung (dòng yêu cầu mang giá
+  trị lọc, cần luật che riêng); chưa có trình vẽ quy trình, quy trình vẫn viết BPMN.
 - **Mạng**: TLS chỉ ở đoạn trình duyệt ↔ proxy, trong mạng Docker các dịch vụ gọi nhau bằng HTTP;
   `MOC_TRUSTED_PROXY=auto` tin mọi container ở mạng `moc` (dịch vụ lõi, `cloudflared`), không tin mạng `apps`; bản
   cài cũ còn `172.16.0.0/12` thì tin mọi container trên máy ([`trien-khai.md`](trien-khai.md) §8, #211). Ứng dụng chỉ
