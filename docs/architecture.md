@@ -106,8 +106,9 @@ của ba câu, đúng mức đã kiểm:
   online 1.3.0 ngày 31/10/2026: khoảng 4,6 GiB, chưa bật mô hình; số đo cũ 3,2–3,5 GB lấy từ trước khi thêm vài dịch
   vụ. Máy đề xuất 4 vCPU, 8 GB RAM, 40 GB đĩa. Bật mô hình ngôn ngữ (profile `ai`, Ollama giới hạn mặc định 6 GB — dịch
   vụ `ollama` trong `docker-compose.yml`) thêm khoảng 3,2 GiB khi đã nạp hai mô hình mặc định, cần máy 16 GB. Từ #569,
-  `rest` (PostgREST) thêm khoảng 18 MiB vào profile mặc định; bật profile `studio` thêm khoảng 300 MiB (Studio 189 MiB,
-  postgres-meta 106 MiB). Hai số này đo trên bộ thử CI ngày 04/11/2026 với dữ liệu mẫu, chưa đo trên bản online.
+  `rest` (PostgREST) thêm khoảng 25 MiB vào profile mặc định; bật profile `studio` thêm khoảng 300 MiB (Studio 190 MiB,
+  postgres-meta 114 MiB). Hai số này đo trong CI ngày 04/11/2026 trên hệ thống đầy đủ với dữ liệu mẫu (job e2e của
+  #568), chưa đo trên bản online.
 - **Câu 2.** Cài từ mã nguồn bằng `make env`, `make up`, `make seed`; `make install PREFIX=…` cài ra ngoài thư mục mã
   nguồn (F1.8).
 - **Câu 3.** Mô hình chạy tại chỗ; Cloudflare Tunnel chỉ là một cách lên mạng (profile `tunnel`, tắt mặc định), máy có
@@ -134,7 +135,7 @@ flowchart LR
     OFF["app-office · Văn phòng điện tử · Nuxt 4<br/>màn hình ở cả bốn không gian [H] [P] [D] [I], bảng ở README"]
     CN["[H] app-ca-nhan<br/>Không gian cá nhân P.A.R.A"]
     TL["[D] app-tai-lieu-api<br/>Tài liệu API · Swagger UI"]
-    APP["ứng dụng cắm bằng manifest (moc app install)<br/>[H] Bảng tin · [P] Nghỉ phép"]
+    APP["ứng dụng cắm bằng manifest (moc app install)<br/>[H] Bảng tin · [P] Nghỉ phép · [D] Ứng dụng sinh (/sinh)"]
     WK["[H] DokuWiki · profile wiki<br/>wiki nội bộ từng đơn vị"]
   end
   subgraph TANG1["Tầng 1 — lõi không giao diện (profile core)"]
@@ -181,9 +182,9 @@ flowchart LR
   GW -->|"/*"| OFF
   GW -->|"/ca-nhan, /ca-nhan/*"| CN
   GW -->|"/tai-lieu-api, /tai-lieu-api/*"| TL
-  GW -->|"/bang-tin/*, /nghi-phep/* — route thêm lúc cài"| APP
+  GW -->|"/bang-tin/*, /nghi-phep/*, /sinh/* — route thêm lúc cài"| APP
   GW -->|"/lich-giang/* — route thêm lúc cài"| T3
-  APP -->|"token, GraphQL: chỉ qua cổng"| GW
+  APP -->|"token, GraphQL, /rest/v1: chỉ qua cổng"| GW
   T3 -->|"token: chỉ qua cổng, API quy trình chung"| GW
   GW -.->|"/tu-dong, /tu-dong/* · WebSocket"| NR
   NR -.->|"OIDC, token robot, GraphQL<br/>(Action notifyFromFlow): chỉ qua cổng"| GW
@@ -315,9 +316,9 @@ vụ của đội nằm chung "Nền chung" vì cả hai phục vụ nhiều kh�
 |---|---|---|---|---|---|
 | PostgreSQL | 16 | Một máy chủ CSDL: CSDL `moc` (schema `core`, `office`, `personal`), CSDL riêng `keycloak`, `flowable` (QĐ-002) | ③ | `db/migrations/default/`, `db/initdb/` | F1.3 Hoàn thiện |
 | Hasura GraphQL Engine CE | v2.51.0 | GraphQL tự sinh, quyền theo vai trò và đơn vị tới từng dòng; khóa quản trị không bao giờ đi từ ngoài vào | ③ | `db/metadata/` | F1.3 Hoàn thiện |
-| PostgREST | v14.18 | REST và OpenAPI tự sinh từ bảng trong schema `sinh` (`/rest/v1`); vai trò CSDL lấy từ token Keycloak, cách ly đơn vị bằng RLS của khung | ③ | dịch vụ `rest` trong `docker-compose.yml` | — (QĐ-014) |
-| Supabase Studio, postgres-meta | 2026.10.12, v0.100.0 | Người vận hành nền tảng tạo bảng, thêm cột trong `sinh` (profile `studio`, chỉ nghe `127.0.0.1`); nối CSDL bằng `moc_studio` | ③ | dịch vụ `studio`, `meta` | — (QĐ-014) |
-| Khung ứng dụng sinh *(mã của đội)* | — | Gắn đơn vị, RLS, sổ kiểm toán vào mọi bảng của `sinh`; hủy lệnh gỡ các bảo vệ đó | ② ③ ⑥ | `db/migrations/default/1792281604400_sinh_khung/` | — (QĐ-014) |
+| PostgREST | v14.18 | REST và OpenAPI tự sinh từ bảng trong schema `sinh` (`/rest/v1`); vai trò CSDL lấy từ token Keycloak, cách ly đơn vị bằng RLS của khung | ③ | dịch vụ `rest` trong `docker-compose.yml` | F1.11 Dùng được |
+| Supabase Studio, postgres-meta | 2026.10.12, v0.100.0 | Người vận hành nền tảng tạo bảng, thêm cột trong `sinh` (profile `studio`, chỉ nghe `127.0.0.1`); nối CSDL bằng `moc_studio` | ③ | dịch vụ `studio`, `meta` | F1.11 Dùng được |
+| Khung ứng dụng sinh *(mã của đội)* | — | Gắn đơn vị, RLS, sổ kiểm toán vào mọi bảng của `sinh`; hủy lệnh gỡ các bảo vệ đó | ② ③ ⑥ | `db/migrations/default/1792281604400_sinh_khung/` | F1.11 Dùng được |
 | SeaweedFS | 4.48 | Kho tệp S3: bucket nóng `moc-files`; bucket lạnh `moc-cold` có Object Lock cho mốc neo sổ kiểm toán và gói nộp lưu (QĐ-010) | ④ | `svc_files/storage.py`, `svc_files/anchors.py`, `svc_files/archive.py` | F1.5 Hoàn thiện |
 | Meilisearch CE | v1.54.3 | Tìm toàn văn văn bản, cả chữ trong PDF; chỉ mục đoạn `chunks` của trợ lý hỏi đáp (tìm lai từ khóa và véc-tơ). Chỉ trả id, Hasura quyết ai đọc được | ④ | `svc_files/search.py`, `svc_files/texts.py`, `svc_files/assist/meili.py` | F1.7, F2.7 Hoàn thiện |
 | DuckDB | 1.5.6, thư viện trong `svc-files` | Ghi bảng của hồ sơ nộp lưu thành Parquet; phòng đọc đọc lại; trang Điều hành đếm văn bản đã nộp lưu trên các gói (#304) | ③ ④ | `svc_files/archive.py`, `svc_files/archive_stats.py` | F3.8 Hoàn thiện (giao diện hồ sơ, phòng đọc: #124) |
@@ -1062,8 +1063,9 @@ Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dư
 
 ### QĐ-014: Ứng dụng sinh từ bảng: Studio, postgres-meta của Supabase và PostgREST cạnh Hasura, khung bằng SQL
 
-> **Trạng thái:** gộp ở #565 (khung CSDL), #569 (dịch vụ), #563 (cổng). Lý do cũ không dùng Supabase ở
-> [`du-thi/olp-2026-de-thi.md`](du-thi/olp-2026-de-thi.md) giữ nguyên, có dòng đính chính trỏ về đây.
+> **Trạng thái:** gộp ở #565 (khung CSDL), #569 (dịch vụ), #563 (cổng), #564 (trang `/sinh`), #568 (e2e). Lý do cũ
+> không dùng Supabase ở [`du-thi/olp-2026-de-thi.md`](du-thi/olp-2026-de-thi.md) giữ nguyên, có dòng đính chính trỏ về
+> đây.
 
 - **Bối cảnh:** ban giám khảo vòng trường nhận xét thêm một ứng dụng vẫn phải tự viết nhiều: SQL, YAML quyền Hasura,
   BPMN, JSON Schema, `server.py`, `Dockerfile`, giao diện (`apps/nghi-phep` 3.472 dòng, `apps/lich-giang` 3.788 dòng,
@@ -1132,8 +1134,8 @@ Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dư
     `moc backup restore` tạo lại chúng trước khi khôi phục, `rest-init` đặt lại mật khẩu khi khởi động.
   - Trợ lý AI của Studio để tắt: nó chỉ nhận khóa OpenAI, trái luật không phụ thuộc dịch vụ đóng.
   - Quy trình vẫn là BPMN viết tay trên Flowable, chưa có trình vẽ quy trình: đây không phải "tự sinh toàn bộ backend".
-  - RAM thêm, đo trên bộ thử CI ngày 04/11/2026 với dữ liệu mẫu: `rest` 18 MiB, `studio` 189 MiB, `meta` 106 MiB
-    (§1.3). Lúc đo, Studio không mở kết nối nào ra ngoài.
+  - RAM thêm, đo trong CI ngày 04/11/2026 trên hệ thống đầy đủ với dữ liệu mẫu (#568): `rest` 25 MiB, `studio`
+    190 MiB, `meta` 114 MiB (§1.3). Lúc đo, Studio không mở kết nối nào ra ngoài.
 
 ## 6. Chỗ còn yếu
 

@@ -30,9 +30,9 @@ trong "(trừ `…`)" ngay sau số. Số chỉ một phần tệp viết "`tệ
 Một tệp có thể phục vụ nhiều tính năng; bảng gán tệp cho tính năng chính của nó, chỗ dùng lại ghi "đã tính ở …". Viết
 tắt thư mục test: svc-files = `services/svc-files/tests/`, svc-workflow = `services/svc-workflow/tests/`, db =
 `db/tests/`, scripts = `scripts/tests/`, office = `apps/office/tests/`, ca-nhan = `apps/ca-nhan/tests/`, bang-tin =
-`apps/bang-tin/tests/`, nghi-phep = `apps/nghi-phep/tests/`, e2e = `tests/e2e/`; mã nguồn `svc_files/…` =
-`services/svc-files/src/svc_files/…`, `svc_workflow/…` = `services/svc-workflow/src/svc_workflow/…`. "smoke" là một
-kiểm của `scripts/smoke.py`.
+`apps/bang-tin/tests/`, nghi-phep = `apps/nghi-phep/tests/`, sinh = `apps/sinh/tests/`, e2e = `tests/e2e/`; mã
+nguồn `svc_files/…` = `services/svc-files/src/svc_files/…`, `svc_workflow/…` =
+`services/svc-workflow/src/svc_workflow/…`. "smoke" là một kiểm của `scripts/smoke.py`.
 
 ## 1. Số test
 
@@ -81,6 +81,7 @@ chạy ở đâu tự động). Không gán cho tính năng nào: svc-files `tes
 | F1.8 | Cài ra ngoài thư mục mã nguồn: `make install PREFIX=…` | Hoàn thiện | — (không có test đơn vị cho `scripts/install.sh`) | bước CI "Cài ra ngoài thư mục mã nguồn và chạy từ đó (make install)": cài sang thư mục tạm, dựng lại từ đó, chạy smoke | — |
 | F1.9 | Lên mạng: HTTPS sau proxy (`MOC_TRUSTED_PROXY`), Cloudflare Tunnel tùy chọn | Hoàn thiện | scripts `test_duong_ham.py` 13 (kiểm chữ cấu hình tunnel, route Keycloak sau proxy, `MOC_TRUSTED_PROXY=auto` chỉ tin mạng `moc`), `test_kiem_ban_online.py` 24 (site giả) | Job `.github/workflows/ban-online.yml` kiểm bản online https://signet.htechcs.com hằng ngày và ngay sau mỗi lần phát hành, bản dev theo `develop` https://signet-dev.htechcs.com hằng ngày (đúng commit đầu `develop`) (`scripts/kiem_ban_online.py`: chứng chỉ, HTTP sang HTTPS, `/api/status` đúng thẻ phát hành mới nhất, URL của Keycloak sau proxy, header bảo mật); diễn tập tay 22/10/2026 trên máy phát triển (CHANGELOG [1.0.0]); phần CI `https` trên mọi pull request (#261): `.env` như `docs/trien-khai.md` bước 3, proxy TLS nginx với chứng thư tự ký như bước 5, rồi `kiem_ban_online.py`, smoke trọn qua `https://`, nhật ký APISIX ghi IP của máy gọi; với `MOC_TRUSTED_PROXY=auto`, `X-Forwarded-For` giả từ container ở mạng `apps` bị bỏ (#211); hướng dẫn `docs/trien-khai.md` | Máy chạy bản online tắt, hoặc bản online chưa nâng lên thẻ mới (quá 60 phút sau khi phát hành, hay tới lượt mỗi sáng), thì job đỏ. CI dùng nginx với chứng thư tự ký thay Caddy và Let's Encrypt, không kiểm Cloudflare Tunnel |
 | F1.10 | Tài liệu API xuất tự động (`docs/api/`), kèm trang API REST đọc được sinh từ OpenAPI (`rest-*.md`) | Hoàn thiện | scripts `test_api_docs.py` 8 (trang REST trong git khớp OpenAPI trong git; gói dòng, ô bảng, kiểu dữ liệu) | bước CI "Tài liệu API trong docs/api/ khớp mã (make api-docs)": `scripts/api_docs.py --check` so tài liệu với hệ thống vừa dựng | — |
+| F1.11 | Ứng dụng sinh từ bảng: Studio, postgres-meta của Supabase và PostgREST trên schema `sinh`, khung SQL (cột chuẩn lấy từ token, RLS theo đơn vị, sổ kiểm toán, chặn lệnh gỡ bảo vệ), trang `/sinh` dựng biểu mẫu từ OpenAPI (QĐ-014) | Dùng được | db `test_sinh.py` 12; scripts `test_cong_rest.py` 3; sinh `openapi.test.js` 7, `i18n.test.js` 7, `test_server.py` 6 | phần `e2e` của `chay-thu` chạy `scripts/kiem_sinh.py` (#568) trên hệ thống dựng thật, WAF bật: bảng tạo qua postgres-meta có ngay trên `/rest/v1`, không token `401`, cột chuẩn theo token, hai đơn vị không thấy, không sửa, xóa được dòng của nhau, lệnh gỡ bảo vệ bị hủy; trình diễn: màn "Ngoài 4 nguyên lý" của [`demo-script.md`](demo-script.md), làm tay, chưa có `make demo-*` | Profile `studio` tắt mặc định; chỉ người vận hành nền tảng dùng Studio, qua đường hầm SSH (Studio là chủ bảng, thấy dòng mọi đơn vị); bảng tạo trong Studio không nằm trong git; chưa có quy trình duyệt, tệp đính kèm, thông báo; trang `/sinh` chưa xóa dòng, chưa phân trang, lọc, tìm; RLS là cơ chế mới, chỉ bảo đảm trên `/rest/v1` ([`them-ung-dung.md`](them-ung-dung.md) mục 8.5) |
 
 ### 2.2. Văn phòng điện tử — Must (Phase 2)
 
@@ -151,12 +152,12 @@ F3.6 bỏ trống: cổng xác thực đã lên Must thành F2.13.
 
 ### 2.6. Tóm tắt
 
-44 tính năng (F1.1–F4.7, không tính F3.6):
+45 tính năng (F1.1–F4.7, không tính F3.6):
 
 | Mức | Số | Tính năng |
 |---|---|---|
 | Hoàn thiện | 35 | F1.1–F1.10; F2.1–F2.8, F2.10, F2.12, F2.13; F3.1–F3.5, F3.7–F3.9, F3.11, F3.12; F4.1–F4.4 |
-| Dùng được | 6 | F2.9, F3.13, F3.14, F3.15, F4.6, F4.7 |
+| Dùng được | 7 | F1.11; F2.9, F3.13, F3.14, F3.15, F4.6, F4.7 |
 | Minh họa | 2 | F3.10, F4.5 |
 | Một phần | 1 | F2.11 |
 
@@ -180,7 +181,7 @@ chưa phủ hết năng lực của cụm.
 | ② | Đa thuê ước cách ly dữ liệu | `tenant_id` + quyền Hasura (`db/metadata/`), Keycloak Organizations, `scripts/tenants.py` | Hoàn thiện | F1.3, F3.12; một realm, một bucket chia theo tiền tố |
 | ② | Dịch thuật, bản địa hóa đa ngôn ngữ | `apps/office/app/locales/` | Một phần | F2.9: bản địa hóa giao diện Việt / Anh; lõi không có dịch vụ dịch thuật nào cho ứng dụng dùng chung |
 | ③ Dữ liệu có cấu trúc | OLTP toàn vẹn | PostgreSQL 16, `db/migrations/default/` (`CHECK`, khóa ngoại kèm `tenant_id`, trigger) | Hoàn thiện | F1.3 |
-| ③ | Tự sinh API từ CSDL, phân quyền tới cấp dòng | Hasura v2 CE, `db/metadata/` | Hoàn thiện | F1.3; db `test_permissions.py` |
+| ③ | Tự sinh API từ CSDL, phân quyền tới cấp dòng | Hasura v2 CE, `db/metadata/`; PostgREST cho bảng tạo trong Studio (schema `sinh`, RLS của khung, QĐ-014) | Hoàn thiện | F1.3; db `test_permissions.py`; F1.11 |
 | ③ | Phiên bản và lịch sử biến động | `core.audit_log`, view `office.document_history` | Hoàn thiện | F2.12, F3.5; mức dòng thay đổi, trường nội dung dài chỉ báo "đã đổi" |
 | ③ | Đóng băng số liệu chuỗi thời gian | Lịch sử đo trong Scorpio (NGSI-LD temporal API, đọc ở `make demo-it-ot`); bảng `office.archived_document_facts` | Một phần | Chưa có kho chuỗi thời gian riêng, chưa chụp số liệu theo kỳ; `archived_document_facts` chỉ giữ số liệu dashboard của văn bản đã nộp lưu |
 | ③ | Lớp ngữ nghĩa báo cáo | Bốn view `office.v_*` qua Hasura (`db/migrations/default/1792281601200_dashboard/`) | Một phần | F3.11; không có lớp định nghĩa chỉ số và chiều dùng chung, mỗi báo cáo là một view viết tay |

@@ -204,6 +204,8 @@ choice: [`DEPENDENCIES.md`](DEPENDENCIES.md).
 | [P] | Node-RED | 5.0.8 | Apache-2.0 | Automation with flows that call the core through a unit's robot, optional (profile `tu-dong`) |
 | [D] | PostgreSQL | 16 | PostgreSQL | Main database, hash-chained audit log |
 | [D] | Hasura GraphQL Engine CE | 2.51.0 | Apache-2.0 | Generated GraphQL, row-level permissions by role and unit |
+| [D] | PostgREST | 14.18 | MIT | Generated REST (`/rest/v1`) for tables of generated apps (`sinh` schema); units isolated by the harness's RLS |
+| [D] | Supabase Studio, postgres-meta | 2026.10.12, 0.100.0 | Apache-2.0 | Platform operators create tables and add columns in `sinh` (`studio` profile, only on the server itself) |
 | [D] | SeaweedFS | 4.48 | Apache-2.0 | S3-compatible file store, write-locked cold storage for archived records |
 | [D] | Meilisearch CE | 1.54.3 | MIT | Full-text search, chunk index of the Q&A assistant |
 | [I] | Ollama, Qwen3 weights | 0.35.1 | MIT; weights Apache-2.0 | Local language model, optional (profile `ai`) |
@@ -229,7 +231,7 @@ license of every package, transitive ones included, is checked automatically wit
 | Docker Engine | 24.0 | with the `docker compose` v2 plugin 2.17+ and `docker buildx` |
 | GNU Make | 4.0 | runs the commands |
 | Python | 3.10 | standard library only, nothing to install: sample data, smoke tests, demos, backup, install and operations commands |
-| RAM | 8 GB | the default profiles (19 services, 18 running continuously) measured about 4.6 GiB on release 1.3.0 (`docker stats`, 2026-10-31; ClamAV 0.9 GiB, up to 1.9 GiB for about 10 seconds at each signature reload, Meilisearch 0.75 GiB, Keycloak 0.6 GiB, APISIX 0.5 GiB, Hasura 0.4 GiB); the AI profile (`ai`, both default models loaded) adds about 3.2 GiB, so plan on 16 GB |
+| RAM | 8 GB | the default profiles (19 services, 18 running continuously) measured about 4.6 GiB on release 1.3.0 (`docker stats`, 2026-10-31; ClamAV 0.9 GiB, up to 1.9 GiB for about 10 seconds at each signature reload, Meilisearch 0.75 GiB, Keycloak 0.6 GiB, APISIX 0.5 GiB, Hasura 0.4 GiB). Since #569 the default profiles have 21 services, 19 running continuously: `rest` (PostgREST, about 25 MiB) and the one-shot `rest-init`; the `studio` profile adds about 300 MiB (measured in CI on 2026-11-04, #568). The AI profile (`ai`, both default models loaded) adds about 3.2 GiB, so plan on 16 GB |
 | Free disk | 10 GB | images about 5 GB; AI models about 2 GB more |
 
 Every tool used to build Signet is open-source software. No closed-source or home-made tool is needed.
@@ -320,10 +322,12 @@ handle and a reply draft the team head sent back for changes.
 | <http://localhost:8080/ca-nhan/> | P.A.R.A personal space | Yes |
 | <http://localhost:8080/tai-lieu-api/> | API documentation (Swagger UI): the core API and the e-Office API, sign in to try calls through the gateway | Optional |
 | <http://localhost:8080/bang-tin/> | Unit news board, once installed with `make app-install APP=apps/bang-tin/app.yaml` | Yes |
+| <http://localhost:8080/sinh/> | Apps generated from tables: lists and forms built from tables created in Studio, once installed with `make app-install APP=apps/sinh/app.yaml` | Yes |
 | <http://localhost:8080/xac-thuc> | Document verification portal: enter a code or drop a PDF; codes of the issued sample documents are on each document's detail page (Outgoing documents, Issued tab) | No |
 | <http://localhost:8080/trang-thai> | System status | No |
 | <http://127.0.0.1:8180/admin> | Keycloak admin console, only on the server itself (`KEYCLOAK_ADMIN_*` account) | Yes |
 | <http://127.0.0.1:3300> | Grafana API gateway monitoring, only on the server itself (remotely: SSH tunnel) | No |
+| <http://127.0.0.1:3400> | Supabase Studio: platform operators create tables for generated apps, `studio` profile, only on the server itself (remotely: SSH tunnel) | No |
 
 ## Operations and testing
 
@@ -336,6 +340,7 @@ Administrator tasks on a running installation are described in [`docs/van-hanh.e
 | [Secrets vault](docs/van-hanh.en.md#secrets-vault) OpenBao: limits, upgrading an old vault for digital signatures | `make demo-ket-bi-mat` |
 | [GitOps and self-healing](docs/van-hanh.en.md#gitops-and-self-healing): systemd timer or cron, one round a minute; follows the `deploy` branch or release tags (`MOC_GITOPS_FOLLOW=release`), upgrades with a backup and rolls back on failure (`MOC_GITOPS_MODE=nang-cap`); with `MOC_GITOPS_ALLOWED_SIGNERS` set, applies signed versions only | `make reconcile` |
 | [Monitoring](docs/van-hanh.en.md#monitoring) of the API gateway with Prometheus + Grafana | SSH tunnel to port 3300 |
+| [Apps generated from tables](docs/van-hanh.en.md#apps-generated-from-tables-supabase-studio): create tables in Supabase Studio, PostgREST generates the API, the `/sinh` page builds forms | add `studio` to `MOC_EXTRA_PROFILES`, `make up` |
 | [Centralised logs](docs/van-hanh.en.md#centralised-logs): Vector + Parseable, searched by request id `X-Request-Id` | `make logs-up`, `make logs-tra ID=…` |
 | [IT/OT convergence](docs/van-hanh.en.md#itot-convergence): NGSI-LD broker, sensors | `make demo-it-ot` |
 | [Public data](docs/van-hanh.en.md#public-data): snapshots of Ministry of Education and Training circulars from the Official Gazette, SHA-256 check, data age | `make du-lieu-mo` |
