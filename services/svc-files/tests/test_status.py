@@ -255,7 +255,7 @@ def status_settings(**extra: str) -> Settings:
         "MOC_SEARCH_SYNC_INTERVAL_S": "0", "MOC_ASK_ENABLED": "false", "MOC_ASK_SYNC_INTERVAL_S": "0",
         "MOC_AUDIT_ANCHOR_INTERVAL_S": "0", "MOC_TEXT_INTERVAL_S": "0", "MOC_AI_URL": "",
         "MOC_IMPORT_INTERVAL_S": "0",     # vòng nền nạp lô tắt (không tạo thư mục spool)
-        "MOC_VERSION": "1.0.0", "MOC_STATUS_TIMEOUT_S": "0.5",
+        "MOC_VERSION": "1.0.0", "MOC_STATUS_TIMEOUT_S": "5",  # đồ giả trả ngay; 0.5 giây đỏ khi runner chậm (#570)
         "MOC_OPEN_DATA_DIR": "",          # không đọc /srv/du-lieu-mo của máy chạy test
         **extra,
     })
