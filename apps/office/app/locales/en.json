@@ -937,6 +937,9 @@
       "register": {
         "printed": "Printed register"
       },
+      "period": {
+        "closed": "Reporting period closed"
+      },
       "case_file": {
         "archived": "Case file archived",
         "read": "Archived case file read",
@@ -969,7 +972,8 @@
         "case_files": "Case file",
         "case_file_documents": "Document in case file",
         "dispatches": "Inter-unit dispatch",
-        "maturity_assessments": "H-P-D-I self-assessment"
+        "maturity_assessments": "H-P-D-I self-assessment",
+        "period_closes": "Closed reporting period"
       },
       "core": {
         "files": "Uploaded file",
@@ -1293,6 +1297,21 @@
     "average": "Average",
     "status": "Status",
     "underHour": "under 1 hour"
+  },
+  "periodClose": {
+    "title": "Close a reporting period",
+    "hint": "Close a past month: the figures are written once and cannot be changed or deleted; their hash goes into the audit log. Open and overdue incoming documents are counted when you close, not at the end of the month: close on the last day of the month to get end-of-period figures.",
+    "month": "Month to close",
+    "submit": "Close period",
+    "confirm": "Close the figures for {month}? Once closed they cannot be changed or deleted.",
+    "closed": "Figures for {month} closed.",
+    "empty": "No period closed yet.",
+    "period": "Period",
+    "closedAt": "Closed at",
+    "open": "Open when closed",
+    "overdue": "Overdue when closed",
+    "done": "Done in period",
+    "sha256": "SHA-256 hash"
   },
   "archiveBoard": {
     "title": "Archived documents (cold store)",

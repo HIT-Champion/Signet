@@ -840,6 +840,15 @@ ký vẫn cho biết có bao nhiêu văn bản. Nhờ vậy mọi số chia trê
 | `office.v_processing_time` | `month`, `documents`, `total_hours`, `with_due`, `on_time` | Thời gian từ vào sổ đến khi xong, theo tháng xong. Lúc xong là sự kiện `office.document.processed` (báo xong) hoặc `office.document.filed` (cho lưu) trên dòng thời gian, ghi cùng giao dịch với trạng thái `done` (văn bản đã nộp lưu: bản giữ lại, xem dưới). Trả tổng số giờ để giao diện tự chia, gộp nhiều tháng không lệch; `on_time` đếm trong số `with_due` (văn bản có hạn) |
 | `office.v_outgoing_by_month` | `month`, `documents` | Văn bản đi đã phát hành theo tháng ban hành |
 
+**Chốt kỳ** (#542, migration 1792281604300). Số trên dashboard tính lại mỗi lần xem, nên đổi theo dữ liệu. Lãnh đạo
+đơn vị chốt một tháng đã qua bằng hàm `office.close_period(period)` (Hasura đưa ra thành mutation, chỉ `director`).
+Hàm chép số của bốn view trên vào `office.period_closes`, mỗi đơn vị mỗi tháng một dòng (`tenant_id`, `period`,
+`closed_at`, `closed_by`, `figures`, `sha256`), rồi ghi sự kiện `period.closed` kèm mã băm vào sổ kiểm toán. Trigger
+chặn sửa, xóa, truncate bảng này. `sha256` là băm của đúng chuỗi `figures::text`, tính lại được bằng SQL. Sổ kiểm
+toán có chuỗi băm nên bản chép bị sửa thẳng trong CSDL thì lệch với mã băm đã ghi. `v_document_counts` và
+`v_overdue_by_department` không có lịch sử nên `figures` giữ số tại lúc chốt (`closed_at`), không phải số cuối tháng;
+`v_processing_time`, `v_outgoing_by_month` lấy đúng dòng của tháng. Tháng chưa qua, tháng đã chốt bị từ chối.
+
 **Số đo đọc văn bản đến** (F4.1, migration 1792281601900): `office.v_intake_accuracy` đối chiếu gợi ý đã lưu với
 văn bản văn thư đã lưu từ tệp đó (tệp là bản chính của văn bản đến chưa hủy), cho biết văn thư giữ nguyên bao nhiêu
 gợi ý trên dữ liệu thật. Văn bản hạn chế không vào phép đếm. `director`, `tenant_admin` đọc, lọc thuê ước, có

@@ -74,6 +74,24 @@ test('dashboard điều hành: chỉ lãnh đạo đơn vị xem, số liệu kh
   }
   await expect(rows.filter({ hasNot: director.getByText('Hạn chế', { exact: true }) })).toHaveCount(overdue)
 
+  // chốt kỳ (#542): chốt tháng đã qua đầu tiên chưa chốt, kỳ đó vào danh sách và rời ô chọn, sổ kiểm toán có dòng.
+  // Kỳ đã chốt không xóa được: chạy lại trên cùng CSDL thì chốt tháng kế trước; đủ 12 tháng thì chỉ kiểm danh sách
+  await director.goto('/dieu-hanh')
+  const closing = director.getByTestId('period-close')
+  await expect(closing.getByTestId('period-close-list').or(closing.getByTestId('period-close-empty'))).toBeVisible()
+  const pick = closing.getByTestId('period-close-month')
+  if (await pick.isVisible()) {
+    const period = await pick.inputValue()
+    director.once('dialog', (d) => d.accept())
+    await closing.getByTestId('period-close-submit').click()
+    const row = closing.locator(`tr[data-period="${period}"]`)
+    await expect(row).toBeVisible()
+    await expect(row.locator('code')).toHaveText(/^[0-9a-f]{12}…$/)
+    await expect(pick.locator(`option[value="${period}"]`)).toHaveCount(0)
+    await director.goto('/so-kiem-toan')
+    await expect(director.getByTestId('audit-table')).toContainText('Chốt kỳ số liệu điều hành')
+  }
+
   const clerk = await signIn(browser, 'vanthu', { otp: true })
   await expect(clerk.getByRole('link', { name: 'Sổ đăng ký' })).toBeVisible()
   await expect(clerk.getByRole('link', { name: 'Điều hành' })).toHaveCount(0)
