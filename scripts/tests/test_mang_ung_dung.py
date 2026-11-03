@@ -42,7 +42,7 @@ CONFIG = ROOT / "platform" / "apisix" / "config.yaml"
 APP = ROOT / "apps" / "bang-tin" / "app.yaml"
 APPS_NET = {"apisix", "app-office", "app-ca-nhan", "app-tai-lieu-api", "wiki", "tu-dong"}   # các service ở mạng apps
 CORE_HOSTS = ("keycloak", "hasura", "postgres", "svc-files", "svc-workflow", "openbao", "seaweedfs", "centrifugo",
-              "meilisearch", "flowable", "clamav", "ollama", "scorpio")
+              "meilisearch", "flowable", "clamav", "ollama", "scorpio", "rest", "studio", "meta")
 
 u: Any = None
 _saved: dict[str, Any] = {}
