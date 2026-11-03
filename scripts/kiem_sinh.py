@@ -37,9 +37,9 @@ import urllib.parse
 import uuid
 from typing import Any, Callable
 
-from moc_env import ENV, PUBLIC_URL, ROOT, HTTPError, call_json, compose, request, user_token
+from moc_env import ENV, PUBLIC_URL, ROOT, HTTPError, call_json, compose, request, user_token, wait_for
 
-STUDIO = f"http://127.0.0.1:{ENV.get('MOC_STUDIO_PORT', '3400')}/api/platform/pg-meta/default/query"
+PG_META = f"http://127.0.0.1:{ENV.get('MOC_STUDIO_PORT', '3400')}/api/platform/pg-meta/default"   # API của Studio
 REST = f"{PUBLIC_URL}/rest/v1"
 HASURA = "https://hasura.io/jwt/claims"
 A, B, ADMIN = "vanthu", "vanthukt", "quantri"     # seed/users.csv: văn thư CNTT, văn thư KT, quản trị đơn vị CNTT
@@ -65,7 +65,7 @@ def claims(token: str) -> dict[str, Any]:
 
 
 def studio(query: str) -> list[dict[str, Any]]:
-    return call_json("POST", STUDIO, {"query": query})[0] or []
+    return call_json("POST", f"{PG_META}/query", {"query": query})[0] or []
 
 
 def refused(query: str) -> str:
@@ -109,6 +109,8 @@ def started_at() -> str:
 
 def run(out: pathlib.Path) -> None:
     ok(ENV.get("MOC_WAF", "On") == "On", "WAF của APISIX bật (MOC_WAF=On), như bản thật")
+    # image Studio, postgres-meta không có healthcheck: up --wait xong khi container chạy, chưa chắc đã trả lời
+    wait_for(f"{PG_META}/tables?included_schemas=sinh", "Studio + postgres-meta", 180)
     ta, tb, tq = user_token(A), user_token(B), user_token(ADMIN)
     ca, cb = claims(ta), claims(tb)
     unit_a, unit_b = ca["x-hasura-tenant-id"], cb["x-hasura-tenant-id"]
