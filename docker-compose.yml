@@ -290,6 +290,12 @@ services:
       PG_META_DB_USER: moc_studio
       PG_META_DB_PASSWORD: ${MOC_STUDIO_DB_PASSWORD:?}
       CRYPTO_KEY: ${MOC_STUDIO_META_KEY:?Đặt MOC_STUDIO_META_KEY trong .env (make install tự thêm)}
+    healthcheck:
+      # image không khai healthcheck mà studio chờ meta healthy: máy chủ trả lời HTTP (mã nào cũng được) là đã nghe
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/').then(() => process.exit(0), () => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     mem_limit: 256m
     depends_on:
       rest-init: {condition: service_completed_successfully}
