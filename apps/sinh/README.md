@@ -24,8 +24,7 @@ quyền nằm trong CSDL: khung CSDL của lõi gắn cách ly đơn vị (RLS),
 
 | Cột PostgreSQL | Ô |
 |---|---|
-| `varchar(n)`, `char(n)` | ô một dòng, tối đa n ký tự |
-| `text` | ô nhiều dòng |
+| `text`, `varchar(n)` | ô một dòng (`varchar(n)`: tối đa n ký tự) |
 | kiểu enum | ô chọn (giá trị enum là chữ hiện ra) |
 | `integer`, `bigint`, `numeric`… | ô số |
 | `boolean` | ô đánh dấu |
@@ -39,6 +38,7 @@ quyền nằm trong CSDL: khung CSDL của lõi gắn cách ly đơn vị (RLS),
 - Cột cho phép NULL, để trống thì gửi `null`. Riêng ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống
   được.
 - `CHECK` không hiện thành ô chọn, vì PostgREST không mô tả nó. Muốn có danh sách chọn thì dùng kiểu enum.
+- Studio đặt sẵn kiểu `text` cho mọi cột chữ, nên `text` không nói gì về độ dài: mọi cột chữ là ô một dòng.
 
 ## Tệp
 
@@ -52,11 +52,13 @@ quyền nằm trong CSDL: khung CSDL của lõi gắn cách ly đơn vị (RLS),
 | `public/i18n.js` | Bảng dịch vi/en của trang. Tên bảng, nhãn ô lấy từ COMMENT trong CSDL nên chỉ một thứ tiếng |
 | `tests/` | `node --test tests/*.test.js`: bộ đổi mô tả API (cả màn "thêm cột Mức ưu tiên"), cách gọi `/rest/v1`, bảng dịch. `python3 -m unittest discover -s tests`: máy chủ trang thật trên cổng ngẫu nhiên |
 
-`tests/postgrest-openapi.json` viết theo tài liệu và mã nguồn PostgREST, **chưa kiểm với PostgREST v14 thật**. Khi
-có mô tả thật từ bộ thử CI thì thay tệp đó, giữ các ca kiểm.
+`tests/postgrest-v14-openapi.json` là mô tả thật của PostgREST v14.18 lấy từ bộ thử trên CI (bảng mẫu `sinh.yeu_cau`).
+`tests/postgrest-openapi.json` viết tay theo đúng dạng đó cho các ca bản thật chưa có: khóa ngoại, json, mảng, bảng
+không chú thích, chú thích nhiều dòng.
 
 ## Chưa làm
 
 - Xóa dòng, phân trang (chỉ 50 dòng mới nhất), lọc, tìm.
 - Ô cho cột thời điểm (`timestamp`): hiện ô chữ, gõ theo dạng ISO 8601.
+- Ô nhiều dòng cho cột chữ dài.
 - Nhãn hai thứ tiếng: COMMENT chỉ một chuỗi.

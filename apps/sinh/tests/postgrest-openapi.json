@@ -8,8 +8,8 @@
   "produces": ["application/json", "application/vnd.pgrst.object+json", "text/csv"],
   "paths": {
     "/": {"get": {"produces": ["application/openapi+json", "application/json"], "responses": {"200": {"description": "OK"}}, "summary": "OpenAPI description (this document)", "tags": ["Introspection"]}},
-    "/yeu_cau": {"get": {"responses": {"200": {"description": "OK"}}, "tags": ["yeu_cau"]}, "description": "Quản lý yêu cầu\nGửi yêu cầu tới phòng phụ trách và theo dõi tới khi xong."},
-    "/phong": {"get": {"responses": {"200": {"description": "OK"}}, "tags": ["phong"]}, "description": "Danh mục phòng"},
+    "/yeu_cau": {"get": {"description": "Gửi yêu cầu tới phòng phụ trách và theo dõi tới khi xong.", "responses": {"200": {"description": "OK"}}, "summary": "Quản lý yêu cầu", "tags": ["yeu_cau"]}},
+    "/phong": {"get": {"responses": {"200": {"description": "OK"}}, "summary": "Danh mục phòng", "tags": ["phong"]}},
     "/bang_phu": {"get": {"responses": {"200": {"description": "OK"}}, "tags": ["bang_phu"]}}
   },
   "definitions": {

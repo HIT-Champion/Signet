@@ -15,9 +15,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // #560: mô tả API PostgREST sinh (GET /rest/v1/) → menu và JSON Schema cho schema-form.js, và cách gọi /rest/v1.
-// postgrest-openapi.json viết theo tài liệu và mã nguồn PostgREST (Swagger 2.0: description = COMMENT, phần "Note:
-// … <pk/>" nối sau, format = tên kiểu PostgreSQL, enum với kiểu enum), CHƯA kiểm với PostgREST v14 thật: có mô tả
-// thật từ bộ thử trên CI (V0) hay e2e (H2) thì thay tệp đó, giữ các ca dưới đây.
+// Hai tệp mô tả: postgrest-v14-openapi.json lấy thật từ PostgREST v14.18 trong bộ thử trên CI (run 41691183259,
+// bảng mẫu sinh.yeu_cau); postgrest-openapi.json viết tay theo đúng dạng đó để có các ca bản thật chưa có (khóa
+// ngoại, json, mảng, bảng không chú thích, chú thích nhiều dòng).
 
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -27,7 +27,31 @@ import { STANDARD, apps, formSchema, note } from '../public/openapi.js'
 import { API, PAGE, docThan, duong, tongSo, yeuCau } from '../public/rest.js'
 import { checkSchema, fields, mountForm, summary } from '../public/schema-form.js'
 
-const spec = () => JSON.parse(readFileSync(new URL('postgrest-openapi.json', import.meta.url), 'utf8'))
+const read = (name) => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'))
+const spec = () => read('postgrest-openapi.json')
+
+test('mô tả thật của PostgREST v14: menu, schema của bảng mẫu sinh.yeu_cau', () => {
+  const real = read('postgrest-v14-openapi.json')
+  assert.deepEqual(apps(real), [{ table: 'yeu_cau', title: 'Quản lý yêu cầu', help: '' }])
+  const { schema, key } = formSchema(real, 'yeu_cau')
+  assert.equal(key, 'id')
+  // required của PostgREST có mọi cột NOT NULL: bỏ cột chuẩn, khóa chính, cột có mặc định (trang_thai, muc_uu_tien)
+  assert.deepEqual(schema, {
+    type: 'object',
+    title: 'Quản lý yêu cầu',
+    properties: {
+      tieu_de: { type: 'string', 'x-moc-ui': { label: 'Tiêu đề' } },
+      noi_dung: { type: ['string', 'null'] },
+      // cột có CHECK không có enum trong mô tả: ô chữ, CSDL từ chối giá trị ngoài CHECK (400)
+      muc_uu_tien: { type: 'string', 'x-moc-ui': { label: 'Mức ưu tiên' } },
+      trang_thai: { type: 'string', enum: ['mới', 'đang xử lý', 'xong'], 'x-moc-ui': { label: 'Trạng thái' } },
+      han: { type: ['string', 'null'], format: 'date', 'x-moc-ui': { label: 'Hạn xử lý' } },
+    },
+    'x-moc-order': ['tieu_de', 'noi_dung', 'muc_uu_tien', 'trang_thai', 'han'],
+    required: ['tieu_de'],
+  })
+  assert.doesNotThrow(() => checkSchema(schema))
+})
 
 test('chú thích: bỏ phần Note PostgREST nối vào; dòng đầu là nhãn, các dòng sau là gợi ý', () => {
   assert.deepEqual(note('Note:\nThis is a Primary Key.<pk/>'), { label: '', help: '' })
@@ -58,8 +82,9 @@ test('schema của bảng: bỏ cột chuẩn, khóa chính, cột json và mả
   assert.deepEqual(schema.required, ['tieu_de'])
   assert.deepEqual(schema.properties.tieu_de,
     { type: 'string', maxLength: 200, 'x-moc-ui': { label: 'Tiêu đề' } })
-  assert.deepEqual(schema.properties.noi_dung, { type: ['string', 'null'],
-    'x-moc-ui': { label: 'Nội dung', help: 'Mô tả điều cần giải quyết.', widget: 'textarea' } })
+  // text là kiểu Studio đặt sẵn cho mọi cột chữ, không nói gì về độ dài: ô một dòng như varchar
+  assert.deepEqual(schema.properties.noi_dung,
+    { type: ['string', 'null'], 'x-moc-ui': { label: 'Nội dung', help: 'Mô tả điều cần giải quyết.' } })
   assert.deepEqual(schema.properties.han,
     { type: ['string', 'null'], format: 'date', 'x-moc-ui': { label: 'Hạn giải quyết' } })
   assert.deepEqual(schema.properties.trang_thai,
@@ -71,7 +96,7 @@ test('schema của bảng: bỏ cột chuẩn, khóa chính, cột json và mả
   // schema-form.js nhận schema này: không còn format lạ (character varying, timestamp…), x-moc-order đủ trường
   assert.doesNotThrow(() => checkSchema(schema))
   assert.deepEqual(fields(schema).map((f) => [f.name, f.widget, f.label]), [
-    ['tieu_de', 'text', 'Tiêu đề'], ['noi_dung', 'textarea', 'Nội dung'], ['han', 'date', 'Hạn giải quyết'],
+    ['tieu_de', 'text', 'Tiêu đề'], ['noi_dung', 'text', 'Nội dung'], ['han', 'date', 'Hạn giải quyết'],
     ['trang_thai', 'select', 'Trạng thái'], ['so_luong', 'number', 'so_luong'], ['phong_id', 'text', 'Phòng phụ trách'],
   ])
   // bảng không có khóa chính: dựng được form thêm, không sửa được

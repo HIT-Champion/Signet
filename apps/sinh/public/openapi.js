@@ -33,11 +33,17 @@ export function note(description) {
 
 const isKey = (prop) => /<pk\/>/.test(String(prop?.description ?? ''))
 
-/** Các ứng dụng: bảng có COMMENT ON TABLE, xếp theo tên. Bảng không chú thích là bảng phụ, không lên menu. Chú
- *  thích lấy ở definitions.<bảng>, không có thì ở paths./<bảng> (PostgREST ghi cả hai chỗ). */
+// PostgREST v14 ghi COMMENT ON TABLE ở definitions.<bảng>.description, và tách đôi ở paths./<bảng>.get: dòng đầu là
+// summary, phần sau là description
+function tableNote(spec, table) {
+  const get = spec?.paths?.[`/${table}`]?.get
+  return spec.definitions[table]?.description || [get?.summary, get?.description].filter(Boolean).join('\n')
+}
+
+/** Các ứng dụng: bảng có COMMENT ON TABLE, xếp theo tên. Bảng không chú thích là bảng phụ, không lên menu. */
 export function apps(spec) {
-  return Object.entries(spec?.definitions ?? {})
-    .map(([table, def]) => ({ table, ...note(def?.description || spec?.paths?.[`/${table}`]?.description) }))
+  return Object.keys(spec?.definitions ?? {})
+    .map((table) => ({ table, ...note(tableNote(spec, table)) }))
     .filter((a) => a.label)
     .map(({ table, label, help }) => ({ table, title: label, help }))
     .sort((a, b) => a.title.localeCompare(b.title, 'vi'))
@@ -72,8 +78,6 @@ export function formSchema(spec, table) {
     const ui = {}
     if (label) ui.label = label
     if (help) ui.help = help
-    // text không giới hạn độ dài: ô nhiều dòng; varchar(n) giữ ô một dòng
-    if (p.format === 'text' && !out.enum) ui.widget = 'textarea'
     if (Object.keys(ui).length) out['x-moc-ui'] = ui
     properties[name] = out
     if (listed.has(name) && !hasDefault) required.push(name)
