@@ -410,6 +410,14 @@ jobs:
       - name: Nạp dữ liệu mẫu (make seed)
         run: make seed
 
+      # #579: mỗi collection của SeaweedFS mở 1 volume (WEED_MASTER_VOLUME_GROWTH_COPY_1). Mặc định 7 thì máy ít đĩa
+      # hết ô, tải lên 503; runner nhiều đĩa vẫn xanh nên đếm thẳng volume trong log, không chờ tới lúc hết ô
+      - name: SeaweedFS mở mỗi collection một volume
+        if: matrix.phan == 'luong-chinh'
+        run: |
+          $COMPOSE logs --no-color seaweedfs | grep -oE 'adds volume:[0-9]+ collection:[^ ]*' | awk '{print $3}' \
+            | sort | uniq -c | tee /dev/stderr | awk '$1 != 1 {bad = 1} END {exit bad || NR == 0}'
+
       # Xuất lại schema GraphQL theo vai trò và OpenAPI từ hệ thống vừa dựng, so với docs/api/ trong commit
       - name: Tài liệu API trong docs/api/ khớp mã (make api-docs)
         id: api-docs
