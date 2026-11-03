@@ -395,6 +395,9 @@ services:
     environment:
       SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY:?}
       SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY:?}
+      # Mỗi collection mở 1 volume, đầy thì mở thêm (mặc định 7): -volume.max=0 cho số ô theo đĩa trống / 1 GB, đĩa
+      # 6 GB thì moc-cold lấy hết ô, moc-files không còn volume nào, tải lên 503 (#579)
+      WEED_MASTER_VOLUME_GROWTH_COPY_1: "1"
     volumes:
       - seaweedfs_data:/data
 
