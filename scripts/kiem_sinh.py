@@ -177,6 +177,11 @@ def run(out: pathlib.Path) -> None:
         ok("khung:" in refused(sql), f"{what}: bị hủy")
     ok(studio(f"select relrowsecurity as rls from pg_class where oid = '{q}'::regclass") == [{"rls": True}],
        "RLS vẫn bật")
+    # Event trigger không bắt đổi tên schema; PostgreSQL đòi thêm quyền CREATE trên database, moc_studio không có
+    body = refused("alter schema sinh rename to sinh_doi")
+    if not body:
+        studio("alter schema sinh_doi rename to sinh")
+    ok("permission denied" in body, "đổi tên schema sinh (vòng ra ngoài khung): PostgreSQL từ chối")
 
     print("\n6. Studio thêm cột: /rest/v1 thấy ngay")
     t0 = started_at()
