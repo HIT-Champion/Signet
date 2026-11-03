@@ -59,7 +59,7 @@ PREFIX ?= /opt/moc
         demo-nap-lo nap-lo-mau du-lieu-mo du-lieu-mo-lay \
         demo-ca-nhan demo-tat-van-phong \
         do-so-lieu-sau \
-        logs-env logs-up logs-down logs-tra demo-log-tap-trung alert-env demo-canh-bao \
+        logs-env logs-up logs-down logs-tra demo-log-tap-trung alert-env sinh-env demo-canh-bao \
         wiki-env wiki-up wiki-down demo-wiki \
         tu-dong-env tu-dong-up tu-dong-down demo-tu-dong \
         reconcile \
@@ -107,7 +107,7 @@ check: ## Kiểm tra tiền điều kiện của môi trường
 build: $(ENV_FILE) ## Dựng image của các dịch vụ do đội viết
 	@$(COMPOSE) build
 
-up: env-ready alert-env $(if $(LOGS_ON),logs-env) $(if $(WIKI_ON),wiki-env) $(if $(TU_DONG_ON),tu-dong-env) ## Khởi động lõi (Tầng 1) và Văn phòng điện tử (Tầng 2)
+up: sinh-env env-ready alert-env $(if $(LOGS_ON),logs-env) $(if $(WIKI_ON),wiki-env) $(if $(TU_DONG_ON),tu-dong-env) ## Khởi động lõi (Tầng 1) và Văn phòng điện tử (Tầng 2)
 	$(if $(wildcard .moc-apps/apps),@python3 scripts/moc.py app sync --files)
 	@$(COMPOSE) up -d --build --wait --wait-timeout 600
 	$(if $(LOGS_ON),@python3 scripts/log_tap_trung.py init)
@@ -135,6 +135,15 @@ restart: down up ## Khởi động lại toàn bộ hệ thống
 
 logs: ## Theo dõi nhật ký của mọi dịch vụ
 	@$(COMPOSE) logs -f --tail=100
+
+sinh-env: $(ENV_FILE)
+	@# .env sinh trước #566 thiếu mật khẩu, khóa của PostgREST, Studio: sinh như make env, không in giá trị. Chạy trước
+	@# env-ready: thiếu khóa thì compose config của nó hỏng
+	@for k in MOC_REST_DB_PASSWORD MOC_STUDIO_DB_PASSWORD MOC_STUDIO_META_KEY MOC_STUDIO_JWT_SECRET; do \
+	  grep -q "^$$k=" $(ENV_FILE) || { umask 077 \
+	  && printf '\n# Ứng dụng sinh từ Studio (#566), make up thêm\n%s=change_me\n' "$$k" \
+	  | ./scripts/gen-env.sh /dev/stdin >> $(ENV_FILE) && echo "Đã thêm $$k (ngẫu nhiên) vào $(ENV_FILE)."; } || exit 1; \
+	done
 
 alert-env: $(ENV_FILE)
 	@# .env sinh trước #284 thiếu token Alertmanager → svc-workflow: sinh như make env, không in giá trị. Dòng có mà

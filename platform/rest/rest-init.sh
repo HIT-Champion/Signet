@@ -19,8 +19,9 @@
 # 1. Bật LOGIN, đặt mật khẩu cho authenticator (PostgREST) và moc_studio (Studio, postgres-meta). Migration
 #    1792281604400_sinh_khung tạo hai vai trò này NOLOGIN; mật khẩu nằm trong .env, không nằm trong migration.
 # 2. Lấy khóa công khai của realm, ghi JWKS cho PostgREST đọc bằng PGRST_JWT_SECRET=@tệp: PostgREST không tự tải
-#    jwk_url như Hasura. Chỉ giữ khóa ký (use = sig), bỏ khóa mã hóa. Keycloak đổi khóa giữa chừng thì chạy lại:
-#    docker compose up -d rest-init rest
+#    jwk_url như Hasura. Chỉ giữ khóa ký (use = sig), bỏ khóa mã hóa. Keycloak đổi khóa giữa chừng thì chạy lại
+#    (PostgREST chỉ đọc tệp lúc khởi động; không --force-recreate thì compose giữ container rest đang chạy):
+#    docker compose up -d --force-recreate rest-init rest
 set -eu
 export PGPASSWORD="$POSTGRES_PASSWORD"
 q() { psql -h postgres -U "$POSTGRES_USER" -d "$POSTGRES_DB" -X -q -At -v ON_ERROR_STOP=1 "$@"; }
