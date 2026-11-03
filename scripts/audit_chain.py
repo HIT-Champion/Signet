@@ -20,7 +20,7 @@ Dùng chung cho lệnh ``moc audit verify`` (scripts/moc.py) và test CSDL (db/t
 core.audit_verify(): superuser sửa được cả hàm đó. PostgreSQL chỉ dựng chuỗi JSON của từng dòng bằng hàm có sẵn
 (pg_catalog.jsonb_build_array, cùng biểu thức với core.audit_hash); băm và so chuỗi tính ở đây.
 
-Ba lớp kiểm:
+Bốn lớp kiểm:
 
 1. Chuỗi: id liên tiếp từ 1, prev_hash bằng hash dòng trước, hash bằng sha256(prev_hash ‖ nội dung dòng), đầu
    chuỗi trỏ vào dòng cuối. Sửa một dòng (kể cả tắt trigger) thì lớp này chỉ ra đúng dòng đó.
@@ -29,6 +29,9 @@ Ba lớp kiểm:
    còn khớp và mốc đầu tiên bị lệch.
 3. Văn bản có hash (văn bản đi đã phát hành): content_sha256 trong office.documents phải bằng giá trị lần
    cuối ghi vào sổ. Đổi hash trong CSDL (để một tệp giả "khớp" ở cổng xác thực) mà tắt trigger thì lớp này thấy.
+4. Kỳ số liệu đã chốt (#542): sha256 tính lại từ chính office.period_closes.figures (không tin cột sha256) phải bằng
+   mã băm của sự kiện period.closed trong sổ, và mỗi sự kiện phải còn kỳ của nó. Tắt trigger để sửa hay xóa bản
+   chép thì lớp này thấy.
 
 Mọi câu SELECT dưới đây phải đọc trong cùng một giao dịch REPEATABLE READ (scripts/moc.py làm vậy): đọc đầu chuỗi
 và các dòng ở hai lúc khác nhau thì dòng mới ghi chen giữa trông như "đầu chuỗi trỏ sai".
@@ -91,10 +94,18 @@ select json_build_object('id', d.id, 'symbol', d.symbol, 'summary', d.summary,
 from office.documents d where d.content_sha256 is not null order by d.created_at
 """
 
+# Khóa như entity_id của sự kiện period.closed (office.close_period, migration 1792281604300)
+PERIODS_SQL = """
+select json_build_object('key', p.tenant_id || '/' || p.period,
+                         'sha256', encode(sha256(convert_to(p.figures::text, 'UTF8')), 'hex'))::text
+from office.period_closes p order by p.tenant_id, p.period
+"""
+
 
 @dataclass
 class Problem:
     kind: str  # gap | prev_hash | hash | head | anchor | anchor_missing | anchor_tampered | anchor_unbacked | document
+    #          | period
     audit_id: int | None
     message: str
 
@@ -109,6 +120,7 @@ class Report:
     latest_anchor: dict[str, Any] | None = None     # mốc khớp mới nhất
     rewritten: tuple[int, int] | None = None        # khoảng dòng bị viết lại, suy từ mốc
     documents: int = 0
+    periods: int = 0
     later: int = 0                                  # mốc neo sau lúc đọc CSDL, bỏ qua lần này
     restores: list[dict[str, Any]] = field(default_factory=list)   # dòng system.restored (moc backup restore)
 
@@ -153,9 +165,9 @@ def _where(payload: list[Any]) -> str:
 
 def check(rows: Iterable[dict[str, Any]], head: dict[str, Any], anchors: Iterable[dict[str, Any]] = (),
           documents: Iterable[dict[str, Any]] = (), *, recorded: Iterable[dict[str, Any]] | None = None,
-          as_of: float | str | None = None) -> Report:
+          as_of: float | str | None = None, periods: Iterable[dict[str, Any]] | None = None) -> Report:
     """rows: theo ROWS_SQL, đúng thứ tự id; head: HEAD_SQL; anchors: mốc ngoài CSDL {audit_id, hash, source,
-    anchored_at?, overwritten?, deleted?}; documents: DOCUMENTS_SQL; recorded: ANCHORS_SQL — mỗi dòng phải có mốc
+    anchored_at?, overwritten?, deleted?}; documents: DOCUMENTS_SQL; periods: PERIODS_SQL (None: bỏ lớp 4); recorded: ANCHORS_SQL — mỗi dòng phải có mốc
     trong `anchors`; as_of: NOW_SQL — mốc neo sau lúc này (trừ 2 giây cho độ phân giải giờ của kho) chưa đối chiếu
     được với lần đọc này, bỏ qua."""
     report = Report()
@@ -171,6 +183,7 @@ def check(rows: Iterable[dict[str, Any]], head: dict[str, Any], anchors: Iterabl
     wanted = {int(a["audit_id"]) for a in anchors}
     seen: dict[int, str] = {}               # id → hash, chỉ giữ dòng có mốc
     doc_hash: dict[str, tuple[int, str | None]] = {}
+    period_hash: dict[str, tuple[int, Any]] = {}
     expect_id, expect_prev = 1, GENESIS
 
     for row in rows:
@@ -196,6 +209,8 @@ def check(rows: Iterable[dict[str, Any]], head: dict[str, Any], anchors: Iterabl
         if (entity == "office.documents" and action in {"insert", "update", "delete"}
                 and isinstance(change, list) and len(change) == 2):
             doc_hash[entity_id] = (rid, _strip_bytea(change[1]))
+        if entity == "office.period_closes" and action == "period.closed" and isinstance(diff, dict):
+            period_hash[entity_id] = (rid, diff.get("sha256"))
         expect_id, expect_prev = rid + 1, stored
 
     report.last_id, report.last_hash = expect_id - 1, expect_prev
@@ -224,6 +239,20 @@ def check(rows: Iterable[dict[str, Any]], head: dict[str, Any], anchors: Iterabl
             report.problems.append(Problem(
                 "document", logged[0],
                 f"văn bản {name} ({doc['id']}): hash trong CSDL khác hash ghi trong sổ ở dòng #{logged[0]}"))
+
+    for period in periods or ():
+        report.periods += 1
+        logged = period_hash.pop(period["key"], None)
+        if logged is None:
+            report.problems.append(Problem(
+                "period", None, f"kỳ đã chốt {period['key']}: không có sự kiện period.closed trong sổ — ghi khi tắt"
+                " trigger hoặc ngoài office.close_period"))
+        elif logged[1] != period["sha256"]:
+            report.problems.append(Problem(
+                "period", logged[0],
+                f"kỳ đã chốt {period['key']}: số liệu không còn khớp mã băm ghi trong sổ ở dòng #{logged[0]}"))
+    for key, (rid, _) in period_hash.items() if periods is not None else ():
+        report.problems.append(Problem("period", rid, f"kỳ đã chốt {key} (sổ dòng #{rid}) không còn trong CSDL"))
     return report
 
 

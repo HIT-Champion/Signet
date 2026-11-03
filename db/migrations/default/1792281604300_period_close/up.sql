@@ -16,8 +16,8 @@
 
 -- Chốt kỳ số liệu điều hành (#542): lãnh đạo đơn vị chốt một tháng đã qua, số của bốn khung nhìn dashboard
 -- (migration 1792281601200) được chép một lần vào office.period_closes, không sửa, không xóa được. Mã băm sha256 của
--- bản chép vào sổ kiểm toán (sự kiện period.closed), sổ có chuỗi băm và mốc neo nên `make audit` phát hiện được
--- bản chép bị sửa sau đó.
+-- bản chép vào sổ kiểm toán (sự kiện period.closed). `make audit` (scripts/audit_chain.py, lớp 4) tính lại mã băm từ
+-- figures và so với sổ: tắt trigger để sửa hay xóa bản chép thì lệnh chỉ ra kỳ đó.
 --
 -- v_document_counts, v_overdue_by_department là số tại lúc xem, không có lịch sử: bản chép giữ số tại lúc chốt
 -- (closed_at), không phải số cuối tháng. v_processing_time, v_outgoing_by_month theo tháng: lấy đúng dòng của kỳ.
@@ -62,6 +62,10 @@ begin
   end if;
   if ky >= date_trunc('month', now() at time zone 'Asia/Ho_Chi_Minh')::date then
     raise exception 'kỳ % chưa kết thúc', to_char(ky, 'MM/YYYY') using errcode = 'check_violation';
+  end if;
+  -- dòng chốt không xóa được: không cho tạo kỳ quá cũ do gõ nhầm (giao diện chỉ đưa 12 tháng gần nhất)
+  if ky < date_trunc('month', now() at time zone 'Asia/Ho_Chi_Minh')::date - interval '24 months' then
+    raise exception 'kỳ % cũ hơn 24 tháng', to_char(ky, 'MM/YYYY') using errcode = 'check_violation';
   end if;
 
   figures := jsonb_build_object(

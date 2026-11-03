@@ -27,6 +27,7 @@ import uuid
 
 import pytest
 from conftest import GraphQLError, SQLError, User, sql
+from test_audit import outside
 
 CLOSE = """
 mutation ($period: date!) {
@@ -79,14 +80,20 @@ def test_current_month_cannot_be_closed(director):
     today = sql("select (now() at time zone 'Asia/Ho_Chi_Minh')::date")[0][0]
     with pytest.raises(GraphQLError, match="chưa kết thúc"):
         director.gql(CLOSE, {"period": today})
+    with pytest.raises(GraphQLError, match="cũ hơn 24 tháng"):     # dòng chốt không xóa được: chặn gõ nhầm năm
+        director.gql(CLOSE, {"period": "2000-01-01"})
 
 
-def test_closed_period_is_frozen(director):
-    # kỳ cũ ghi thẳng, không qua hàm: test này không phụ thuộc thứ tự chạy
-    older = "(date_trunc('month', now()) - interval '2 months')::date"
-    sql("insert into office.period_closes (tenant_id, period, closed_by, figures, sha256) values "
-        f"('{director.tenant}', {older}, '{director.sub}', '{{}}', sha256('x'))")
-    where = f"tenant_id = '{director.tenant}' and period = {older}"
+@pytest.fixture(scope="module")
+def older(director) -> str:
+    """Một kỳ đã chốt qua hàm, riêng cho các test sửa, xóa: không phụ thuộc thứ tự chạy."""
+    period = sql(f"select ({LAST_MONTH} - interval '1 month')::date")[0][0]
+    director.gql(CLOSE, {"period": period})
+    return period
+
+
+def test_closed_period_is_frozen(director, older):
+    where = f"tenant_id = '{director.tenant}' and period = '{older}'"
     for statement in (f"update office.period_closes set figures = '{{}}' where {where}",
                       f"delete from office.period_closes where {where}",
                       "truncate office.period_closes"):
@@ -100,3 +107,27 @@ def test_only_directors_of_the_unit(world, director, last_month):
         assert "errors" in other.raw(CLOSES), other.role
     # lãnh đạo đơn vị khác không thấy kỳ đã chốt của đơn vị này
     assert director.tenant not in {r["tenant_id"] for r in world.director_a.gql(CLOSES)["office_period_closes"]}
+
+
+def test_audit_check_catches_a_closed_period_edited_or_deleted_without_triggers(director, older):
+    """Superuser tắt trigger rồi sửa số và cả cột sha256 cho khớp: `make audit` (lớp 4) tính lại từ figures nên vẫn
+    thấy; xóa hẳn kỳ thì sự kiện period.closed trong sổ không còn kỳ của nó."""
+    key = f"{director.tenant}/{older}"
+    where = f"tenant_id = '{director.tenant}' and period = '{older}'"
+    [[figures, closed_at]] = sql(f"select figures::text, closed_at from office.period_closes where {where}")
+    off, on = ("alter table office.period_closes {} trigger period_closes_frozen".format(x) for x in ("disable", "enable"))
+    assert outside().ok
+    try:
+        sql(f"{off}; update office.period_closes set figures = jsonb_set(figures, '{{counts}}', '[]'), "
+            f"sha256 = sha256(convert_to(jsonb_set(figures, '{{counts}}', '[]')::text, 'UTF8')) where {where}; {on}")
+        report = outside()
+        assert [p.kind for p in report.problems] == ["period"] and key in report.problems[0].message
+        sql(f"{off}; delete from office.period_closes where {where}; {on}")
+        report = outside()
+        assert [p.kind for p in report.problems] == ["period"] and "không còn trong CSDL" in report.problems[0].message
+    finally:
+        sql(f"{off}; delete from office.period_closes where {where}; "
+            "insert into office.period_closes (tenant_id, period, closed_at, closed_by, figures, sha256) values "
+            f"('{director.tenant}', '{older}', '{closed_at}', '{director.sub}', '{figures}', "
+            f"sha256(convert_to('{figures}'::jsonb::text, 'UTF8'))); {on}")
+    assert outside().ok

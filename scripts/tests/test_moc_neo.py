@@ -498,6 +498,7 @@ class FakeSnapshot:
         self.head = {"id": self.rows_data[-1]["id"], "hash": self.rows_data[-1]["hash"]}
         self.recorded: list[dict[str, Any]] = []
         self.documents: list[dict[str, Any]] = []
+        self.periods: list[dict[str, Any]] = []
         return self
 
     def rows(self):
