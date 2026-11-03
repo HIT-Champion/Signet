@@ -244,15 +244,15 @@ class RulesTest(unittest.TestCase):
         readme = read(APISIX / "README.md")
         ids = re.findall(r'"id:(10\d\d\d),', self.directives)
         self.assertEqual(ids, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
-                               "10060", "10061", "10070", "10080", "10081"])
+                               "10060", "10061", "10070", "10080", "10081", "10090"])
         removed = re.findall(r"SecRuleRemoveById (\d+)", self.directives)
         self.assertEqual(removed, ["920350"])
         for rule_id in ids + removed:
             self.assertTrue(f"\n| {rule_id} |" in readme, f"platform/apisix/README.md thiếu dòng của luật {rule_id}")
-        # chỉ thị loại trừ (dòng `- >-` của 10010–10050, 10070–10081, SecRuleRemoveById) có chú thích lý do ngay trên
+        # chỉ thị loại trừ (dòng `- >-` của 10010–10050, 10070–10090, SecRuleRemoveById) có chú thích lý do ngay trên
         lines = self.directives.splitlines()
         for i, line in enumerate(lines):
-            starts = line.strip() == "- >-" and re.search(r'"id:100(?:[1-5]\d|[78]\d),', " ".join(lines[i + 1:i + 3]))
+            starts = line.strip() == "- >-" and re.search(r'"id:100(?:[1-5]\d|[789]\d),', " ".join(lines[i + 1:i + 3]))
             if starts or "SecRuleRemoveById" in line:
                 self.assertTrue(lines[i - 1].strip().startswith("#"), f"loại trừ không có chú thích lý do: {line}")
 
@@ -262,7 +262,7 @@ class RulesTest(unittest.TestCase):
         pattern = r'SecRule REQUEST_FILENAME "@(?:beginsWith|rx|streq) [^"]+"\s+"id:(\d+),\s*phase:1,pass,nolog,'
         scoped = re.findall(pattern, self.directives)
         self.assertEqual(scoped, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
-                                  "10070", "10080", "10081"])
+                                  "10070", "10080", "10081", "10090"])
         self.assertNotIn("ctl:ruleEngine=Off", self.directives)
         # tắt soi thân chỉ ở API lưu flow, thư viện của Node-RED (#366), đường neo hai đầu
         # đường có ".." không được gỡ: WAF so đường thô, APISIX chuyển đường đã chuẩn hóa (/tu-dong/library/../x)
@@ -402,6 +402,23 @@ class RulesTest(unittest.TestCase):
         verify_mounted = app.index("app.include_router(routes.verify)")
         self.assertLess(app.index("app.include_router(routes.documents)"), verify_mounted)
         self.assertLess(app.index('"/api/verify/anchor-key.pem"'), verify_mounted)
+
+    def test_rest_api_gets_patch_delete_only_on_table_paths(self) -> None:
+        # Loại trừ 13 (#567): PostgREST sửa dòng bằng PATCH, xóa bằng DELETE; 911100 chỉ cho GET HEAD POST OPTIONS.
+        # Không gỡ luật nào, chỉ thêm hai phương thức, chỉ trên /rest/v1/<bảng> đã giải mã (không vòng ra route khác)
+        rule = self.exclusion("10090")
+        self.assertNotIn("ctl:", rule)
+        self.assertIn("t:urlDecodeUni,", rule)
+        self.assertEqual(re.findall(r"setvar:'([^']+)'", rule),
+                         ["tx.allowed_methods=GET HEAD POST OPTIONS PATCH DELETE"])
+        path = re.search(r'"@rx (\S+)"', self.directives[self.directives.index('"id:10090,') - 120:]).group(1)
+        for uri, hit in (("/rest/v1/yeu_cau", True), ("/rest/v1/bảng có dấu", True), ("/rest/v1/", False),
+                         ("/rest/v1", False), ("/rest/v1/../tu-dong/flows", False), ("/rest/v1/a/b", False),
+                         ("/rest/v1/rpc/f", False), ("/rest/v1x/a", False), ("/x/rest/v1/a", False)):
+            self.assertEqual(bool(re.search(path, uri)), hit, uri)
+        # route rest chỉ nhận đúng các phương thức PostgREST cần
+        routes = read(APISIX / "apisix.yaml")
+        self.assertIn("methods: [GET, HEAD, POST, PATCH, DELETE]\n    upstream_id: rest\n", routes)
 
     def test_argument_limit_rules_block(self) -> None:
         # GHSA-6r3q-mjv7-xr8m: tham số thứ 1000 trở đi không được soi — chặn hẳn
