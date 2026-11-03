@@ -248,7 +248,9 @@ Bám sát bảng tham chiếu của BTC (giám khảo quen thuộc), thay các t
 **Quyết định còn mở — GitOps**: Argo CD (gợi ý của BTC) đòi Kubernetes, mâu thuẫn QĐ-003 (chỉ dùng
 Compose). Hai hướng: (a) chuyển sang k3s một node + Argo CD — đúng bảng tham chiếu, tốn thêm ~1–2 GB
 RAM và độ phức tạp; (b) giữ Compose + cơ chế *pull* định kỳ từ git rồi `docker compose up` để tự hội tụ
-— nhẹ, nhưng phải giải thích được với giám khảo. **Kế hoạch chọn (b)** — QĐ-006.
+— nhẹ, nhưng phải giải thích được với giám khảo. **Kế hoạch chọn (b)**, đã làm thành reconciler GitOps của đội
+([`van-hanh.md`](../van-hanh.md#gitops-và-tự-phục-hồi)). Bản đầu ghi nhầm nhãn QĐ-006: QĐ-006 của
+[`architecture.md`](../architecture.md) là che PII, GitOps không có QĐ riêng (#558).
 
 **Vì sao không đứng trên Supabase**: Supabase là PaaS headless OSI hoàn chỉnh (Auth, REST, Storage,
 Realtime), nhưng **không có workflow BPMN** và Auth của nó không phải IdP SSO đầy đủ. Quan trọng hơn,
