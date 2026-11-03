@@ -2,10 +2,11 @@
 
 Mọi ứng dụng gọi lõi qua **một cổng duy nhất**: APISIX ở `MOC_PUBLIC_URL` (máy phát triển:
 `http://localhost:8080`). Ứng dụng có thể là Văn phòng điện tử, một ứng dụng Tầng 2 khác, script hay tác tử AI.
-Có hai loại API:
+Có ba loại API:
 
 - **GraphQL** (Hasura) cho dữ liệu có cấu trúc và thao tác nghiệp vụ.
 - **REST** (`svc-files`) cho tệp, tìm kiếm, bản xem trước văn bản đi và cổng xác thực.
+- **REST tự sinh** (PostgREST) cho bảng của ứng dụng sinh từ Supabase Studio (schema `sinh`, §9).
 
 Dù gọi theo cách nào, người gọi cũng phải có token Keycloak, và đơn vị lẫn vai trò luôn lấy từ token. Ngoại lệ
 là cổng xác thực văn bản đã phát hành (`/api/verify`) và trạng thái hệ thống (`/api/status`), ai cũng gọi được.
@@ -56,6 +57,7 @@ tệp `.graphql` là SDL chuẩn, công cụ GraphQL nào cũng nạp được.
 | `POST /v1/graphql` | Hasura | Bắt buộc |
 | `POST /api/files`, `GET /api/files/{id}`, `POST /api/files/{id}/read`, `GET /api/search`, `GET /api/documents/{id}/preview`, `POST /api/documents/ask`, `GET /api/registers/…`, `GET /api/case-files/…`, `POST /api/imports/incoming`, `GET /api/imports…` | `svc-files` | Bắt buộc |
 | `GET`, `POST /api/workflow/{app}/…` | `svc-workflow`: quy trình của ứng dụng cắm bằng manifest (§8) | Bắt buộc, của client `app-{app}` |
+| `GET`, `POST`, `PATCH`, `DELETE /rest/v1/…` | PostgREST: bảng của ứng dụng sinh, schema `sinh` (§9) | Bắt buộc |
 | `GET /api/verify/{mã}`, `GET /api/verify?sha256=…`, `GET /api/verify/ca.pem`, `GET /api/verify/anchor-key.pem` | `svc-files`: cổng xác thực | Không; giới hạn theo IP |
 | `GET /api/status` | `svc-files`: trạng thái hệ thống | Không; giới hạn theo IP |
 | `GET /realtime` (WebSocket) | Centrifugo: thông báo đẩy (§4) | Gửi trong lệnh `connect` đầu tiên |
@@ -70,8 +72,8 @@ Cổng trả `404` cho các đường còn lại:
 - WebSocket tới Hasura, nên chưa dùng được `subscription` của GraphQL; thông báo đẩy đi qua `/realtime` (§4).
   Danh sách đầy đủ ở [`platform/apisix/apisix.yaml`](../../platform/apisix/apisix.yaml).
 
-Token thiếu, sai chữ ký hoặc hết hạn bị cổng trả `401` trước khi tới Hasura, `svc-files` hay `svc-workflow`. Ba
-dịch vụ này vẫn kiểm lại token (zero-trust).
+Token thiếu, sai chữ ký hoặc hết hạn bị cổng trả `401` trước khi tới Hasura, `svc-files`, `svc-workflow` hay
+PostgREST. Bốn dịch vụ này vẫn kiểm lại token (zero-trust).
 
 ## 1. Lấy token
 
@@ -367,3 +369,41 @@ Dữ liệu sai form: `422 {"errors": {"<trường>": "<mã>"}}` — mã như [`
 | `404` | `app_not_found`, `app_not_installed`, `form_not_found`, `process_not_found`, `task_not_found` | Tên ứng dụng sai; chưa cài hoặc đã gỡ (`moc app remove` tạm dừng quy trình, lịch sử còn trong Flowable); form, quy trình không có; việc không còn hoặc không thuộc ứng dụng, đơn vị, người gọi |
 | `409` | `task_taken` | Việc vừa có người khác nhận |
 | `503` | `workflow_unavailable`, `jwks_unavailable`, `not_configured` | Chưa gọi được Flowable, Keycloak; dịch vụ chưa cấu hình kiểm token |
+
+## 9. Bảng của ứng dụng sinh: `/rest/v1/…`
+
+Bảng người vận hành tạo trong Supabase Studio (schema `sinh`, [`../them-ung-dung.md`](../them-ung-dung.md) mục 8) có
+ngay REST API theo cú pháp của [PostgREST](https://postgrest.org) (v14.18). Cổng bỏ tiền tố `/rest/v1` rồi chuyển tới
+dịch vụ `rest`. Đơn vị và vai trò lấy từ token Keycloak như GraphQL (claim `https://hasura.io/jwt/claims`); mỗi bảng
+chỉ trả và chỉ nhận dòng của đơn vị người gọi (RLS của khung, QĐ-014).
+
+```bash
+TOKEN=…   # token Keycloak của người dùng (§1)
+# OpenAPI (Swagger 2.0) của các bảng, cột người gọi được dùng; mô tả bảng, cột (COMMENT) nằm trong đó
+curl -s -H "Authorization: Bearer $TOKEN" "$MOC_PUBLIC_URL/rest/v1/"
+# 5 yêu cầu mới nhất của đơn vị
+curl -s -H "Authorization: Bearer $TOKEN" "$MOC_PUBLIC_URL/rest/v1/yeu_cau?select=*&order=created_at.desc&limit=5"
+# thêm một yêu cầu, nhận lại dòng vừa tạo
+curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+     -H 'Prefer: return=representation' -d '{"tieu_de": "Sửa máy chiếu phòng 302"}' "$MOC_PUBLIC_URL/rest/v1/yeu_cau"
+```
+
+Bảng mẫu `sinh.yeu_cau` ("Quản lý yêu cầu") có `tieu_de`, `noi_dung`, `han` (ngày), `trang_thai` (enum `mới`,
+`đang xử lý`, `xong`).
+
+- **Cột chuẩn:** `tenant_id`, `created_by`, `created_at` do khung đặt từ token; gửi giá trị khác cũng bị thay, sửa dòng
+  thì giữ giá trị cũ. Gửi `tenant_id` của đơn vị khác không đọc, không ghi được dòng của đơn vị đó.
+- **Mã trả về:** `401` khi thiếu hoặc sai token (không có vai trò ẩn danh). Sửa, xóa dòng của đơn vị khác không báo
+  lỗi: RLS ẩn dòng, nên kết quả như khi không dòng nào khớp (`200 []` khi gửi `Prefer: return=representation`, không
+  thì `204`).
+- **Lọc, sắp xếp, chọn cột:** cú pháp của PostgREST (`?cot=eq.x`, `lt`, `in.(…)`, `is.null`, `or=(…)`, `order`,
+  `select`). Đi qua WAF như mọi đường. Ngoại lệ CRS duy nhất của đường này là 10090: thêm `PATCH`, `DELETE` vào phương
+  thức được phép, chỉ trên `/rest/v1/<bảng>` (#568); không gỡ luật dò tấn công nào. e2e chạy với WAF bật các mẫu
+  `select=*`, `order`, `limit`/`offset`, `or=(…eq…, …ilike…)`, `not.is.null`, `in.(…)`, `like`, `gte` theo ngày, `eq` có
+  chữ tiếng Việt.
+- **Không có `/rest/v1/rpc/…`:** khung không cho tạo hàm trong `sinh`.
+- **`DELETE` không kèm bộ lọc** (vd `DELETE /rest/v1/yeu_cau`) xóa mọi dòng của đơn vị người gọi trong bảng đó: RLS
+  chỉ giữ việc xóa trong đơn vị. Luôn gửi kèm bộ lọc, vd `?id=eq.5`.
+- **Token của client nào:** token Keycloak của realm có claim Hasura (mọi client `app-*` tạo bằng `moc app install`
+  đều có, vd `app-sinh`). Cổng kiểm chữ ký, hạn, `iss`; PostgREST không kiểm `aud`.
+- Bảng, cột mới hiện trong API ngay sau khi tạo trong Studio, không khởi động lại dịch vụ.

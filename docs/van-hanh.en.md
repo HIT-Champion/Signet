@@ -1290,9 +1290,9 @@ ssh -L 3400:127.0.0.1:3400 server    # then open http://localhost:3400
   (`authenticator`, `moc_studio`, `moc_harness`, the five user roles) are not in pg_dump: `moc backup restore`
   recreates them (a fixed list, safe to rerun) before a restore; `rest-init` sets their passwords and login again at
   start-up. `rest` and `meta` pause while the database is dumped.
-- **Resources.** CI test rig, 4 November 2026, sample data: `rest` 18 MiB, `studio` 189 MiB, `meta` 106 MiB; limits
-  128 MiB, 512 MiB, 256 MiB. PostgREST also has an admin port 3001 (`/ready`), inside the compose network only, used by
-  `/api/status`.
+- **Resources.** Measured in CI on 4 November 2026 on the full system with sample data (#568): `rest` 25 MiB, `studio`
+  190 MiB, `meta` 114 MiB; limits 128 MiB, 512 MiB, 256 MiB. PostgREST also has an admin port 3001 (`/ready`), inside
+  the compose network only, used by `/api/status`.
 - **Limits.** Tables and columns created in Studio are not in git, only their DDL rows in the audit log; to rebuild on
   another machine, restore the whole database with `moc backup restore`: there is no export command for the `sinh`
   schema alone. The `sinh` schema is shared by all units.

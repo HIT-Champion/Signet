@@ -974,9 +974,10 @@ vì PostgREST không mô tả `CHECK`. Trên bản online, Studio chỉ nghe `12
 **Nếu giám khảo hỏi:**
 
 - *"Hasura cũng sinh API, sao thêm PostgREST?"* Hasura giữ cho Văn phòng điện tử (GraphQL); PostgREST cho bảng sinh vì
-  nó thấy bảng, cột mới ngay và dựa hẳn vào RLS của khung ([`architecture.md`](architecture.md) QĐ-014).
+  nó thấy bảng, cột mới ngay và dựa hẳn vào RLS của khung ([`architecture.md`](architecture.md) QĐ-014;
+  [`du-thi/hoi-dap-hoi-dong.md`](du-thi/hoi-dap-hoi-dong.md) câu 19).
 - *"Vậy lõi là Supabase?"* Không: dùng Studio, postgres-meta của Supabase và PostgREST; phần của đội là khung và trang
-  `/sinh`.
+  `/sinh` (câu 20).
 - *"Ai được vào Studio?"* Chỉ người vận hành nền tảng, qua đường hầm SSH: Studio là chủ bảng, thấy dữ liệu mọi đơn vị.
   Quản trị đơn vị không dùng Studio.
 - *"Có quy trình duyệt cho bảng này không?"* Chưa: quy trình vẫn là BPMN viết tay, khai trong manifest
