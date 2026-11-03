@@ -15,11 +15,11 @@ Ba nguyên tắc chung:
 - **Chạy tại chỗ theo mặc định, không có mô hình vẫn chạy.** Mặc định mô hình chạy trong Ollama trên máy của tổ
   chức, mạng nội bộ không ra Internet. Tùy chọn `MOC_ASK_API=openai` (#430, xem `.env.example`) cho riêng bước viết
   câu trả lời của F4.2 gọi một máy chủ chuẩn OpenAI ở `MOC_ASK_API_URL`: câu hỏi và tối đa 4 đoạn căn cứ, đã che
-  thông tin cá nhân, rời máy chủ tới đó. Tùy chọn riêng `MOC_EMBED_API=openai` (#498) đưa cả bước nhúng (tìm theo
-  nghĩa) ra một máy chủ như vậy: khi đó mọi đoạn văn bản không hạn chế trong chỉ mục, câu hỏi và trích yếu văn bản đến
-  (F4.3), đã che, đều rời máy chủ. Gợi ý trích yếu (F4.1) luôn ở Ollama. Không bật profile `ai` (mặc định,
-  cả CI) thì cả bốn phần vẫn chạy bằng quy tắc, OCR và tìm kiếm toàn văn; cột "không bật `ai`" trong các bảng dưới
-  đây là đường đó.
+  số CCCD/CMND, số điện thoại, email, số tài khoản (không che họ tên, địa chỉ), rời máy chủ tới đó. Tùy chọn riêng
+  `MOC_EMBED_API=openai` (#498) đưa cả bước nhúng (tìm theo nghĩa) ra một máy chủ như vậy: khi đó mọi đoạn văn bản
+  không hạn chế trong chỉ mục, câu hỏi và trích yếu văn bản đến (F4.3), che như trên, đều rời máy chủ. Gợi ý trích yếu
+  (F4.1) luôn ở Ollama. Không bật profile `ai` (mặc định, cả CI) thì cả bốn phần vẫn chạy bằng quy tắc, OCR và tìm
+  kiếm toàn văn; cột "không bật `ai`" trong các bảng dưới đây là đường đó.
 - **Số đo là cổng CI.** Mỗi lệnh `make do-…` thoát 1 khi dưới ngưỡng hoặc khi có rò rỉ (nguồn bị cấm, căn cứ là văn
   bản hạn chế, che nhầm). `do-doc-van-ban`, `do-hoi-dap`, `do-giao-viec` là bước của CI job `chay-thu`, phần `ai`
   (`.github/workflows/ci.yml`; phần này mang tên nhóm tác tử AI, CI không bật profile `ai`); `do-che-pii` chạy trong
@@ -466,5 +466,5 @@ PostgreSQL, Keycloak, Meilisearch, Ollama không qua bộ lọc. Danh sách đ�
 | Image Ollama ghim cả digest; trọng số đối chiếu mã băm bản kê | `docker-compose.yml`, `DEPENDENCIES.md` |
 | Tác tử có danh tính riêng, chỉ ghi được ba loại dòng sổ; người ghi và thuê ước ép từ phiên, gửi lên bị từ chối | `db/metadata/databases/default/tables/core_audit_log.yaml` |
 | Không có mô hình vẫn chạy đủ; svc-files dò Ollama mỗi 60 giây, bật / tắt profile không phải khởi động lại | `docread/summarize.py`, `assist/ai.py` |
-| Mọi mô hình chỉ nhận chữ của văn bản không hạn chế, đã che thông tin cá nhân | các mục F4.1–F4.4 ở trên |
+| Mọi mô hình chỉ nhận chữ của văn bản không hạn chế, đã che số CCCD/CMND, số điện thoại, email, số tài khoản (không che họ tên, địa chỉ) | các mục F4.1–F4.4 ở trên |
 | Mặc định không chữ nào gửi mô hình rời máy chủ. Chỉ khi đặt `MOC_ASK_API=openai` (#430): bước viết câu trả lời F4.2 gửi câu hỏi và tối đa 4 đoạn căn cứ, đã che, tới máy chủ chuẩn OpenAI ở `MOC_ASK_API_URL`; khi đặt `MOC_EMBED_API=openai` (#498): bước nhúng gửi mọi đoạn trong chỉ mục (không có văn bản hạn chế), câu hỏi và trích yếu F4.3, đã che, tới `MOC_EMBED_API_URL`; khóa API nằm trong két | `.env.example`, `svc_files/config.py`, `assist/ai.py`, `assist/grounding.py` (`MAX_SOURCES`) |

@@ -147,6 +147,7 @@ trước khi đưa vào slide**.
 | Điều 30, 31 | Nộp lưu hồ sơ vào Lưu trữ cơ quan trong 01 năm kể từ khi công việc kết thúc |
 | Luật Lưu trữ 2024 (33/2024/QH15, hiệu lực 01/7/2025) | Tài liệu lưu trữ số có giá trị pháp lý như thông điệp dữ liệu |
 | Luật Bảo vệ bí mật nhà nước 2018, Điều 5 khoản 5 | **Cấm** soạn thảo, lưu giữ tài liệu bí mật nhà nước trên máy tính đã hoặc đang kết nối Internet → sản phẩm **không** quản lý văn bản mật |
+| Luật Bảo vệ dữ liệu cá nhân 2025 (91/2025/QH15) và NĐ 356/2025/NĐ-CP, cùng hiệu lực 01/01/2026 | Số định danh cá nhân, số điện thoại là dữ liệu cá nhân cơ bản; thông tin ngân hàng là dữ liệu nhạy cảm → che số CCCD/CMND, số điện thoại, email, số tài khoản trong chữ gửi mô hình và trong nhật ký (F4.4); họ tên, địa chỉ không che. Luật có quy định riêng cho việc chuyển dữ liệu cá nhân ra nước ngoài, liên quan tới tùy chọn API ngoài (#430, #498). **Chưa có** bước xin đồng ý, xóa dữ liệu theo yêu cầu của chủ thể, trang chính sách quyền riêng tư → không tuyên bố tuân thủ đầy đủ |
 | QCVN 102:2016/BTTTT (sửa đổi 1:2022) | Gói tin edXML để liên thông văn bản giữa các hệ thống → **định hướng**, không làm trong cuộc thi |
 
 ---
