@@ -9,6 +9,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 ## [Chưa phát hành]
 
 ### Đã thêm
+- Cổng `/rest/v1` tới PostgREST cho ứng dụng sinh từ bảng, cần token; dòng "API dữ liệu" trên trang trạng thái (#561).
 - Ứng dụng ngành Đổi, bù lịch giảng (`apps/lich-giang`): giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh
   đạo khoa duyệt; cắm bằng `moc app install` (#482).
 - Trợ lý hỏi đáp nhúng được qua API ngoài chuẩn OpenAI (cả Azure AI Foundry) bằng `MOC_EMBED_API=openai`; mặc định

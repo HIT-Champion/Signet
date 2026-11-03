@@ -15,7 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 """Kết nối rảnh giữa APISIX và dịch vụ phía sau: chỉ APISIX được đóng. Dịch vụ đóng trước thì yêu cầu gửi đúng lúc
-đó trên kết nối cũ nhận EOF/RST, một node không thử lại nên cổng trả 502 (svc-files: #138, Hasura: #173).
+đó trên kết nối cũ nhận EOF/RST, một node không thử lại nên cổng trả 502 (svc-files: #138, Hasura: #173,
+PostgREST: #561).
 Kiểm chữ (không có PyYAML, không cần Docker). Chạy: python3 -m unittest discover -s scripts/tests (make test)."""
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 APISIX_IDLE = 60    # giây APISIX 3.18 giữ kết nối rảnh tới upstream khi upstream không đặt keepalive_pool
-WARP_SWEEP = 30     # Hasura (Warp) quét kết nối mỗi 30 giây, kết nối rảnh bị đóng sớm nhất sau một nhịp
+WARP_SWEEP = 30     # Warp (Hasura, PostgREST) quét kết nối mỗi 30 giây, kết nối rảnh bị đóng sớm nhất sau một nhịp
 
 
 def upstream(name: str) -> str:
@@ -40,12 +41,14 @@ def upstream(name: str) -> str:
 
 
 class IdleCloseTest(unittest.TestCase):
-    def test_hasura_pool_closes_before_warp(self) -> None:
-        m = re.search(r"^    keepalive_pool: \{size: \d+, idle_timeout: (\d+), requests: \d+\}$", upstream("hasura"),
-                      re.M)
-        self.assertIsNotNone(m, "upstream hasura thiếu keepalive_pool")
-        assert m
-        self.assertLess(int(m.group(1)), WARP_SWEEP)
+    def test_warp_pools_close_before_warp(self) -> None:
+        for name in ("hasura", "rest"):
+            with self.subTest(upstream=name):
+                m = re.search(r"^    keepalive_pool: \{size: \d+, idle_timeout: (\d+), requests: \d+\}$",
+                              upstream(name), re.M)
+                self.assertIsNotNone(m, f"upstream {name} thiếu keepalive_pool")
+                assert m
+                self.assertLess(int(m.group(1)), WARP_SWEEP)
 
     def test_svc_files_keeps_connections_longer_than_apisix(self) -> None:
         self.assertNotIn("keepalive_pool", upstream("svc-files"))

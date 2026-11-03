@@ -73,7 +73,8 @@ BACKUP_RUN = re.compile(r"lượt sao lưu (\S+);")  # dòng nang_cap.sh nang in
 RESTORING = ".moc-restoring"        # scripts/backup.py đặt trước khi dừng Signet để khôi phục, xóa khi xong
 APPS = ".moc-apps/apps"             # bản ghi ứng dụng cài bằng moc app install (scripts/ung_dung.py)
 # Dịch vụ `moc backup create` tạm dừng (cùng danh sách WRITERS, DB_WRITERS trong scripts/backup.py)
-BACKUP_PAUSES = {"svc-files", "seaweedfs", "openbao", "hasura", "svc-workflow", "flowable", "keycloak"}
+BACKUP_PAUSES = {"svc-files", "seaweedfs", "openbao", "hasura", "svc-workflow", "flowable", "keycloak",
+                 "rest", "meta"}
 
 
 class ReconcileError(Exception):

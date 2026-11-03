@@ -286,6 +286,11 @@ def judge_jwks(r: httpx2.Response) -> str:
     return "ok" if isinstance(keys, list) and keys else "down"
 
 
+def judge_rest(r: httpx2.Response) -> str:
+    # /ready của PostgREST: 200 khi đã nối CSDL và nạp xong lược đồ; 503 thì chưa phục vụ được yêu cầu nào
+    return "ok" if r.status_code == 200 else "down"
+
+
 def judge_workflow(r: httpx2.Response) -> str:
     # /readyz của svc-workflow: Flowable và Hasura; Flowable còn mà Hasura mất thì quy trình chỉ chạy được một phần
     if r.status_code == 200:
@@ -341,6 +346,9 @@ def default_board(settings: Settings, *, scanner: Any, store: Any, hasura: Any, 
         Component("quy-trinh", "quy-trinh", "Quy trình", "Flowable", http_check(http, workflow, judge_workflow)),
         Component("luu-tru", "du-lieu", "Lưu trữ tệp", "SeaweedFS", storage),
         Component("tim-kiem", "du-lieu", "Tìm kiếm", "Meilisearch", from_bool(meili.ping), critical=False),
+        # ứng dụng sinh (#561): mất PostgREST thì chỉ /rest/v1 ngừng, Văn phòng vẫn chạy
+        Component("api-du-lieu", "du-lieu", "API dữ liệu", "PostgREST",
+                  http_check(http, settings.rest_ready_url, judge_rest), critical=False),
         Component("tro-ly-ai", "tri-tue", "Trợ lý AI", ai_software, ai_check, critical=False),
     ]
     if open_data is None and settings.open_data_dir:
