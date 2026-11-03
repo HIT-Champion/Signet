@@ -401,8 +401,11 @@ def create_app(
                             semantic_ratio=settings.ask_semantic_ratio),
         ai=ai, indexer=chunk_indexer, hasura=hasura)
     # Trạng thái hệ thống (công khai): dò bằng chính các client trên, thêm APISIX, Keycloak, svc-workflow qua HTTP
+    # một bộ đọc nguồn công khai cho /api/status và API nạp lô (?open_data=): chung bộ đệm băm, nhật ký đổi trạng thái
+    # chỉ ghi một lần
+    open_data = OpenData(settings.open_data_dir) if settings.open_data_dir else None
     status_board = status_board or default_board(settings, scanner=scanner, store=store, hasura=hasura, meili=meili,
-                                                 vault=vault, ai=ai)
+                                                 vault=vault, ai=ai, open_data=open_data)
     # Nạp lô văn bản đến: hàng đợi bền trong CSDL, zip giữ tạm trên tmpfs; handler nối vào ingest() ở dưới
     import_store = import_store or ImportStore(hasura)
     spool = Spool(settings.import_spool_dir, settings.import_spool_bytes)
@@ -807,7 +810,7 @@ def create_app(
                             principal=current_principal, quarantine=quarantine, clean_filename=clean_filename,
                             max_body=settings.import_data_max_bytes + settings.import_zip_max_bytes
                             + MULTIPART_OVERHEAD,
-                            open_data=OpenData(settings.open_data_dir) if settings.open_data_dir else None)
+                            open_data=open_data)
     app.state.importer = importer
 
     @app.get(
