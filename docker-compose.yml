@@ -288,7 +288,8 @@ services:
     image: clamav/clamav:1.5.4@sha256:638d90201ee7ee6a82d249a2fc23b132e578673b5f1f2766852b127676ca1ef6
     profiles: [core]
     environment:
-      CLAMD_CONF_ConcurrentDatabaseReload: "no"
+      # ConcurrentDatabaseReload để mặc định (yes): lúc nạp lại chữ ký clamd vẫn quét bằng bộ cũ, đổi lại RAM của
+      # container lên khoảng 1,9 GiB trong ~10 giây thay vì 956 MiB (đo trên máy CI, #288)
       CLAMD_CONF_StreamMaxLength: 64M
       CLAMD_CONF_TemporaryDirectory: /tmp
       # tệp có mật khẩu (zip, 7z, rar, pdf phải nhập mật khẩu mới mở) và tệp giải nén vượt giới hạn quét (bom nén,
