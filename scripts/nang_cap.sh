@@ -147,12 +147,14 @@ services() { in_dest docker compose ps --services --status running | sort; }
 
 # Image dựng sẵn bản mới cần (postgres, hasura, … và image của profile thêm đang bật như tunnel, iot) mà máy chưa có:
 # kéo trước khi dừng trang để lúc dừng không phải chờ tải, lỗi mạng thì dừng ở đây khi chưa đổi gì. Danh sách theo
-# profile và .env của bản cài như lúc docker compose up ở đó; bỏ moc/* (vừa dựng, hoặc ot-sensor dùng lại image đó)
+# profile và .env của bản cài như lúc docker compose up ở đó; bỏ moc/* (vừa dựng, hoặc ot-sensor dùng lại image đó).
+# .env của mã nguồn đứng trước (tệp sau đè): khóa bản mới thêm mà .env cũ chưa có (make install mới nối vào) không làm
+# ${X:?} dừng compose ở bước chỉ đọc tên image này (#566)
 pull_missing() {
   local profiles images img
   profiles=$(sed -n 's/^COMPOSE_PROFILES=//p' "$DEST/.env" | tail -n 1)
   images=$(cd "$SRC" && MOC_VERSION="$1" COMPOSE_PROFILES="${profiles:-core,app}" COMPOSE_FILE=docker-compose.yml \
-    docker compose --env-file "$DEST/.env" config --images)
+    docker compose --env-file "$SRC/.env" --env-file "$DEST/.env" config --images)
   while read -r img; do
     case "$img" in "" | moc/*) continue ;; esac
     docker image inspect "$img" >/dev/null 2>&1 || docker pull -q "$img"
