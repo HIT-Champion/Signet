@@ -80,7 +80,9 @@ OPTIONAL = {
     "wiki": ("wiki", "/data/wiki", "Wiki nội bộ (volume wiki_data)"),                                # #367
     "tu_dong": ("tu-dong", "/data/tu-dong", "Tự động hóa Node-RED (volume tu_dong_data)"),           # #366
 }
-WITH_OPTIONAL = [*COMPOSE, *(arg for service, _, _ in OPTIONAL.values() for arg in ("--profile", service))]
+# profile studio (#566): meta trong DB_WRITERS chỉ hiện ở `ps`, `pause` khi có profile của nó
+WITH_OPTIONAL = [*COMPOSE, *(arg for service, _, _ in OPTIONAL.values() for arg in ("--profile", service)),
+                 "--profile", "studio"]
 # Chủ của thư mục gốc volume, cho dịch vụ không chạy bằng root. `restic restore <snapshot>:<đường>` trả nội dung kèm
 # quyền từng tệp, không trả quyền của chính thư mục gốc: volume tạo mới lúc khôi phục (máy mới, volume đã xóa) thì gốc
 # thuộc root, Node-RED không tạo được tệp nào trong /data (EACCES ở .sessions.json). 1000:0 là chủ image Node-RED đặt
@@ -326,7 +328,7 @@ def create(keep: int | None = None) -> dict[str, Any]:
                     for service in group:
                         if service in running:
                             into.append(service)    # ghi trước: bị ngắt ngay lúc pause vẫn được bỏ tạm dừng
-                            _call([*COMPOSE, "pause", service], f"không tạm dừng được {service}")
+                            _call([*WITH_OPTIONAL, "pause", service], f"không tạm dừng được {service}")
                 started = time.monotonic()
                 manifest["audit"] = json.loads(_psql(HEAD_SQL + ";"))
                 manifest["app_roles"] = _psql(APP_ROLES_SQL).split()
