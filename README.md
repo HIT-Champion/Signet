@@ -140,9 +140,10 @@ AI trong Signet chỉ **gợi ý**, người quyết định; mặc định mọ
 Cả bốn chạy được **không cần mô hình ngôn ngữ**, nên CI, máy yếu, máy không có Internet đều chạy. Mô hình cục bộ
 (Ollama, Qwen3 1,7B, chạy trên CPU) viết trích yếu và câu trả lời: `make ai-model` rồi `make up-ai`. Riêng bước viết
 câu trả lời có thể gọi API ngoài chuẩn OpenAI thay Ollama (`MOC_ASK_API=openai`, tắt mặc định, #430); khi bật, câu hỏi
-và tối đa 4 đoạn văn bản làm căn cứ, đã che thông tin cá nhân, rời máy chủ. Bước nhúng (tìm theo nghĩa) cũng chuyển
-được ra API ngoài (`MOC_EMBED_API=openai`, tắt mặc định, #498); khi bật, mọi đoạn văn bản không hạn chế trong chỉ mục,
-đã che, rời máy chủ. Số đo và giới hạn từng tác tử:
+và tối đa 4 đoạn văn bản làm căn cứ rời máy chủ, đã che số CCCD/CMND, số điện thoại, email, số tài khoản; họ tên và
+địa chỉ không được che. Bước nhúng (tìm theo nghĩa) cũng chuyển được ra API ngoài (`MOC_EMBED_API=openai`, tắt mặc
+định, #498); khi bật, mọi đoạn văn bản không hạn chế trong chỉ mục, che như trên, rời máy chủ. Số đo và giới hạn từng
+tác tử:
 [`docs/danh-gia-ai.md`](docs/danh-gia-ai.md).
 
 ### Ảnh chụp màn hình
@@ -279,8 +280,8 @@ nhưng chưa gắn thẻ: giao diện (#470, #481, #495, #500) và trợ lý h�
 `1.4.0`. Ứng dụng ngành Đổi, bù lịch giảng (#483) cài thêm bằng `moc app install`. Các tính năng chưa phát hành khác
 (mục "Chưa phát hành" của [`CHANGELOG.md`](CHANGELOG.md)) có khi tự cài từ mã nguồn. Trợ lý hỏi đáp của bản online viết
 câu trả lời qua API ngoài chuẩn OpenAI (`MOC_ASK_API=openai`, mô hình `gpt-6-luna-wd`, không phải mô hình nguồn mở): chỉ
-câu hỏi và các đoạn căn cứ đã che thông tin cá nhân rời máy. Bản tự cài mặc định dùng Ollama tại chỗ
-([`DEPENDENCIES.md`](DEPENDENCIES.md)).
+câu hỏi và các đoạn căn cứ rời máy, đã che số CCCD/CMND, số điện thoại, email, số tài khoản; họ tên và địa chỉ không
+được che. Bản tự cài mặc định dùng Ollama tại chỗ ([`DEPENDENCIES.md`](DEPENDENCIES.md)).
 
 **Bản tự cài:** mật khẩu chung của các tài khoản mẫu là giá trị `MOC_DEMO_PASSWORD` trong `.env`. Văn thư, lãnh đạo,
 tổ trưởng, trưởng bộ môn và quản trị đơn vị bắt buộc xác thực hai bước: sau mật khẩu nhập mã TOTP. `make seed` cài sẵn

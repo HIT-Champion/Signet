@@ -149,9 +149,10 @@ is sent out.
 All four work **without a language model**, so they run in CI, on weak machines and offline. A local model (Ollama,
 Qwen3 1.7B, on CPU) writes summaries and answers: `make ai-model`, then `make up-ai`. The answer-writing step alone can
 call an external OpenAI-compatible API instead of Ollama (`MOC_ASK_API=openai`, off by default, #430); when it is on,
-the question and up to 4 supporting passages, with personal data masked, leave the server. Embedding (semantic
-search) can move to an external API too (`MOC_EMBED_API=openai`, off by default, #498); when it is on, every
-non-restricted passage in the index, masked, leaves the server. Measurements and
+the question and up to 4 supporting passages leave the server with ID card numbers, phone numbers, email addresses and
+bank account numbers masked; names and addresses are not masked. Embedding (semantic search) can move to an external
+API too (`MOC_EMBED_API=openai`, off by default, #498); when it is on, every non-restricted passage in the index,
+masked the same way, leaves the server. Measurements and
 limitations of each agent (Vietnamese): [`docs/danh-gia-ai.md`](docs/danh-gia-ai.md).
 
 ### Screenshots
@@ -291,7 +292,8 @@ assistant (#496, #503, #504); `/api/status` still reports `1.4.0`. The teaching 
 `moc app install`. Other unreleased features (the "Chưa phát hành" section of [`CHANGELOG.md`](CHANGELOG.md)) are
 available when you install from source. The online assistant writes its answers through an external OpenAI-compatible
 API (`MOC_ASK_API=openai`, model `gpt-6-luna-wd`, not an open-source model): only the question and the supporting
-passages, with personal data masked, leave the machine. Your own installation uses local Ollama by default
+passages leave the machine, with ID card numbers, phone numbers, email addresses and bank account numbers masked;
+names and addresses are not masked. Your own installation uses local Ollama by default
 ([`DEPENDENCIES.md`](DEPENDENCIES.md)).
 
 **Your own installation:** the shared password of the sample accounts is the value of `MOC_DEMO_PASSWORD` in `.env`.

@@ -137,7 +137,8 @@ câu trả lời và tìm theo nghĩa.
 - [x] Mô hình chạy tại chỗ, mặc định không gửi dữ liệu ra ngoài: Ollama với Qwen3 1,7B và Qwen3-Embedding 0,6B trên
       CPU, tắt mặc định (`make ai-model`, `make up-ai`). Tìm theo nghĩa dùng lại Meilisearch, không thêm CSDL véc-tơ
       riêng (`docs/architecture.md` QĐ-004). Tùy chọn `MOC_ASK_API=openai` (#430) cho bước viết câu trả lời gọi API
-      chuẩn OpenAI do người vận hành khai: câu hỏi và tối đa 4 đoạn căn cứ (đã che thông tin cá nhân) rời máy chủ
+      chuẩn OpenAI do người vận hành khai: câu hỏi và tối đa 4 đoạn căn cứ rời máy chủ (đã che số CCCD/CMND, số điện
+      thoại, email, số tài khoản; không che họ tên, địa chỉ)
 - [x] Truy xuất tri thức (RAG): trợ lý hỏi đáp trên kho văn bản, trả câu trích nguyên văn kèm "số ký hiệu · tr. n",
       lọc quyền ở bước truy xuất (F4.2). Kho tri thức hiện là văn bản của Văn phòng điện tử; wiki nội bộ (#367)
       chưa nối vào

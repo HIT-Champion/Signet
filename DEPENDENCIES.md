@@ -21,7 +21,8 @@ dưới đây bằng `make copyright`; `scripts/tests/test_copyright_txt.py` bá
    tương thích với Apache-2.0 của Signet. Ngoại lệ chỉ khi ghi ở mục Kiểm tra tương thích giấy phép, kèm lý do và
    phạm vi: giấy phép dễ dãi tương đương một giấy phép OSI (PSF-2.0 là phần đầu của Python-2.0; MIT-CMU là một dạng
    HPND), hoặc dữ liệu, công cụ chỉ chạy lúc dựng (CC-BY-4.0, CC0-1.0). Không thành phần nào, kể cả tùy chọn, được đòi
-   phần mềm nguồn đóng (#452).
+   phần mềm nguồn đóng (#452). Ngoại lệ có ghi là bản online của đội: bước viết câu trả lời gọi một mô hình đóng qua
+   API mở chuẩn OpenAI (#430, mục Dịch vụ quanh dự án bên dưới); gói phát hành và bản tự cài không cần mô hình đó.
 
 ## Cách đọc
 
@@ -467,14 +468,15 @@ demo của đội, hoặc là lựa chọn của đơn vị cài đặt:
   lệnh `make` và script trong repo, chạy được trên máy riêng; trang tài liệu dựng tại chỗ bằng `npm run build` trong
   `website/`.
 - **API viết câu trả lời chuẩn OpenAI (#430):** tắt mặc định. Giao thức mở, đích có thể là máy chủ nguồn mở của đơn vị
-  (vLLM Apache-2.0, llama.cpp MIT); gửi tới dịch vụ đám mây là quyết định của đơn vị, và chỉ câu hỏi cùng các đoạn căn
-  cứ đã che thông tin cá nhân rời máy ([`docs/van-hanh.md`](docs/van-hanh.md), mục Trợ lý hỏi đáp qua API ngoài).
+  (vLLM Apache-2.0, llama.cpp MIT); gửi tới dịch vụ đám mây là quyết định của đơn vị. Chỉ câu hỏi cùng các đoạn căn cứ
+  rời máy, đã che số CCCD/CMND, số điện thoại, email, số tài khoản; họ tên và địa chỉ không được che
+  ([`docs/van-hanh.md`](docs/van-hanh.md), mục Trợ lý hỏi đáp qua API ngoài).
   Khi bật, tên, phiên bản và giấy phép của mô hình phía đích do đơn vị chọn và tự chịu trách nhiệm. Gói phát hành và
   bản tự cài giữ mặc định, dùng Ollama tại chỗ; bản online của đội bật API này (`MOC_ASK_API=openai`, mô hình
   `gpt-6-luna-wd`, không phải mô hình nguồn mở), xem mục Chạy thử của [`README.md`](README.md).
 - **API nhúng chuẩn OpenAI (#498):** tắt mặc định, độc lập với API viết câu trả lời. Cùng giao thức mở (`/embeddings`),
   đích có thể là vLLM, llama.cpp của đơn vị hay Azure AI Foundry, dịch vụ đám mây. Khi bật, mọi đoạn văn bản không hạn
-  chế trong chỉ mục của trợ lý, câu hỏi và trích yếu văn bản đến, đã che thông tin cá nhân, rời máy
+  chế trong chỉ mục của trợ lý, câu hỏi và trích yếu văn bản đến, che như trên, rời máy
   ([`docs/van-hanh.md`](docs/van-hanh.md), mục Nhúng qua API ngoài); mô hình phía đích do đơn vị chọn và tự chịu trách
   nhiệm. Gói phát hành và bản tự cài giữ mặc định, nhúng bằng Qwen3-Embedding trong Ollama tại chỗ; bản online (v1.4.0,
   kiểm ngày 02/11/2026) cũng nhúng tại chỗ, chỉ bước viết câu trả lời đi API ngoài.
