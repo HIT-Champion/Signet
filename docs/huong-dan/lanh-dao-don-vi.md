@@ -48,8 +48,14 @@ người rồi bấm **Cấp quyền xem**, hoặc bấm **Gỡ** để thu lạ
   thời gian xử lý trung bình, văn bản đến theo trạng thái và theo phòng chủ trì, văn bản đi phát hành theo tháng, văn
   bản đã nộp lưu trong kho lạnh. Văn bản hạn chế chỉ được tính vào con số tổng. Các thẻ số đầu trang và bốn biểu đồ
   có liên kết **Nguồn số liệu** dẫn sang trang Phả hệ số liệu; phần văn bản đã nộp lưu thì không có.
+  - **Chọn kỳ**: ô chọn ở đầu trang (3, 6, 12 hoặc 24 tháng gần nhất, mặc định 12) áp cho thẻ **Thời gian xử lý trung
+    bình** và hai biểu đồ theo tháng. Các số còn lại là số lúc mở trang, không đổi theo kỳ.
+  - **Xem danh sách** dưới ô **Quá hạn** mở mục Văn bản đến ở tab **Quá hạn**: văn bản chưa xong (kể cả chờ vào sổ,
+    chờ chỉ đạo) đã qua hạn giải quyết, quá hạn lâu nhất ở trên.
+  - Bảng theo phòng chủ trì chỉ tính văn bản đang xử lý, nên tổng cột **Quá hạn** của bảng có thể nhỏ hơn ô **Quá
+    hạn** đầu trang. Ô **Quá hạn** không tính văn bản hạn chế.
 
-  ![Trang Điều hành: thẻ số đầu trang và biểu đồ văn bản đến](../anh/huong-dan/dieu-hanh.png)
+  ![Trang Điều hành: ô chọn kỳ, thẻ số đầu trang và biểu đồ văn bản đến](../anh/huong-dan/dieu-hanh.png)
 - **Phả hệ số liệu**: cho biết mỗi biểu đồ của trang Điều hành lấy số từ khung nhìn nào, khung nhìn đó đọc bảng nào,
   kèm kết quả kiểm chất lượng của lượt nộp lưu gần nhất. Bấm **Tải OpenLineage (.jsonl)** để tải về. Chi tiết:
   [`demo-script.md`](../demo-script.md), mục "Phả hệ và kiểm chất lượng".
