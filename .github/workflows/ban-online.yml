@@ -19,8 +19,8 @@
 # GitHub chạy lịch, nút chạy tay và lượt sau Release theo tệp trên nhánh mặc định (develop); PR đổi chính tệp này hay
 # kịch bản thì chạy job trên PR đó. Lượt ngay sau Release đợi tối đa 60 phút cho bản online nâng tay xong rồi mới kiểm
 # (#344). Lượt theo lịch, chạy tay thì kiểm ngay: bản online còn chạy bản cũ là đỏ — đúng ý.
-# Job thứ hai kiểm bản dev theo develop (máy MinhQuang, reconciler kéo develop mỗi 15 phút, #344) như thế, nhưng đòi
-# phiên bản dựng từ commit đầu develop thay vì thẻ: reconciler kẹt thì job đỏ.
+# Job thứ hai kiểm bản dev theo develop (cùng máy với bản online, reconciler kéo develop mỗi 15 phút, #344) như thế,
+# nhưng đòi phiên bản dựng từ commit đầu develop thay vì thẻ: reconciler kẹt thì job đỏ.
 name: Bản online
 
 on:
