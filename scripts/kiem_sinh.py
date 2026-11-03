@@ -155,8 +155,9 @@ def run(out: pathlib.Path) -> None:
     for who, token, unit in (("CNTT", ta, unit_a), ("KT", tb, unit_b), ("quản trị đơn vị CNTT", tq, unit_a)):
         status, rows = rest("GET", f"/{t}?select=tenant_id", token)
         ok(status == 200 and rows == [{"tenant_id": unit}], f"{who} chỉ thấy dòng của đơn vị mình: {status}")
-    ok(rest("PATCH", f"/{t}?id=eq.{a_id}", tb, {"tieu_de": "KT sửa"}) == (200, []), "KT sửa dòng của CNTT: 0 dòng")
-    ok(rest("DELETE", f"/{t}?id=eq.{a_id}", tb) == (200, []), "KT xóa dòng của CNTT: 0 dòng")
+    for method, body in (("PATCH", {"tieu_de": "KT sửa"}), ("DELETE", None)):
+        got = rest(method, f"/{t}?id=eq.{a_id}", tb, body)
+        ok(got == (200, []), f"KT {method} dòng của CNTT: {got}, phải là 0 dòng")
     status, rows = rest("PATCH", f"/{t}?id=eq.{a_id}", ta, {"tenant_id": unit_b})
     ok(status == 200 and rows[0]["tenant_id"] == unit_a, f"CNTT chuyển dòng của mình sang KT: {status}, giữ nguyên")
 
