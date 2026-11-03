@@ -32,8 +32,9 @@ Nguồn ngừng thì bản chụp gần nhất vẫn dùng được; lấy mới
         Nạp các tệp là văn bản (meta có loại, số ký hiệu, cơ quan, ngày ban hành, trích yếu) thành văn bản đến của đơn
         vị mẫu qua API nạp lô (POST /api/imports/incoming: CSV + zip, ClamAV, Action receiveIncoming), như văn thư nạp
         tay; nguồn chỉ có dữ liệu (vd ngay-nghi-le, svc-workflow đọc tại chỗ) thì bỏ qua. Gửi lại không tạo trùng
-        (Idempotency-Key theo băm manifest, dòng trùng số ký hiệu báo duplicate). Cần .env và stack đang chạy; make seed
-        gọi.
+        (Idempotency-Key theo băm manifest, dòng trùng số ký hiệu báo duplicate). Lô gửi kèm ``open_data=<mã>``:
+        svc-files đối chiếu từng tệp với manifest của nguồn trên máy chủ, lô xong thì ghi phả hệ OpenLineage (đường
+        nguồn → văn bản trên trang Phả hệ số liệu, #445). Cần .env và stack đang chạy; make seed gọi.
 
 Cũng là nhóm lệnh ``moc du-lieu-mo`` của scripts/moc.py. ``lay``, ``kiem`` chỉ dùng thư viện chuẩn, không đọc .env.
 """
@@ -240,7 +241,10 @@ def batch(manifest: dict[str, Any], folder: pathlib.Path) -> tuple[bytes, bytes,
             info = zipfile.ZipInfo(f["file"], date_time=(2026, 1, 1, 0, 0, 0))
             zf.writestr(info, (folder / f["file"]).read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
     data = buf.getvalue().encode()
-    digest = hashlib.sha256(json.dumps(docs, sort_keys=True).encode()).hexdigest()[:24]
+    # lô có open_data (#445) là lô khác lô cũ cùng tệp: bản cài đã nạp trước đó nạp lại thì được lô mới (mọi dòng trùng)
+    # và một run phả hệ, không vướng 409 idempotency_conflict của khóa cũ
+    digest = hashlib.sha256(json.dumps({"open_data": manifest["source"], "documents": docs},
+                                       sort_keys=True).encode()).hexdigest()[:24]
     return data, archive.getvalue(), f"du-lieu-mo-{manifest['source']}-{digest}"
 
 
@@ -267,7 +271,9 @@ def nap(codes: list[str] | None = None, clerk_name: str = CLERK) -> int:
                                                    ("archive", f"{folder.name}.zip", "application/zip", archive)])
         headers = {**clerk.auth, "Content-Type": content_type, "Idempotency-Key": key}
         try:
-            _, _, raw = request("POST", f"{PUBLIC_URL}/api/imports/incoming", data=body, headers=headers, timeout=120)
+            # open_data: svc-files đối chiếu tệp với manifest của nguồn trên máy chủ, lô xong thì ghi phả hệ (#445)
+            _, _, raw = request("POST", f"{PUBLIC_URL}/api/imports/incoming?open_data={folder.name}", data=body,
+                                headers=headers, timeout=120)
         except HTTPError as exc:
             print(f"  {folder.name}: API nạp lô trả {exc}", file=sys.stderr)
             rc = 1

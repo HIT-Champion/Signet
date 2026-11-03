@@ -1445,25 +1445,27 @@
   "lineage": {
     "nav": "Phả hệ số liệu",
     "title": "Phả hệ số liệu",
-    "subtitle": "Biểu đồ nào của trang Điều hành lấy số từ khung nhìn nào, khung nhìn đọc bảng nào — tính từ catalog CSDL lúc mở trang, không khai tay — cùng lượt nộp lưu gần nhất. Chỉ có tên bảng, khung nhìn và cạnh, không có dữ liệu văn bản.",
+    "subtitle": "Biểu đồ nào của trang Điều hành lấy số từ khung nhìn nào, khung nhìn đọc bảng nào — tính từ catalog CSDL lúc mở trang, không khai tay — cùng lượt nộp lưu và lượt nạp dữ liệu công khai gần nhất. Chỉ có tên bảng, khung nhìn và cạnh, không có dữ liệu văn bản.",
     "source": "Nguồn số liệu",
     "sourceOf": "Nguồn số liệu: {chart}",
     "kpis": "Thẻ số liệu đầu trang",
     "chart": "Biểu đồ",
     "allCharts": "Mọi biểu đồ",
     "graph": "Đồ thị phả hệ",
-    "graphHint": "Dữ liệu chảy từ trái sang phải: bảng → khung nhìn → biểu đồ; bảng → Parquet → gói lưu trữ. Nét đứt: bước cuối của nộp lưu ghi lại vào CSDL. Rê chuột lên một nút để xem tên đầy đủ.",
+    "graphHint": "Dữ liệu chảy từ trái sang phải: nguồn công khai → lượt nạp → bảng; bảng → khung nhìn → biểu đồ; bảng → Parquet → gói lưu trữ. Nét đứt: bước cuối của nộp lưu ghi lại vào CSDL. Rê chuột lên một nút để xem tên đầy đủ.",
     "kind": {
       "chart": "Biểu đồ",
       "view": "Khung nhìn",
       "table": "Bảng",
-      "job": "Bước nộp lưu",
-      "object": "Đối tượng lưu trữ (S3)"
+      "job": "Bước xử lý (nộp lưu, nạp dữ liệu)",
+      "object": "Đối tượng lưu trữ (S3)",
+      "source": "Nguồn dữ liệu công khai"
     },
     "edge": {
       "read": "đọc",
       "archive": "nộp lưu",
-      "commit": "nộp lưu ghi vào CSDL"
+      "commit": "nộp lưu ghi vào CSDL",
+      "load": "nạp dữ liệu công khai"
     },
     "sourceKind": {
       "table": "bảng",
@@ -1489,7 +1491,8 @@
       "files": "Chép tệp nóng → lạnh",
       "tables": "Bảng → Parquet + kiểm",
       "manifest": "Lập gói (manifest)",
-      "commit": "Ghi lại vào CSDL"
+      "commit": "Ghi lại vào CSDL",
+      "open_data": "Nạp dữ liệu công khai"
     },
     "inputs": "Đầu vào",
     "outputs": "Đầu ra",
@@ -1498,7 +1501,13 @@
     "reports": "Mọi khung nhìn báo cáo ({n})",
     "reportsHint": "Mọi view office.v_… trong CSDL, kể cả khung nhìn chưa có biểu đồ trên trang Điều hành (vd của trang Số đo).",
     "usedBy": "Biểu đồ dùng",
-    "export": "Tải OpenLineage (.jsonl)"
+    "export": "Tải OpenLineage (.jsonl)",
+    "loads": "Lượt nạp dữ liệu công khai gần nhất",
+    "loadsHint": "Mỗi nguồn một dòng: tệp của bản chụp mà lượt nạp dùng (svc-files đã đối chiếu SHA-256 với manifest của nguồn) và số văn bản mới ghi vào office.documents.",
+    "loadsNone": "Chưa có lượt nạp dữ liệu công khai nào của đơn vị ghi phả hệ.",
+    "loadSource": "Nguồn",
+    "loadNew": "Văn bản mới",
+    "loadAt": "Xong lúc"
   },
   "quality": {
     "status": {

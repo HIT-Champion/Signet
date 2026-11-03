@@ -65,8 +65,9 @@ export interface LineageEvent {
   event?: Record<string, unknown>
 }
 
-export type NodeKind = 'chart' | 'view' | 'table' | 'job' | 'object'   // job: một bước của lượt nộp lưu
-export type EdgeKind = 'read' | 'archive' | 'commit'
+// job: một bước của lượt nộp lưu, hay lượt nạp một nguồn công khai; source: tệp của nguồn công khai (#445)
+export type NodeKind = 'chart' | 'view' | 'table' | 'job' | 'object' | 'source'
+export type EdgeKind = 'read' | 'archive' | 'commit' | 'load'
 
 export interface LineageNode {
   id: string
@@ -88,6 +89,8 @@ export interface LineageGraph {
 }
 
 export const ARCHIVE_JOB = 'moc.case_file.archive'
+// Lượt nạp nguồn công khai (svc_files.lineage, #445): job moc.open_data.load.<mã nguồn>, run COMPLETE khi lô nạp xong
+export const OPEN_DATA_JOB = 'moc.open_data.load'
 
 // Cùng quy ước tên dataset với svc_files.lineage: bảng là postgres://postgres:5432 + moc.<schema>.<bảng>
 export const PG_NAMESPACE = 'postgres://postgres:5432'
@@ -103,6 +106,9 @@ export function chartNode(id: BoardChart): string {
 export function datasetNode(name: string): Omit<LineageNode, 'count' | 'rows'> {
   const pg = /^postgres:\/\/[^/]+\/[^.]+\.(.+)$/.exec(name)
   if (pg) return { id: pg[1]!, kind: 'table', label: pg[1]! }
+  // tệp của nguồn công khai (namespace là gốc trang của nguồn): mỗi nguồn một nút, nhãn là tên miền
+  const web = /^(https?:\/\/([^/]+))\/./.exec(name)
+  if (web) return { id: `${web[1]}/`, kind: 'source', label: web[2]! }
   const s3 = /^s3:\/\/([^/]+)\/(.*)$/.exec(name)
   if (!s3) return { id: name, kind: 'object', label: name }
   const [, bucket, key] = s3 as unknown as [string, string, string]
@@ -127,9 +133,10 @@ function rowCounts(events: LineageEvent[]): Map<string, number> {
 
 /** Đồ thị đầy đủ: bảng → khung nhìn → biểu đồ (catalog), và các bước con của một lượt nộp lưu như OpenLineage vẽ:
  * dataset → bước (files, tables, manifest) → dataset. Bước commit ghi ngược vào CSDL: cạnh nét đứt manifest → bảng, chỉ
- * tới bảng đã có trên đồ thị (không kéo thêm bảng không liên quan tới báo cáo). Hướng cạnh là hướng dữ liệu chảy. */
-export function lineageGraph(charts: BoardChartSource[], catalog: CatalogEdge[], archive: LineageEvent[] = []):
-  LineageGraph {
+ * tới bảng đã có trên đồ thị (không kéo thêm bảng không liên quan tới báo cáo). ``loads``: lượt nạp nguồn công khai
+ * gần nhất của từng nguồn, tệp nguồn → lượt nạp → bảng. Hướng cạnh là hướng dữ liệu chảy. */
+export function lineageGraph(charts: BoardChartSource[], catalog: CatalogEdge[], archive: LineageEvent[] = [],
+  loads: LineageEvent[] = []): LineageGraph {
   const nodes = new Map<string, LineageNode>()
   const edges = new Map<string, LineageEdge>()
   const add = (node: LineageNode) => { if (!nodes.has(node.id)) nodes.set(node.id, node) }
@@ -168,7 +175,7 @@ export function lineageGraph(charts: BoardChartSource[], catalog: CatalogEdge[],
     add({ ...n })
     const node = nodes.get(n.id)!
     if (rows.has(name)) node.rows = rows.get(name)
-    if (n.kind === 'object' && n.id !== name) {
+    if ((n.kind === 'object' || n.kind === 'source') && n.id !== name) {
       const set = members.get(n.id) ?? new Set<string>()
       set.add(name)
       members.set(n.id, set)
@@ -188,6 +195,17 @@ export function lineageGraph(charts: BoardChartSource[], catalog: CatalogEdge[],
       for (const i of ins) link(i, o, 'commit')
     }
   }
+  // lượt nạp nguồn công khai gần nhất của từng nguồn: tệp nguồn → lượt nạp → bảng văn bản (không ghi số dòng lên bảng:
+  // rowCount của lượt nạp là số văn bản mới, không phải số dòng của bảng)
+  for (const e of loads.filter((l) => l.job.startsWith(`${OPEN_DATA_JOB}.`) && l.event_type === 'COMPLETE')) {
+    const job = `job:${e.job}`
+    add({ id: job, kind: 'job', label: 'lineage.steps.open_data' })
+    for (const i of e.inputs.map(place)) link(i, job, 'load')
+    for (const o of e.outputs.map((name) => datasetNode(name))) {
+      add({ ...o })
+      link(job, o.id, 'load')
+    }
+  }
   for (const [id, set] of members) nodes.get(id)!.count = set.size
   return { nodes: [...nodes.values()], edges: [...edges.values()] }
 }
@@ -203,10 +221,15 @@ export function lineageUpstream(graph: LineageGraph, target: string): LineageGra
       if (e.target === id && e.kind === 'read' && !keep.has(e.source)) { keep.add(e.source); stack.push(e.source) }
     }
   }
+  // bảng được nạp từ nguồn công khai: giữ cả lượt nạp và tệp nguồn của nó (hai bước ngược theo cạnh load)
+  for (let step = 0; step < 2; step++) {
+    for (const e of graph.edges) if (e.kind === 'load' && keep.has(e.target)) keep.add(e.source)
+  }
   const reads = graph.edges.filter((e) => e.kind === 'read' && keep.has(e.target))
+  const loads = graph.edges.filter((e) => e.kind === 'load' && keep.has(e.target))
   const commits = graph.edges.filter((e) => e.kind === 'commit' && keep.has(e.target))
   for (const e of commits) keep.add(e.source)
-  return { nodes: graph.nodes.filter((n) => keep.has(n.id)), edges: [...reads, ...commits] }
+  return { nodes: graph.nodes.filter((n) => keep.has(n.id)), edges: [...reads, ...loads, ...commits] }
 }
 
 export interface Placed {
@@ -215,7 +238,7 @@ export interface Placed {
   row: number     // hàng, từ trên xuống; có thể lẻ nửa hàng (cột canh giữa trong dải của nó)
 }
 
-const KIND_ORDER: Record<NodeKind, number> = { chart: 0, view: 1, table: 2, job: 3, object: 4 }
+const KIND_ORDER: Record<NodeKind, number> = { chart: 0, view: 1, table: 2, job: 3, object: 4, source: 5 }
 
 /** Xếp tầng: cột = đường dài nhất từ nguồn. Hai dải: trên là mọi nút dẫn tới một biểu đồ (bảng → khung nhìn → biểu đồ),
  * dưới là phần chỉ của nộp lưu; trong mỗi cột, mỗi dải sắp theo trọng tâm hàng của hàng xóm (quét trái → phải, phải →
@@ -292,9 +315,10 @@ function pgDataset(name: string) {
 
 /** Xuất phả hệ dạng OpenLineage, mỗi dòng một sự kiện (JSON Lines): phả hệ tĩnh — một JobEvent cho mỗi khung nhìn
  * (đọc các quan hệ catalog ghi nhận → ghi ra chính nó) và mỗi biểu đồ (đọc khung nhìn) — rồi nguyên văn các RunEvent
- * của lượt nộp lưu. Tên dataset theo cùng quy ước với svc_files.lineage nên hai phần nối được với nhau. */
+ * của lượt nộp lưu và các lượt nạp nguồn công khai. Tên dataset theo cùng quy ước với svc_files.lineage nên hai phần
+ * nối được với nhau. */
 export function toOpenLineage(charts: BoardChartSource[], catalog: CatalogEdge[], archive: LineageEvent[],
-  now: Date): string {
+  now: Date, loads: LineageEvent[] = []): string {
   const eventTime = now.toISOString()
   const job = (name: string, inputs: string[], outputs: string[]) => ({
     eventTime, producer: PRODUCER, schemaURL: JOB_EVENT,
@@ -306,6 +330,6 @@ export function toOpenLineage(charts: BoardChartSource[], catalog: CatalogEdge[]
   const events: unknown[] = [...reads.keys()].sort().map((view) =>
     job(`moc.view.${view}`, [...reads.get(view)!].sort(), [view]))
   for (const c of charts) events.push(job(`moc.office.dieu-hanh.${c.id}`, c.views, []))
-  for (const e of archive) if (e.event) events.push(e.event)
+  for (const e of [...archive, ...loads]) if (e.event) events.push(e.event)
   return events.map((e) => JSON.stringify(e)).join('\n') + '\n'
 }

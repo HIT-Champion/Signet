@@ -61,6 +61,7 @@ from typing import Any, Literal, Protocol
 from fastapi import HTTPException
 
 from ..hasura import AUTH_CODES, HasuraError
+from ..lineage import OPEN_DATA_JOB, Lineage, open_data_outputs
 from .parse import Columns
 from .spool import EntryError, Spool, read_entry
 from .spool import index as zip_index
@@ -366,13 +367,14 @@ def _now() -> datetime:
 
 class Importer:
     def __init__(self, store: Any, handlers: dict[str, Handler], spool: Spool, *, interval_s: float = 2.0,
-                 chunk: int = 20, clock: Callable[[], datetime] = _now) -> None:
+                 chunk: int = 20, clock: Callable[[], datetime] = _now, lineage: Lineage | None = None) -> None:
         self.store = store
         self.handlers = handlers
         self.spool = spool
         self.interval_s = interval_s
         self.chunk = chunk
         self.clock = clock
+        self.lineage = lineage      # phả hệ của lô nạp nguồn công khai (#445); None: không ghi
         self.started = time.time()
 
     def _log(self, event: str, *, level: int = logging.INFO, **fields: object) -> None:
@@ -545,6 +547,12 @@ class Importer:
         await asyncio.to_thread(self.spool.drop, job["id"])
         if closed:
             self._log("core.import.finished", job_id=job["id"], tenant_id=job["tenant_id"], **tally)
+        source = (job.get("options") or {}).get("open_data")
+        if closed and source and self.lineage is not None:
+            # chỉ lần đóng thật ghi một run; ghi lỗi chỉ thành cảnh báo (Lineage.emit), lô vẫn xong
+            await self.lineage.emit(job["tenant_id"], self.lineage.event(
+                "COMPLETE", f"{OPEN_DATA_JOB}.{source['source']}", job["id"], inputs=source["inputs"],
+                outputs=open_data_outputs(tally["ok"])))
 
     async def run(self) -> None:
         try:

@@ -21,8 +21,8 @@ import { GraphChart } from 'echarts/charts'
 import { use } from 'echarts/core'
 import { useI18n } from 'vue-i18n'
 import {
-  ARCHIVE_JOB, BOARD_CHARTS, chartNode, datasetNode, isBoardChart, lineageGraph, lineageLayout, lineageUpstream,
-  toOpenLineage, type BoardChart, type CatalogEdge, type LineageEvent, type LineageNode, type NodeKind,
+  ARCHIVE_JOB, BOARD_CHARTS, OPEN_DATA_JOB, chartNode, datasetNode, isBoardChart, lineageGraph, lineageLayout,
+  lineageUpstream, toOpenLineage, type BoardChart, type CatalogEdge, type LineageEvent, type LineageNode, type NodeKind,
 } from '~/utils/lineage'
 import {
   assertionsByTable, checkMessages, checksFor, runCheck, stepCheck, worstCheck, type Assertion, type ReportCheck,
@@ -36,6 +36,7 @@ import {
 // Cờ kiểm chất lượng (Đạt / Cảnh báo / Trượt): số liệu báo cáo theo bộ luật tính trong CSDL (office.report_checks,
 // migration 1792281603300), cùng quyền; nộp lưu theo assertion svc-files đã ghi trong sự kiện (facet
 // dataQualityAssertions), lấy nguyên văn — kể cả lượt bị dừng vì trượt kiểm, vốn không có run COMPLETE nào.
+// Lượt nạp nguồn công khai (#445): run COMPLETE gần nhất của từng job moc.open_data.load.<mã nguồn>, cùng bảng.
 
 // Đồ thị ECharts loại graph chỉ trang này dùng: đăng ký ở đây (use() của ECharts là đăng ký toàn cục, chạy trước khi
 // EChart.vue vẽ) để trang Điều hành không phải tải thêm phần này
@@ -51,13 +52,16 @@ const QUERY = `{
   stopped: core_lineage_events(where: {quality_ok: {_eq: false}}, order_by: {id: desc}, limit: 1) {
     run_id parent_run_id job event_type event_time inputs outputs quality_ok event }
   office_report_checks { rule report status expected actual issues detail }
+  loads: core_lineage_events(distinct_on: job, order_by: [{job: asc}, {id: desc}],
+    where: {job: {_like: "${OPEN_DATA_JOB}.%"}, event_type: {_eq: "COMPLETE"}}) {
+    run_id parent_run_id job event_type event_time inputs outputs quality_ok event }
 }`
 const RUN = `query ($run: uuid!) {
   core_lineage_events(where: {_or: [{run_id: {_eq: $run}}, {parent_run_id: {_eq: $run}}]}, order_by: {id: asc}) {
     run_id parent_run_id job event_type event_time inputs outputs quality_ok event
   }
 }`
-const KINDS: NodeKind[] = ['chart', 'view', 'table', 'job', 'object']
+const KINDS: NodeKind[] = ['chart', 'view', 'table', 'job', 'object', 'source']
 // Nút là hộp chữ cùng cỡ, đặt theo lưới điểm ảnh (cột COL, hàng ROW), giữ tỉ lệ để hộp không méo. Đồ thị vẽ
 // đúng cỡ thật (5 cột vừa khung 1056 điểm ảnh của trang); màn hẹp hơn thì cuộn ngang trong khung, không bóp nhỏ
 // chữ cho chồng lên nhau
@@ -70,6 +74,7 @@ const STYLE: Record<NodeKind, { fill: string; text: string }> = {
   table: { fill: '#dde7e2', text: '#10201b' },
   job: { fill: '#6d28d9', text: '#ffffff' },
   object: { fill: '#fde68a', text: '#78350f' },
+  source: { fill: '#e0f2fe', text: '#0c4a6e' },
 }
 const STEPS = ['files', 'tables', 'manifest', 'commit'] as const
 
@@ -83,6 +88,7 @@ const catalog = ref<CatalogEdge[]>([])
 const events = ref<LineageEvent[]>([])
 const checks = ref<ReportCheck[]>([])
 const stopped = ref<LineageEvent | null>(null)
+const loads = ref<LineageEvent[]>([])
 const archivedRuns = ref(0)
 const failedChecks = ref(0)
 const readAt = ref('')
@@ -102,6 +108,7 @@ async function load() {
       failed: { aggregate: { count: number } }
       stopped: LineageEvent[]
       office_report_checks: ReportCheck[]
+      loads: LineageEvent[]
     }>(QUERY)
     const run = data.runs[0]?.run_id
     events.value = run ? (await gql<{ core_lineage_events: LineageEvent[] }>(RUN, { run })).core_lineage_events : []
@@ -110,6 +117,7 @@ async function load() {
     failedChecks.value = data.failed.aggregate.count
     stopped.value = data.stopped[0] ?? null
     checks.value = data.office_report_checks
+    loads.value = data.loads
     readAt.value = new Date().toISOString()
     loaded.value = true
     // cờ trên trang Điều hành mở thẳng tới mục kiểm chất lượng (#chat-luong): mục chỉ có sau khi tải xong
@@ -130,7 +138,7 @@ const focus = computed<BoardChart | ''>({
   set: (value) => { router.replace({ query: { ...route.query, 'bieu-do': value || undefined } }) },
 })
 const charts = computed(() => BOARD_CHARTS.filter((c) => !focus.value || c.id === focus.value))
-const full = computed(() => lineageGraph(BOARD_CHARTS, catalog.value, events.value))
+const full = computed(() => lineageGraph(BOARD_CHARTS, catalog.value, events.value, loads.value))
 // Đồ thị mọi biểu đồ không vẽ cạnh commit (manifest → bảng, đi ngược qua cả đồ thị); chọn một biểu đồ thì có
 const graph = computed(() => (focus.value ? lineageUpstream(full.value, chartNode(focus.value))
   : { nodes: full.value.nodes, edges: full.value.edges.filter((e) => e.kind !== 'commit') }))
@@ -181,7 +189,7 @@ const graphOption = computed(() => {
         itemStyle: { color: STYLE[n.kind].fill },
         label: { color: STYLE[n.kind].text },
         tip: `${escape(t(`lineage.kind.${n.kind}`))}<br><b>${escape(nodeText(n))}</b>`
-          + (n.kind === 'object' ? `<br>${escape(n.id)}` : '')
+          + (n.kind === 'object' || n.kind === 'source' ? `<br>${escape(n.id)}` : '')
           + (n.kind === 'view' && viewFlag(n.id) ? `<br>${escape(t('lineage.quality'))}: `
             + escape(t(`quality.status.${viewFlag(n.id)}`)) : ''),
       })),
@@ -269,8 +277,17 @@ function datasets(names: string[]) {
   return [...count.values()].map((d) => (d.n > 1 ? `${d.label} (${t('lineage.objects', { n: d.n })})` : d.label))
 }
 
+// Một dòng mỗi nguồn công khai: mã nguồn (đuôi tên job), số văn bản mới (facet outputStatistics của bảng văn bản)
+function loadSource(e: LineageEvent) {
+  return e.job.slice(OPEN_DATA_JOB.length + 1)
+}
+function loadNew(e: LineageEvent) {
+  const outputs = (e.event?.outputs ?? []) as Array<{ outputFacets?: { outputStatistics?: { rowCount?: number } } }>
+  return outputs[0]?.outputFacets?.outputStatistics?.rowCount ?? null
+}
+
 function exportOpenLineage() {
-  const body = toOpenLineage(BOARD_CHARTS, catalog.value, events.value, new Date())
+  const body = toOpenLineage(BOARD_CHARTS, catalog.value, events.value, new Date(), loads.value)
   const url = URL.createObjectURL(new Blob([body], { type: 'application/x-ndjson' }))
   const a = document.createElement('a')
   a.href = url
@@ -458,6 +475,34 @@ function exportOpenLineage() {
             </table>
           </div>
         </template>
+      </section>
+
+      <section class="moc-block" data-testid="lineage-loads">
+        <h2 id="lineage-loads-title" class="moc-block-title">{{ t('lineage.loads') }}</h2>
+        <p class="moc-block-hint">{{ t('lineage.loadsHint') }}</p>
+        <p v-if="!loads.length" class="moc-empty">{{ t('lineage.loadsNone') }}</p>
+        <div v-else class="moc-scroll mt-3" tabindex="0" role="region" aria-labelledby="lineage-loads-title">
+          <table class="moc-table min-w-[680px]">
+            <thead>
+              <tr>
+                <th>{{ t('lineage.loadSource') }}</th>
+                <th>{{ t('lineage.inputs') }}</th>
+                <th class="text-right">{{ t('lineage.loadNew') }}</th>
+                <th>{{ t('lineage.loadAt') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="e in loads" :key="e.run_id">
+                <td class="font-mono text-xs text-stone-700">{{ loadSource(e) }}</td>
+                <td class="font-mono text-xs text-stone-700">
+                  <div v-for="d in datasets(e.inputs)" :key="d">{{ d }}</div>
+                </td>
+                <td class="text-right tabular-nums">{{ loadNew(e) ?? '—' }}</td>
+                <td class="text-stone-600">{{ fmtDateTime(e.event_time) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section class="moc-block" data-testid="lineage-reports">
