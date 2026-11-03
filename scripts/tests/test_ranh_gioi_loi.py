@@ -181,6 +181,11 @@ class Scanner(unittest.TestCase):
         self.assertEqual(rg.statements(sql), ["create function a() as $f$ select 1; select ';'; $f$", "grant x",
                                               "select 'a;b'"])
 
+    def test_sql_comments_are_not_scanned(self) -> None:
+        sql = "select 1; /* office.redact()\n -- */ select 2; -- /* office.x\nselect 3;"
+        self.assertEqual(rg._strip_sql(sql), "select 1;   select 2;  \nselect 3;")
+        self.assertEqual(rg._strip_sql("select * from/* x */office.documents"), "select * from office.documents")
+
     def test_metadata_ignores_comments_and_counts_roles(self) -> None:
         objects = rg.office_objects(rg.migrations(self.root))
         self.assertEqual(sorted(rg.metadata_edges(self.root, objects)), ["vai-tro core_users.yaml -> staff"])

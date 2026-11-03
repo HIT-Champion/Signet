@@ -17,7 +17,8 @@
 
 """Reconciler GitOps và tự phục hồi (F3.3) — một lượt mỗi lần gọi, chỉ dùng thư viện chuẩn.
 
-Chạy trên máy chủ bằng systemd timer mỗi 60 giây (`platform/systemd/`), không gắn socket Docker vào container nào.
+Chạy trên máy chủ mỗi 60 giây bằng systemd timer (`platform/systemd/`), hoặc bằng cron của người dùng `moc` trên máy
+không có systemd như WSL2 (`docs/trien-khai.md` mục 7); không gắn socket Docker vào container nào.
 Mỗi lượt đưa hệ thống đang chạy về đúng trạng thái khai trong git:
 
   1. GitOps (khi đặt MOC_GITOPS_DIR — một bản sao git riêng của reconciler, chỉ dùng khi chạy từ bản cài):
@@ -35,7 +36,7 @@ Mỗi lượt đưa hệ thống đang chạy về đúng trạng thái khai tro
 
 Bỏ qua lượt khi đang sao lưu, khôi phục, cài đặt (cùng một khóa với `moc backup` và `install.sh`), khi lần khôi phục
 trước dừng giữa chừng (dữ liệu dở dang, không chạy lại Signet trên đó) hay có dịch vụ đang tạm dừng có chủ ý. Dịch vụ
-còn tạm dừng từ một lần sao lưu bị giết cứng thì chạy lại. Bảo trì tay thì tắt timer trước.
+còn tạm dừng từ một lần sao lưu bị giết cứng thì chạy lại. Bảo trì tay thì tắt timer (hoặc dòng cron) trước.
 
     python3 scripts/reconcile.py                          # một lượt, in từng việc đã làm
     python3 scripts/reconcile.py --json                   # dòng cuối là kết quả JSON
