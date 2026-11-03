@@ -16,7 +16,7 @@
 
 """make seed — nạp dữ liệu mẫu (F2.10). Chạy lại nhiều lần được.
 
-1. Đơn vị và phòng ban: seed/tenants.sql (id cố định).
+1. Đơn vị và phòng ban: seed/tenants.sql (id cố định). Bảng mẫu của ứng dụng sinh từ Studio: seed/sinh.sql.
 2. Tài khoản: seed/users.csv → Keycloak Admin REST qua cổng quản trị nội bộ (127.0.0.1).
    Client của ứng dụng trên trình duyệt còn thiếu so với moc-realm.json (realm nạp trước khi có ứng dụng đó) được
    thêm trước — `moc realm clients` (realm_clients.py).
@@ -40,11 +40,11 @@ from moc_env import ENV, KEYCLOAK_ADMIN_URL, PUBLIC_URL, REALM, ROOT, HTTPError,
 from tenants import admin_token
 
 
-def seed_tenants() -> None:
-    sql = (ROOT / "seed" / "tenants.sql").read_bytes()
+def seed_sql(name: str, what: str) -> None:
+    sql = (ROOT / "seed" / name).read_bytes()
     compose("exec", "-T", "postgres", "psql", "-q", "-v", "ON_ERROR_STOP=1",
             "-U", ENV.get("POSTGRES_USER", "moc"), "-d", ENV.get("POSTGRES_DB", "moc"), stdin=sql)
-    print("  đơn vị, phòng ban: xong")
+    print(f"  {what}: xong")
 
 
 # Khớp authenticatorConfig "moc-vai-tro-bat-buoc-otp" trong platform/keycloak/realm/moc-realm.json
@@ -140,7 +140,8 @@ def main() -> None:
     wait_for(f"{KEYCLOAK_ADMIN_URL}/realms/{REALM}", "Keycloak")
     wait_for(f"{PUBLIC_URL}/realms/{REALM}", "APISIX")
     print("Nạp dữ liệu mẫu:")
-    seed_tenants()
+    seed_sql("tenants.sql", "đơn vị, phòng ban")
+    seed_sql("sinh.sql", "bảng mẫu Quản lý yêu cầu của ứng dụng sinh")
     try:
         print("  " + realm_clients.describe(realm_clients.run(ENV)))
         print("  " + realm_clients.describe_profile(realm_clients.run_profile(ENV)))
