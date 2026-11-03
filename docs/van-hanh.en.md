@@ -1278,8 +1278,9 @@ ssh -L 3400:127.0.0.1:3400 server    # then open http://localhost:3400
 - **New keys** in `.env`: `MOC_REST_DB_PASSWORD` (password of `authenticator`, the role PostgREST connects as),
   `MOC_STUDIO_DB_PASSWORD` (password of `moc_studio`), `MOC_STUDIO_META_KEY` (encrypts the connection string between
   Studio and postgres-meta), `MOC_STUDIO_JWT_SECRET` (Studio's internal JWT); port `MOC_STUDIO_PORT` (default 3400).
-  `make env` generates them for a new install; `make install` (upgrades included) appends missing lines to the install's
-  `.env`.
+  `make env` generates them for a new install. On an older `.env`, `make up`, `make check` and the `make *-up` targets
+  add the missing keys with random values and print none (#574); `make install` (upgrades included) appends missing
+  lines to the install's `.env`.
 - **Keycloak signing keys.** PostgREST does not fetch keys by itself as Hasura does: the one-shot `rest-init` service
   runs after Hasura has applied the migrations: it enables login and sets the passwords of `authenticator` and
   `moc_studio`, then fetches the realm's JWKS into a file that PostgREST reads; `rest` waits for `rest-init` to finish.
