@@ -15,6 +15,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   vẫn Ollama (#498).
 - Trang Hỏi đáp có lịch sử trò chuyện: nhiều cuộc, lưu trong trình duyệt theo tài khoản, đăng xuất là xóa (#504).
 - Việc cần duyệt của ứng dụng ngành có tên người gửi đề nghị (`initiatorName`) (#506).
+- Điều hành: ô Quá hạn mở tab Quá hạn mới của Văn bản đến; chọn kỳ 3, 6, 12, 24 tháng cho số liệu theo tháng (#529).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người

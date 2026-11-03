@@ -44,6 +44,36 @@ test('dashboard điều hành: chỉ lãnh đạo đơn vị xem, số liệu kh
   await director.getByTestId('realtime-notice').first().waitFor({ state: 'detached', timeout: 15_000 }).catch(() => {})
   await shot(director, '18-dieu-hanh')
 
+  // chọn kỳ (#529): hai bảng theo tháng không quá số tháng đã chọn, kỳ ghi trên đường dẫn
+  await director.getByTestId('board-period').selectOption('3')
+  await expect(director).toHaveURL(/[?&]thang=3\b/)
+  await expect(director.getByTestId('board-kpis')).toContainText(/3 tháng gần nhất|Chưa có văn bản nào xử lý xong/)
+  for (const id of ['board-processing', 'board-outgoing']) {
+    expect(await director.getByTestId(id).locator('tbody tr').count()).toBeLessThanOrEqual(3)
+  }
+
+  // ô Quá hạn → tab Quá hạn của Văn bản đến (#529), cùng định nghĩa: số ở ô bằng số dòng không hạn chế (ô không tính
+  // văn bản hạn chế); bảng theo phòng chỉ tính văn bản đang xử lý nên tổng cột Quá hạn không vượt ô
+  const overdue = Number(await director.getByTestId('kpi-overdue').innerText())
+  let late = 0
+  for (const row of await director.getByTestId('board-departments').locator('tbody tr').all()) {
+    late += Number(await row.locator('td').last().innerText())
+  }
+  expect(late).toBeLessThanOrEqual(overdue)
+  await director.getByTestId('kpi-overdue-list').click()
+  await expect(director).toHaveURL(/\/van-ban-den\?tab=overdue$/)
+  await expect(director.getByRole('tab', { name: 'Quá hạn' })).toHaveAttribute('aria-selected', 'true')
+  await expect(director.getByTestId('overdue-hint')).toBeVisible()
+  await expect(director.locator('.moc-incoming-table, .moc-empty').first()).toBeVisible()
+  const rows = director.locator('.moc-incoming-table tbody tr')
+  const more = director.getByTestId('list-more')
+  while (await more.isVisible()) {   // tải hết các trang rồi mới đếm
+    const shown = await rows.count()
+    await more.click()
+    await expect.poll(() => rows.count()).toBeGreaterThan(shown)
+  }
+  await expect(rows.filter({ hasNot: director.getByText('Hạn chế', { exact: true }) })).toHaveCount(overdue)
+
   const clerk = await signIn(browser, 'vanthu', { otp: true })
   await expect(clerk.getByRole('link', { name: 'Sổ đăng ký' })).toBeVisible()
   await expect(clerk.getByRole('link', { name: 'Điều hành' })).toHaveCount(0)
