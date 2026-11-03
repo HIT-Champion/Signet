@@ -54,6 +54,12 @@ người rồi bấm **Cấp quyền xem**, hoặc bấm **Gỡ** để thu lạ
     chờ chỉ đạo) đã qua hạn giải quyết, quá hạn lâu nhất ở trên.
   - Bảng theo phòng chủ trì chỉ tính văn bản đang xử lý, nên tổng cột **Quá hạn** của bảng có thể nhỏ hơn ô **Quá
     hạn** đầu trang. Ô **Quá hạn** không tính văn bản hạn chế.
+  - **Chốt kỳ số liệu** (phần dưới các biểu đồ): chọn một tháng đã qua (ô chọn đưa 12 tháng gần nhất chưa chốt), bấm
+    **Chốt kỳ** rồi xác nhận. Số của tháng đó được ghi một lần: không sửa, không xóa, không chốt lại được. Bảng bên
+    dưới liệt kê các kỳ đã chốt kèm mã băm SHA-256; sổ kiểm toán có dòng "Chốt kỳ số liệu điều hành" ở tab **Tất cả**.
+  - Trong bản chốt, **Xong trong kỳ**, **Đúng hạn** và **Văn bản đi** là số của đúng tháng đó. **Chưa xong lúc chốt**
+    và **Quá hạn lúc chốt** là số tại lúc bấm, không phải số cuối tháng. Muốn sát số cuối kỳ
+    thì chốt ngay đầu tháng sau.
 
   ![Trang Điều hành: ô chọn kỳ, thẻ số đầu trang và biểu đồ văn bản đến](../anh/huong-dan/dieu-hanh.png)
 - **Phả hệ số liệu**: cho biết mỗi biểu đồ của trang Điều hành lấy số từ khung nhìn nào, khung nhìn đó đọc bảng nào,
