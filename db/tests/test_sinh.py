@@ -43,12 +43,12 @@ PG = os.environ.get("MOC_IT_PG_CONTAINER", "moc-db-it-postgres")   # container c
 MIGRATION = REPO / "db/migrations/default/1792281604400_sinh_khung/up.sql"
 
 
-def psql(role: str, script: str) -> str:
-    """Chạy `script` bằng vai trò `role` trong một giao dịch; trả dòng cuối của kết quả."""
+def psql(role: str, script: str, one: bool = True) -> str:
+    """Chạy `script` bằng vai trò `role` (trong một giao dịch nếu `one`); trả dòng cuối của kết quả."""
     sql(f"alter role {role} login")
     try:
         proc = subprocess.run(["docker", "exec", "-i", PG, "psql", "-X", "-q", "-A", "-t", "-v", "ON_ERROR_STOP=1",
-                               "-1", "-U", role, "-d", "moc", "-f", "-"],
+                               *(["-1"] if one else []), "-U", role, "-d", "moc", "-f", "-"],
                               input=script, capture_output=True, text=True, timeout=60)
     finally:
         sql(f"alter role {role} nologin")
@@ -88,6 +88,12 @@ def test_restore_and_migration_create_the_same_roles():
     assert members == [[",".join(sorted(ung_dung.USER_ROLES))]]      # không có moc_studio
     assert sql("select rolinherit, rolsuper, rolbypassrls from pg_roles where rolname = 'authenticator'") \
         == [["f", "f", "f"]]
+    assert sql("select rolname from pg_roles where rolname in ('authenticator', 'moc_studio', 'moc_harness')"
+               " and (rolsuper or rolbypassrls)") == []
+    # chỉ hai hàm SECURITY DEFINER, chủ là moc_harness (không superuser)
+    assert sql("select proname || ':' || proowner::regrole from pg_proc"
+               " where pronamespace = 'sinh_khung'::regnamespace and prosecdef order by 1") \
+        == [["ap_khung:moc_harness"], ["ghi_ddl:moc_harness"]]
 
 
 def test_new_table_gets_the_harness(bang):
@@ -154,14 +160,30 @@ def test_added_column_is_usable_at_once(world, bang):
     "drop trigger moc_cot_chuan on {t}",
     "truncate {t}",
     "alter table {t} drop column tenant_id cascade",
+    "alter table {t} drop column created_at",
+    "alter table {t} rename column created_by to nguoi_tao",
+    "alter table {t} rename column tenant_id to don_vi",
+    "drop schema sinh cascade",
     "create view sinh.v_lo as select tieu_de from {t}",
     "create function sinh.f_lo() returns int language sql as $$ select 1 $$",
     "create rule r_lo as on insert to {t} do instead nothing",
 ], ids=["rls", "drop-policy", "alter-policy", "alter-mo", "disable-trigger", "drop-trigger", "truncate",
-        "drop-tenant", "view", "function", "rule"])
+        "drop-tenant", "drop-created-at",
+        "rename-created-by", "rename-tenant", "drop-schema", "view", "function", "rule"])
 def test_removing_a_protection_is_refused(bang, statement):
     with pytest.raises(SQLError, match="khung:"):
         studio(statement.format(t=bang))
+
+
+def test_drops_are_audited_and_reload_postgrest():
+    name = f"sinh.xoa_{uuid.uuid4().hex[:6]}"
+    studio(f"create table {name} (id int primary key, ghi_chu text)")
+    studio(f"alter table {name} drop column ghi_chu")
+    # LISTEN ngoài giao dịch: psql in thông báo ngay sau lệnh DROP
+    assert 'payload "reload schema"' in psql("moc_studio", f"listen pgrst;\ndrop table {name};", one=False)
+    rows = sql(f"select diff ->> 'lenh' || ' ' || entity_id from core.audit_log where action = 'ddl'"
+               f" and actor_id = 'moc_studio' and entity_id in ('{name}', '{name}.ghi_chu')")
+    assert {f"ALTER TABLE {name}.ghi_chu", f"DROP TABLE {name}"} <= {row[0] for row in rows}
 
 
 def test_extra_policy_cannot_widen_the_tenant(world, bang):
