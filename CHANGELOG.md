@@ -45,6 +45,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Trang Danh mục ứng dụng không còn đứng ở "Đang tải…" khi máy chủ chưa cài wiki nội bộ (#496).
 - Trang Xác thực văn bản và Trạng thái hệ thống có nút về trang chủ; logo ở thanh trên cũng về trang chủ (#494).
 - Trình dựng form: khung khai báo `app.yaml`, nội dung tệp và dữ liệu xem trước cuộn được bằng bàn phím (#516).
+- Quy tắc ứng xử (`CODE_OF_CONDUCT.md`, phỏng theo Contributor Covenant) khai đúng giấy phép CC BY 4.0 trong REUSE
+  thay vì Apache-2.0 (#528).
 
 ## [1.4.0] - 2026-10-31
 

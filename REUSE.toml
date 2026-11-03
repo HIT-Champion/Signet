@@ -35,6 +35,7 @@ path = [
   # Dữ liệu mẫu và dữ liệu kiểm thử
   "**.csv",
   "**.tsv",
+  "**.jsonl",
   # Văn bản mẫu giả lập (scripts/van_ban_mau.py, scripts/hoi_dap_mau.py), ảnh chụp màn hình, biểu tượng
   "**.pdf",
   "**.png",
@@ -77,3 +78,14 @@ path = ["seed/du-lieu-mo/cong-bao-gddt/*.pdf", "seed/du-lieu-mo/ngay-nghi-le/tri
 precedence = "closest"
 SPDX-FileCopyrightText = "Văn bản nhà nước Việt Nam, xem manifest.json cùng thư mục"
 SPDX-License-Identifier = "LicenseRef-VN-SHTT-Dieu-15"
+
+# Quy tắc ứng xử phỏng dịch Contributor Covenant 2.1 (CC BY 4.0, nguồn ghi ở cuối tệp), không do đội viết từ đầu nên
+# không theo Apache-2.0 của khối đầu; khai sau nên ghi đè "**.md" (#528).
+[[annotations]]
+path = "CODE_OF_CONDUCT.md"
+precedence = "closest"
+SPDX-FileCopyrightText = [
+  "Contributor Covenant, https://www.contributor-covenant.org",
+  "2026 Signet Team (bản phỏng dịch)",
+]
+SPDX-License-Identifier = "CC-BY-4.0"
