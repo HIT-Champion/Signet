@@ -12,7 +12,7 @@ Giảng viên đề nghị **đổi lịch** (dời một buổi dạy sang ngà
 hai cấp duyệt:
 
 1. **Trưởng bộ môn của chính bộ môn người gửi** duyệt.
-2. Nếu bộ môn đồng ý, **lãnh đạo khoa** phê duyệt. Nếu bộ môn không đồng ý, đề nghị dừng ở đó.
+2. Nếu bộ môn đồng ý, **lãnh đạo đơn vị** phê duyệt. Nếu bộ môn không đồng ý, đề nghị dừng ở đó.
 
 Người gửi theo dõi kết quả và đọc ghi chú của từng cấp.
 
@@ -31,7 +31,7 @@ Cơ chế và mô hình tin cậy: [`docs/them-ung-dung.md`](../../docs/them-ung
 | Tệp | Nội dung |
 |---|---|
 | `app.yaml` | Manifest: đường `/lich-giang`, image dựng từ thư mục này, 64 MiB; `database` chỉ vì manifest bắt buộc (schema trống `lich_giang`, không migration); `workflow`: một quy trình, ba form |
-| `workflow/doi-lich-giang.bpmn20.xml` | Quy trình `lich-giang.don`: gửi đề nghị (`lich-giang.don`) → "Trưởng bộ môn duyệt" (`lich-giang.bo-mon`, nhóm `t:${tenantId}:d:${departmentId}:manager` như bước duyệt cấp phòng của văn bản đi) → cổng rẽ theo `quyetDinhBoMon` → "Lãnh đạo khoa phê duyệt" (`lich-giang.khoa`, nhóm `t:${tenantId}:director` như bước chỉ đạo của văn bản đến) → cổng rẽ theo `quyetDinhKhoa` → "Đã duyệt" / "Khoa không duyệt"; bộ môn không đồng ý → "Bộ môn không đồng ý". Không có mã chạy trên máy chủ; có sơ đồ BPMN DI |
+| `workflow/doi-lich-giang.bpmn20.xml` | Quy trình `lich-giang.don`: gửi đề nghị (`lich-giang.don`) → "Trưởng bộ môn duyệt" (`lich-giang.bo-mon`, nhóm `t:${tenantId}:d:${departmentId}:manager` như bước duyệt cấp phòng của văn bản đi) → cổng rẽ theo `quyetDinhBoMon` → "Lãnh đạo đơn vị phê duyệt" (`lich-giang.khoa`, nhóm `t:${tenantId}:director` như bước chỉ đạo của văn bản đến) → cổng rẽ theo `quyetDinhKhoa` → "Đã duyệt" / "Lãnh đạo đơn vị không duyệt"; bộ môn không đồng ý → "Bộ môn không đồng ý". Không có mã chạy trên máy chủ; có sơ đồ BPMN DI |
 | `forms/don.json` | Mẫu đề nghị: loại (đổi lịch, dạy bù), học phần, lớp học phần, ngày và tiết theo lịch, ngày dạy mới (không trước hôm nay), tiết mới, phòng học, lý do |
 | `forms/bo-mon.json`, `forms/khoa.json` | Mẫu duyệt của từng cấp (quyết định, ghi chú); tên trường riêng cho từng cấp nên kết quả bộ môn còn nguyên khi khoa duyệt |
 | `forms/*.cases.json` | Ca thử dùng chung cho trình duyệt và `svc-workflow` |
@@ -46,9 +46,9 @@ Ba phần, chuyển bằng thanh trên cùng:
 - **Gửi đề nghị**: form dựng từ `forms/don.json` lấy qua API của lõi. Trình duyệt kiểm ngay bằng chính tệp đó (vd
   ngày dạy mới đã qua, tiết viết sai dạng), lõi kiểm lại khi nhận. Lỗi `422` của lõi hiện dưới đúng ô.
 - **Đề nghị của tôi**: mỗi đề nghị một thẻ, gồm trạng thái, nội dung và quyết định, ghi chú của từng cấp đã duyệt.
-  Trạng thái là một trong: chờ trưởng bộ môn, bộ môn đã đồng ý chờ khoa, đã duyệt, bộ môn không đồng ý, khoa không
-  duyệt.
-- **Việc cần duyệt**: chỉ hiện khi có việc. Trưởng bộ môn thấy đề nghị của giảng viên trong bộ môn. Lãnh đạo khoa
+  Trạng thái là một trong: chờ trưởng bộ môn, bộ môn đã đồng ý chờ lãnh đạo đơn vị, đã duyệt, bộ môn không đồng
+  ý, lãnh đạo đơn vị không duyệt.
+- **Việc cần duyệt**: chỉ hiện khi có việc. Trưởng bộ môn thấy đề nghị của giảng viên trong bộ môn. Lãnh đạo đơn vị
   thấy đề nghị bộ môn đã đồng ý, kèm ý kiến của trưởng bộ môn. Mỗi thẻ ghi "Người đề nghị: …" theo `initiatorName`
   của API (#506); không có tên thì bỏ dòng đó. Danh sách tự làm mới mỗi 30 giây mà không xóa ghi chú đang gõ.
 
@@ -75,7 +75,7 @@ Tài khoản trong `seed/users.csv`, đơn vị Trường CNTT & TT:
 
 1. `giangvienktpm` (giảng viên Bộ môn KTPM) gửi đề nghị dạy bù.
 2. `truongbmktpm` (trưởng Bộ môn KTPM) thấy việc và đồng ý. `totruongdt` thuộc phòng khác nên không thấy.
-3. `truongkhoa` (lãnh đạo khoa) thấy đề nghị kèm ý kiến bộ môn, rồi phê duyệt.
+3. `truongkhoa` (lãnh đạo đơn vị) thấy đề nghị kèm ý kiến bộ môn, rồi phê duyệt.
 4. `giangvienktpm` thấy "Đã duyệt" cùng ghi chú của cả hai cấp.
 
 ## Kiểm

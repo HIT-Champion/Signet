@@ -87,8 +87,8 @@ export function docTraLoi(status, body) {
 }
 
 /**
- * Trạng thái một đề nghị của tôi. Còn chạy: chờ bộ môn, hoặc chờ khoa khi bộ môn đã đồng ý. Kết thúc: bộ môn không
- * đồng ý thì dừng ở đó; còn lại theo quyết định của khoa.
+ * Trạng thái một đề nghị của tôi. Còn chạy: chờ bộ môn, hoặc chờ lãnh đạo đơn vị khi bộ môn đã đồng ý. Kết thúc:
+ * bộ môn không đồng ý thì dừng ở đó; còn lại theo quyết định của lãnh đạo đơn vị.
  */
 export function trangThai(don) {
   const d = don?.data ?? {}

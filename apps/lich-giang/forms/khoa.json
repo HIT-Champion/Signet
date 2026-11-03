@@ -1,9 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:moc:app:lich-giang:form:khoa",
-  "title": "Phê duyệt của khoa",
-  "description": "Form của bước lãnh đạo khoa duyệt (formKey lich-giang.khoa). Ca thử dùng chung: khoa.cases.json.",
-  "x-moc-title": {"vi": "Phê duyệt của khoa", "en": "Faculty approval"},
+  "title": "Phê duyệt của lãnh đạo đơn vị",
+  "description": "Form của bước lãnh đạo đơn vị duyệt (formKey lich-giang.khoa). Ca thử dùng chung: khoa.cases.json.",
+  "x-moc-title": {"vi": "Phê duyệt của lãnh đạo đơn vị", "en": "Director approval"},
   "x-moc-order": ["quyetDinhKhoa", "ghiChuKhoa"],
   "x-moc-nfc": true,
   "type": "object",
@@ -15,7 +15,7 @@
       "enum": ["dong-y", "tu-choi"],
       "x-moc-ui": {
         "widget": "radio",
-        "label": {"vi": "Quyết định của lãnh đạo khoa", "en": "Faculty dean's decision"},
+        "label": {"vi": "Quyết định của lãnh đạo đơn vị", "en": "Director's decision"},
         "options": {
           "dong-y": {"vi": "Đồng ý", "en": "Approve"},
           "tu-choi": {"vi": "Không đồng ý", "en": "Decline"}
@@ -31,7 +31,7 @@
       "x-moc-ui": {
         "widget": "textarea",
         "rows": 3,
-        "label": {"vi": "Ghi chú của lãnh đạo khoa", "en": "Faculty dean's note"},
+        "label": {"vi": "Ghi chú của lãnh đạo đơn vị", "en": "Director's note"},
         "help": {"vi": "Người gửi đọc được ghi chú này.", "en": "The requester can read this note."}
       }
     }

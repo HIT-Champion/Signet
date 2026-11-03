@@ -33,8 +33,8 @@
         "rows": 3,
         "label": {"vi": "Ghi chú của trưởng bộ môn", "en": "Head of department's note"},
         "help": {
-          "vi": "Người gửi và lãnh đạo khoa đọc được ghi chú này.",
-          "en": "The requester and the faculty dean can read this note."
+          "vi": "Người gửi và lãnh đạo đơn vị đọc được ghi chú này.",
+          "en": "The requester and the director can read this note."
         }
       }
     }
