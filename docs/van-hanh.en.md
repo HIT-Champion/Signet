@@ -1264,7 +1264,10 @@ ssh -L 3400:127.0.0.1:3400 server    # then open http://localhost:3400
   `127.0.0.1:3400` on the server can use it, with the rights of `moc_studio`. `moc_studio` cannot see the `core`,
   `office` or `personal` schemas.
 - **Not through the gateway.** Studio has no APISIX route; APISIX is still the only public port. `/rest/v1` through
-  APISIX requires a Keycloak token (no token: `401`) and goes through the WAF like every route.
+  APISIX requires a Keycloak token (no token: `401`) and goes through the WAF like every route. The gateway returns
+  `403` for `PATCH` and `DELETE` on `/rest/v1/<table>` without a filter (rules 10091, 10092, #588), but only with
+  `MOC_WAF=On`: with `DetectionOnly` or `Off`, an unfiltered `DELETE` removes every row of the caller's unit in that
+  table ([`platform/apisix/README.md`](../platform/apisix/README.md), `MOC_WAF` switch section).
 - **The harness cancels commands that remove its protection.** Disabling RLS, dropping or altering the `moc_don_vi` or
   `moc_mo` policies, disabling or dropping the harness triggers, dropping or renaming the `tenant_id`, `created_by` or
   `created_at` columns, `drop schema sinh`, creating views, functions, procedures or rules in `sinh`: the command is
