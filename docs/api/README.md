@@ -402,8 +402,13 @@ Bảng mẫu `sinh.yeu_cau` ("Quản lý yêu cầu") có `tieu_de`, `noi_dung`,
   `select=*`, `order`, `limit`/`offset`, `or=(…eq…, …ilike…)`, `not.is.null`, `in.(…)`, `like`, `gte` theo ngày, `eq` có
   chữ tiếng Việt.
 - **Không có `/rest/v1/rpc/…`:** khung không cho tạo hàm trong `sinh`.
-- **`DELETE` không kèm bộ lọc** (vd `DELETE /rest/v1/yeu_cau`) xóa mọi dòng của đơn vị người gọi trong bảng đó: RLS
-  chỉ giữ việc xóa trong đơn vị. Luôn gửi kèm bộ lọc, vd `?id=eq.5`.
+- **`PATCH`, `DELETE` phải có bộ lọc.** Cổng trả `403` (không kèm JSON, khác `403` của PostgREST có mã `42501`) cho
+  `PATCH`, `DELETE` trên `/rest/v1/<bảng>` khi không tham số truy vấn nào là bộ lọc (luật WAF 10091, 10092, #588). Bộ
+  lọc là tham số theo tên cột (`?id=eq.5`) hoặc `or`, `and`, `not.or`, `not.and`. Không tính: `select`, `order`,
+  `limit`, `offset`, `columns`, `on_conflict` và tên có dấu chấm (`items.id=…` lọc bảng nhúng, không giới hạn dòng của
+  bảng chính); nên `DELETE /rest/v1/yeu_cau?select=id` vẫn bị chặn. Luật chặn yêu cầu quên lọc, không chặn ý định:
+  `?id=not.is.null` vẫn là bộ lọc. Chỉ có khi `MOC_WAF=On` (mặc định); ở `DetectionOnly` hay `Off`, `DELETE` không lọc
+  xóa mọi dòng của đơn vị người gọi trong bảng đó, vì RLS chỉ giữ việc xóa trong đơn vị.
 - **Token của client nào:** token Keycloak của realm có claim Hasura (mọi client `app-*` tạo bằng `moc app install`
   đều có, vd `app-sinh`). Cổng kiểm chữ ký, hạn, `iss`; PostgREST không kiểm `aud`.
 - Bảng, cột mới hiện trong API ngay sau khi tạo trong Studio, không khởi động lại dịch vụ.

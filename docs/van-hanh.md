@@ -1126,7 +1126,10 @@ ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
   trị đơn vị. Studio tự host không có đăng nhập riêng: ai tới được `127.0.0.1:3400` trên máy chủ là dùng được, ngang
   quyền `moc_studio`. `moc_studio` không thấy schema `core`, `office`, `personal`.
 - **Không qua cổng.** Studio không có route APISIX; cổng công khai vẫn chỉ có APISIX. `/rest/v1` qua APISIX đòi token
-  Keycloak (không token: `401`), qua WAF như mọi route.
+  Keycloak (không token: `401`), qua WAF như mọi route. Cổng trả `403` cho `PATCH`, `DELETE` trên `/rest/v1/<bảng>`
+  không kèm bộ lọc (luật 10091, 10092, #588), nhưng chỉ khi `MOC_WAF=On`: ở `DetectionOnly` hay `Off`, một lệnh
+  `DELETE` không lọc xóa mọi dòng của đơn vị người gọi trong bảng đó
+  ([`platform/apisix/README.md`](../platform/apisix/README.md), mục công tắc `MOC_WAF`).
 - **Khung hủy lệnh gỡ bảo vệ.** Tắt RLS, xóa hay sửa policy `moc_don_vi`, `moc_mo`, tắt hay xóa trigger của khung, xóa
   hay đổi tên cột `tenant_id`, `created_by`, `created_at`, `drop schema sinh`, tạo view, hàm, thủ tục, rule trong
   `sinh`: lệnh bị hủy, Studio hiện lỗi bắt đầu bằng `khung:`. Đó là đúng thiết kế, không phải sự cố.

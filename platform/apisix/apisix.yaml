@@ -476,6 +476,22 @@ global_rules:
               - >-
                 SecRule REQUEST_FILENAME "@rx ^/rest/v1/[^/.]+$" "id:10090,phase:1,pass,nolog,t:none,t:urlDecodeUni,
                 setvar:'tx.allowed_methods=GET HEAD POST OPTIONS PATCH DELETE'"
+              # Luật riêng (#588): PostgREST chạy PATCH, DELETE không bộ lọc thành câu lệnh không WHERE; RLS chỉ giới
+              # hạn trong đơn vị, nên thiếu bộ lọc là sửa, xóa mọi dòng của đơn vị. 10091 đánh dấu yêu cầu có bộ lọc:
+              # tham số truy vấn tên không có "." (tên có dấu chấm lọc bảng nhúng, không giới hạn dòng bảng chính),
+              # không phải tham số điều khiển; hoặc or, and, not.or, not.and. MATCHED_VARS là các tên khớp luật đầu
+              - >-
+                SecRule ARGS_GET_NAMES "@rx ^(?:(?:not\.)?(?:or|and)|[^.]+)$" "id:10091,phase:1,pass,nolog,t:none,
+                chain"
+              - >-
+                SecRule MATCHED_VARS "!@rx ^(?:select|order|limit|offset|columns|on_conflict)$"
+                "t:none,setvar:'tx.moc_rest_loc=1'"
+              # 10092 chặn PATCH, DELETE trên /rest/v1/<bảng> (đường như 10090) không có dấu bộ lọc của 10091
+              - >-
+                SecRule REQUEST_METHOD "@rx ^(?:PATCH|DELETE)$" "id:10092,phase:1,deny,status:403,log,
+                msg:'Sửa, xóa không có bộ lọc trên /rest/v1 (#588)',chain"
+              - SecRule REQUEST_FILENAME "@rx ^/rest/v1/[^/.]+$" "t:none,t:urlDecodeUni,chain"
+              - SecRule &TX:moc_rest_loc "@eq 0" "t:none"
               - Include @owasp_crs/*.conf
               # Loại trừ 4 — Host là địa chỉ IP: Signet được mở bằng IP trong mạng nội bộ; dưới APISIX coraza-proxy-wasm
               # thêm Host lần nữa nên luật cộng điểm hai lần (6 ≥ 5) và chặn mọi yêu cầu vào bằng IP
@@ -548,7 +564,7 @@ routes:
 
   - id: svc-files
     uris: ["/api/files", "/api/files/*", "/api/search", "/api/documents/*", "/api/registers/*", "/api/case-files/*",
-           "/api/imports", "/api/imports/*"]
+           "/api/imports", "/api/imports/*", "/api/sinh/*"]
     methods: [GET, POST]
     upstream_id: svc-files
     plugin_config_id: can-token
