@@ -68,13 +68,14 @@ from datetime import UTC, date, datetime
 from functools import partial
 from typing import TYPE_CHECKING, Annotated, BinaryIO, Literal, Protocol
 
+import httpx2
 from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile
 
-from . import __version__, filetype, pii
+from . import __version__, filetype, pii, sinh_print
 from .anchors import Anchorer, AnchorSigner, AnchorStore
 from .assist import api as assist_api
 from .assist.ai import AiClient, make_ai
@@ -336,6 +337,7 @@ def create_app(
     cold: "office_api.ColdStore | None" = None,
     archiver: "office_api.Archiver | None" = None,
     archive_stats: "office_api.ArchiveStats | None" = None,
+    rest: httpx2.AsyncClient | None = None,
 ) -> FastAPI:
     _setup_logging()
     settings = settings or Settings.from_env(with_secrets(os.environ))
@@ -353,6 +355,7 @@ def create_app(
     hasura = hasura or (OfficeHasura if settings.office_enabled else HasuraClient)(
         settings.hasura_url, settings.hasura_admin_secret, timeout_s=settings.hasura_timeout_s)
     meili = meili or MeiliClient(settings.meili_url, settings.meili_api_key, settings.search_index)
+    rest = rest or httpx2.AsyncClient(base_url=settings.rest_url, timeout=settings.hasura_timeout_s)
     cursors = Cursor(settings.hasura_admin_secret)   # khóa dẫn xuất (HKDF) từ một bí mật sẵn có của svc-files
     indexer = Indexer(hasura, meili, interval_s=settings.search_sync_interval_s or 5.0)
     # #253: bản scan (PDF không có lớp chữ) OCR ở vòng nền, hạn MOC_OCR_TIMEOUT_S cho mỗi trang
@@ -456,6 +459,7 @@ def create_app(
         await chunk_index.aclose()
         await meili.aclose()
         await hasura.aclose()
+        await rest.aclose()
         if vault is not None:
             await vault.aclose()
 
@@ -511,6 +515,8 @@ def create_app(
         office.install_reader(app, current_principal)
     # Hỏi đáp trên kho văn bản (F4.2): POST /api/documents/ask — assist/api.py
     assist_api.install(app, assistant, current_principal)
+    # In một dòng của bảng sinh theo mẫu in (#586): GET /api/sinh/{bang}/{id}/pdf — sinh_print.py
+    sinh_print.install(app, rest=rest, hasura=hasura, principal=current_principal)
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz() -> dict[str, str]:
