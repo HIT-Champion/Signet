@@ -256,7 +256,7 @@ def test_apps_cannot_take_the_sinh_schemas():
 
 def test_print_templates_are_a_harnessed_table(world):
     """sinh.mau_in (#594) tạo qua moc_studio: có khung như bảng Studio tạo, mẫu cách ly theo đơn vị, tối đa 20 000 ký
-    tự."""
+    tự. Nội dung là varchar(20000) (#601): PostgREST ghi maxLength nên /sinh hiện ô nhiều dòng."""
     oid = "'sinh.mau_in'::regclass"
     assert sql(f"select relowner::regrole, relrowsecurity from pg_class where oid = {oid}") == [["moc_studio", "t"]]
     assert sql(f"select string_agg(tgname, ',' order by tgname) from pg_trigger where tgrelid = {oid}"
@@ -268,5 +268,8 @@ def test_print_templates_are_a_harnessed_table(world):
     seen = f"select count(*) from sinh.mau_in where ten = '{ten}'"
     assert as_user(world.staff_a1, seen) == "1"
     assert as_user(world.clerk_b, seen) == "0"
-    with pytest.raises(SQLError, match="mau_in_noi_dung"):
+    assert sql("select data_type, character_maximum_length from information_schema.columns where table_schema = 'sinh'"
+               " and table_name = 'mau_in' and column_name = 'noi_dung'") == [["character varying", "20000"]]
+    as_user(world.staff_a1, f"{insert} ('{ten}', 'yeu_cau', repeat('a', 20000))")
+    with pytest.raises(SQLError, match=r"character varying\(20000\)"):
         as_user(world.staff_a1, f"{insert} ('x', 'yeu_cau', repeat('a', 20001))")

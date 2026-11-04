@@ -769,10 +769,8 @@ def main(argv: list[str] | None = None) -> None:
     else:
         signature or fail("két có CA nội bộ mà bản phát hành không có chữ ký số — xem nhật ký svc-files"
                           " (office.document.sign_failed, office.signing.disabled)")
-        # tên cũ: dữ liệu nâng từ v1.4.0 có chứng thư CN "Khoa Công nghệ thông tin", đổi tên chưa cấp lại (#520)
         (signature.get("level"), signature.get("illustrative")) == ("PAdES-B-B", True) and signature.get("signed_at") \
-            and (signature.get("signer") or "").startswith(("Trường Công nghệ thông tin và Truyền thông",
-                                                            "Khoa Công nghệ thông tin")) \
+            and (signature.get("signer") or "").startswith("Trường Công nghệ thông tin và Truyền thông") \
             and "chỉ minh họa" in (signature.get("ca") or "") \
             and b"/ETSI.CAdES.detached" in released and byte_range_end(released) == len(released) \
             or fail(f"bản phát hành chưa có chữ ký PAdES phủ cả tệp, hoặc khối chữ ký ở cổng xác thực sai: {signature}")

@@ -35,7 +35,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Nền báo cáo động cho ứng dụng sinh: bảng khai báo `sinh.bao_cao` ("Báo cáo" trên `/sinh`), hàm gộp `count()`,
   `sum()`, `avg()` của PostgREST (WAF cho qua bằng luật 10093), truy vấn của người dùng dừng sau 5 giây (#589).
 - Nền mẫu in cho ứng dụng sinh: bảng `sinh.mau_in` ("Mẫu in" trên `/sinh`, văn bản thuần có chỗ trống
-  `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
+  `{{ten_cot}}`, ô nhập nhiều dòng), svc-files in một dòng ra PDF A4 bằng token người dùng
+  (`/api/sinh/<bảng>/<id>/pdf`) (#594, #601).
 - Nút In trên mỗi dòng của `/sinh` khi bảng có mẫu in (nhiều mẫu thì chọn theo tên); PDF tải về, lỗi báo bằng chữ
   (#586).
 - Trang báo cáo trong `/sinh`: mỗi khai báo ở bảng Báo cáo có nút xem, ra bảng số và biểu đồ cột hay tròn vẽ bằng
@@ -65,6 +66,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
 - `make release` ký thẻ phát hành khi người phát hành có khóa ký, ký lỗi thì dừng; thẻ không ký bằng khóa SSH
   (không có khóa, khóa GPG) thì báo rõ máy chủ kiểm chữ ký sẽ không nhận (#492, #514).
+- Chữ ký số mang tên mới khi đơn vị đổi tên: svc-files xoay khóa ký, xin chứng thư mới; văn bản ký trước vẫn kiểm đúng
+  (#520).
 - Trợ lý hỏi đáp nhận ra câu chào, câu hỏi "giúp gì cho tôi" và trả lời giới thiệu cho câu ngắn không rõ ý thay
   vì "không tìm thấy văn bản"; lời chào do mô hình viết trong phạm vi trợ lý, hiện như tin nhắn; trang Hỏi đáp chờ
   câu trả lời mô hình tổng hợp thay vì hiện câu trích trước, mô hình thấy các đoạn tìm được không trả lời câu hỏi thì

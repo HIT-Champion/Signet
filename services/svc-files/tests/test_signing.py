@@ -154,8 +154,12 @@ class FakeBao:
                 "certificate": _pem(cert), "issuing_ca": self.pki.pem, "ca_chain": [self.pki.pem],
                 "serial_number": ":".join(f"{b:02x}" for b in cert.serial_number.to_bytes(20, "big").lstrip(b"\0")),
                 "expiration": int(cert.not_valid_after_utc.timestamp())}})
-        if m := re.fullmatch(r"/v1/transit/keys/([^/]+)(?:/(csr|set-certificate))?", path):
+        if m := re.fullmatch(r"/v1/transit/keys/([^/]+)(?:/(csr|set-certificate|rotate))?", path):
             name, action = m.groups()
+            if action == "rotate":               # phiên bản mới, khóa riêng khác, chưa có chứng thư
+                versions = self.keys[name]["versions"]
+                versions[max(versions) + 1] = next(k for k in self._pool if k not in versions.values())
+                return httpx2.Response(200, json={"data": self._key_info(name)})
             if action is None and method == "GET":
                 return httpx2.Response(200, json={"data": self._key_info(name)}) if name in self.keys \
                     else httpx2.Response(404, json={"errors": []})
@@ -514,6 +518,29 @@ def test_existing_key_with_certificate_is_reused_after_restart(signer, bao, cloc
     _, record = asyncio.run(sign_one(again, one_page_pdf()))
     assert bao.count("POST", f"/v1/transit/keys/{key_name(TENANT_A)}") == 1
     assert bao.count("POST", "/v1/pki/sign/moc-van-thu") == 1 and record.key_version == 1
+
+
+def test_rename_rotates_the_key_and_old_signatures_still_verify(signer, bao, clock, pki, tmp_path):
+    """#520: đơn vị đổi tên thì văn bản ký sau mang tên mới (xoay khóa, chứng thư tên mới cho phiên bản mới); văn bản ký
+    trước vẫn kiểm hợp lệ với tên cũ. Mỗi lần đổi tên chỉ xoay một lần, kể cả khi svc-files khởi động lại."""
+    old_org, new_org = "Khoa Công nghệ thông tin", "Trường Công nghệ thông tin và Truyền thông"
+    pdf, name = one_page_pdf(), key_name(TENANT_A)
+
+    async def scenario():
+        return [await sign_one(signer, pdf, org=org) for org in (old_org, new_org, new_org)]
+
+    (old_pdf, old), (new_pdf, new), (_, again) = asyncio.run(scenario())
+    assert (old.key_version, new.key_version, again.key_version) == (1, 2, 2)
+    assert (old.signer_name, new.signer_name) == (signer_cn(old_org, "Trường Đại học Thử"),
+                                                  signer_cn(new_org, "Trường Đại học Thử"))
+    assert bao.count("POST", f"/v1/transit/keys/{name}/rotate") == 1
+    assert bao.count("POST", "/v1/pki/sign/moc-van-thu") == 2
+    for signed_pdf, record in ((old_pdf, old), (new_pdf, new)):
+        verdict = asyncio.run(verify_pdf(signed_pdf, pki.pem))
+        assert (verdict.status, verdict.signer) == ("valid", record.signer_name)
+    restarted = DocumentSigner(real_vault(bao, tmp_path), monotonic=clock)     # svc-files khởi động lại
+    _, record = asyncio.run(sign_one(restarted, pdf, org=new_org))
+    assert record.key_version == 2 and bao.count("POST", f"/v1/transit/keys/{name}/rotate") == 1
 
 
 def test_signing_with_weasyprint_pdf(signer, pki):

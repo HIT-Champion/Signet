@@ -282,13 +282,20 @@ def reports(ta: str, tb: str) -> None:
 
 
 def print_templates(ta: str, tb: str) -> None:
-    """#594: mẫu in văn bản thuần lưu được qua WAF; svc-files in dòng bằng token người gọi, dòng của đơn vị khác 404."""
+    """#594: mẫu in văn bản thuần lưu, sửa được qua WAF (#601: nhiều dòng); svc-files in dòng bằng token người gọi, dòng
+    của đơn vị khác 404."""
     print("\nMẫu in: lưu qua /rest/v1, in PDF qua svc-files (#594)")
     body = {"ten": "Phiếu kiểm thử", "bang": "yeu_cau",
             "noi_dung": "# Phiếu yêu cầu\n\nTiêu đề: {{tieu_de}}\nHạn xử lý: {{han}}\n\nNội dung: {{ noi_dung }}"}
     status, rows = rest("POST", "/mau_in", ta, body)
     ok(status == 201, f"lưu mẫu có {{{{tieu_de}}}} qua WAF: {status}")
     mau = rows[0]["id"]
+    # #601: maxLength trong OpenAPI là thứ làm /sinh hiện ô nhiều dòng; sửa mẫu (PATCH) giữ nguyên xuống dòng
+    noi_dung = rest("GET", "/", ta)[1]["definitions"]["mau_in"]["properties"]["noi_dung"]
+    ok(noi_dung.get("maxLength") == 20000, f"OpenAPI: noi_dung có maxLength 20000 (ô nhiều dòng): {noi_dung}")
+    sua = body["noi_dung"] + "\nTrạng thái: {{trang_thai}}"
+    status, rows = rest("PATCH", f"/mau_in?id=eq.{mau}", ta, {"noi_dung": sua})
+    ok(status == 200 and rows and rows[0]["noi_dung"] == sua, f"sửa mẫu nhiều dòng qua WAF, giữ xuống dòng: {status}")
     status, rows = rest("POST", "/yeu_cau", ta, {"tieu_de": "In thử phiếu", "han": "2026-11-05"})
     ok(status == 201, f"CNTT thêm dòng để in: {status}")
     row = rows[0]["id"]
