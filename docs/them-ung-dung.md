@@ -648,6 +648,7 @@ rỗng `trang_sinh`, #564): cài một lần bằng `python3 scripts/moc.py app 
 | RLS, policy đơn vị `moc_don_vi` dạng RESTRICTIVE theo claim `x-hasura-tenant-id` | Đọc, sửa, xóa dòng của đơn vị khác, kể cả khi gửi `tenant_id` của đơn vị đó. Policy thêm sau không mở được dòng của đơn vị khác |
 | Trigger sổ kiểm toán `core.audit()`, như bảng của lõi | Thêm, sửa, xóa mà không để lại dòng sổ trong chuỗi băm |
 | Trigger chặn `TRUNCATE` | Xóa dữ liệu của mọi đơn vị trong một lệnh |
+| Luật WAF 10091, 10092 ở cổng (khi `MOC_WAF=On`, #588) | `PATCH`, `DELETE` không kèm bộ lọc, tức sửa, xóa mọi dòng của đơn vị: cổng trả `403` |
 
 Token thiếu claim đơn vị thì không thấy dòng nào. Gọi không có token thì nhận `401`: không có vai trò ẩn danh.
 
@@ -698,3 +699,5 @@ Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser,
   mảng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
   ([`apps/sinh/README.md`](../apps/sinh/README.md) mục "Chưa làm").
 - Hai kiểu API: Văn phòng điện tử và lõi dùng GraphQL, ứng dụng sinh dùng REST.
+- Chặn `PATCH`, `DELETE` không kèm bộ lọc là luật WAF, chỉ có khi `MOC_WAF=On`; ở `DetectionOnly` hay `Off`, một lệnh
+  `DELETE` không lọc xóa mọi dòng của đơn vị người gọi trong bảng đó.
