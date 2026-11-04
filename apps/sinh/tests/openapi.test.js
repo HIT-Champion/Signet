@@ -183,6 +183,8 @@ test('gọi /rest/v1: địa chỉ, token, Prefer; tổng số dòng; thân khô
   assert.deepEqual(init, { method: 'GET', cache: 'no-store',
     headers: { Authorization: 'Bearer tok', Accept: 'application/json' } })
   assert.equal(yeuCau('tok', 'GET', duong.rows('yeu_cau'))[1].headers.Prefer, 'count=exact')
+  // truy vấn gộp của báo cáo (#587) không xin đếm
+  assert.equal(yeuCau('tok', 'GET', '/yeu_cau?select=trang_thai,count()')[1].headers.Prefer, undefined)
   const [, post] = yeuCau('tok', 'POST', duong.create('yeu_cau'), { tieu_de: 'A' })
   assert.deepEqual([post.headers.Prefer, post.headers['Content-Type'], post.body],
     ['return=representation', 'application/json', '{"tieu_de":"A"}'])
