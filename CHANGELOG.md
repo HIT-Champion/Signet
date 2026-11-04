@@ -31,6 +31,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   qua Studio); OpenAPI thật và RAM lên artifact (#567).
 - Ứng dụng sinh từ bảng (`apps/sinh`): menu, danh sách, biểu mẫu thêm và sửa dựng từ mô tả API mà PostgREST sinh cho
   bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
+- Nền mẫu in cho ứng dụng sinh: bảng `sinh.mau_in` ("Mẫu in" trên `/sinh`, văn bản thuần có chỗ trống
+  `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
