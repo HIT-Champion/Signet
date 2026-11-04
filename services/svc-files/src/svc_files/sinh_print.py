@@ -35,7 +35,7 @@ from typing import Annotated, Any
 from zoneinfo import ZoneInfo
 
 import httpx2
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
 from fastapi.responses import Response
 
 from .auth import Principal
@@ -211,8 +211,11 @@ def install(app: FastAPI, *, rest: httpx2.AsyncClient, hasura: HasuraClient, pri
             503: {"description": "Dịch vụ dữ liệu, CSDL chưa sẵn sàng; `busy` (kèm `Retry-After`) khi in quá giờ"},
         },
     )
-    async def print_row(bang: str, row_id: str, request: Request,
-                        who: Annotated[Principal, Depends(principal)], mau: str = "") -> Response:
+    async def print_row(bang: Annotated[str, Path(description="Tên bảng trong schema `sinh`, vd `yeu_cau`")],
+                        row_id: Annotated[str, Path(description="Cột `id` của dòng (số nguyên dương)")],
+                        request: Request, who: Annotated[Principal, Depends(principal)],
+                        mau: Annotated[str, Query(description="`id` của mẫu trong `sinh.mau_in` cho bảng này")] = "",
+                        ) -> Response:
         if not TABLE.match(bang) or not NUMBER.match(row_id) or not NUMBER.match(mau):
             raise _error(400, "bad_request", "Tên bảng là chữ thường, số, gạch dưới; id và mau là số nguyên dương")
         headers = {"Authorization": f"Bearer {who.token}", "X-Request-Id": request.state.request_id}
