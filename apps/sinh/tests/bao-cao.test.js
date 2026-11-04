@@ -73,6 +73,14 @@ test('khai báo sai: câu báo bằng chữ, không có truy vấn', () => {
   assert.equal(loi({ phep_tinh: 'tổng' }), 'Tính tổng hay trung bình thì cần điền cột số.')
   assert.equal(loi({ phep_tinh: 'trung bình', cot_so: 'so_luong' }), 'Bảng «yeu_cau» không có cột «so_luong».')
   assert.equal(loi({ phep_tinh: 'tổng', cot_so: 'han' }), 'Cột «Hạn xử lý» không phải cột số.')
+  // tên cột ngoài chữ thường, số, gạch dưới: WAF 10093 sẽ chặn select, nên báo trước
+  const hoa = structuredClone(real)
+  const props = hoa.definitions.yeu_cau.properties
+  props.TrangThai = props.trang_thai
+  props['so tien'] = { type: 'integer', format: 'integer' }
+  const sai = (row) => kiemKhaiBao(hoa, { bang: 'yeu_cau', nhom: 'trang_thai', phep_tinh: 'đếm', ...row }).message
+  assert.match(sai({ nhom: 'TrangThai' }), /^Tên cột «TrangThai» chỉ được có chữ thường/)
+  assert.match(sai({ phep_tinh: 'tổng', cot_so: 'so tien' }), /^Tên cột «so tien» chỉ được có chữ thường/)
   setLocale('en')
   try {
     assert.equal(loi({ bang: 'x' }), 'There is no table "x" in the sinh schema.')

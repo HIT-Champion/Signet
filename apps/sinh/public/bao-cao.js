@@ -34,6 +34,8 @@ export const MAU = Object.freeze(['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#
   '#e34948'])
 
 const NUMBER = new Set(['integer', 'number'])
+// luật WAF 10093 (#592) chỉ cho select gồm chữ thường, số, _ . , : và (): tên cột khác bị chặn (403)
+const TEN_COT = /^[a-z_][a-z0-9_]*$/
 const sai = (message) => ({ ok: false, message })
 const ten = (p, name) => note(p.description).label || name
 
@@ -48,6 +50,7 @@ export function kiemKhaiBao(spec, row) {
   const nhom = String(row.nhom ?? '').trim()
   const g = Object.hasOwn(props, nhom) ? props[nhom] : null
   if (!g) return sai(t('report.noColumn', { table: bang, column: nhom }))
+  if (!TEN_COT.test(nhom)) return sai(t('report.badName', { column: nhom }))
   const giaTri = Array.isArray(g.enum) && g.enum.length ? [...g.enum] : null
   const format = String(g.format ?? '')
   // shortcut: nhóm theo cột timestamptz thì PostgREST trả gần như mỗi dòng nguồn một nhóm (gộp theo tháng ở đây);
@@ -63,6 +66,7 @@ export function kiemKhaiBao(spec, row) {
     if (!cot) return sai(t('report.needNumber'))
     if (!Object.hasOwn(props, cot)) return sai(t('report.noColumn', { table: bang, column: cot }))
     if (!NUMBER.has(props[cot].type)) return sai(t('report.badNumber', { column: ten(props[cot], cot) }))
+    if (!TEN_COT.test(cot)) return sai(t('report.badName', { column: cot }))
   }
   return {
     ok: true, bang, nhom, phep, cot, giaTri,

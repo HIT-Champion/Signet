@@ -75,6 +75,8 @@ export const MESSAGES = Object.freeze({
     'report.badOp': 'Không có phép tính «{op}».',
     'report.needNumber': 'Tính tổng hay trung bình thì cần điền cột số.',
     'report.badNumber': 'Cột «{column}» không phải cột số.',
+    'report.badName': 'Tên cột «{column}» chỉ được có chữ thường không dấu, số và gạch dưới; cổng bảo mật chặn tên '
+      + 'khác.',
     'error.loadSpec': 'Không nạp được mô tả các bảng: {error}',
     'error.loadRows': 'Không tải được danh sách: {error}',
     'error.sendFailed': 'Chưa lưu được: {error}',
@@ -186,6 +188,8 @@ export const MESSAGES = Object.freeze({
     'report.badOp': 'There is no calculation "{op}".',
     'report.needNumber': 'A total or an average needs a number column.',
     'report.badNumber': 'Column "{column}" is not a number column.',
+    'report.badName': 'Column name "{column}" may only have lowercase letters, digits and underscores; the '
+      + 'security gateway blocks other names.',
     'error.loadSpec': 'Could not load the table descriptions: {error}',
     'error.loadRows': 'Could not load the list: {error}',
     'error.sendFailed': 'Not saved: {error}',

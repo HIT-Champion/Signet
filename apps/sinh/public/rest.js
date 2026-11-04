@@ -34,8 +34,9 @@ export const duong = {
   row: (table, key, value) => `${tableUrl(table)}?${encodeURIComponent(key)}=eq.${encodeURIComponent(String(value))}`,
 }
 
-/** Một lời gọi → [địa chỉ, tham số của fetch]. Ghi thì xin PostgREST trả lại dòng đã ghi; đọc danh sách thì xin
- *  tổng số dòng (Content-Range). */
+/** Một lời gọi → [địa chỉ, tham số của fetch]. Ghi thì xin PostgREST trả lại dòng đã ghi; đọc danh sách (đường có
+ *  limit=, duong.rows) thì xin tổng số dòng (Content-Range). Truy vấn gộp của báo cáo không xin: đếm thêm chỉ tốn
+ *  thời gian trong statement_timeout. */
 export function yeuCau(token, method, path, data) {
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
   const init = { method, headers, cache: 'no-store' }
@@ -43,7 +44,7 @@ export function yeuCau(token, method, path, data) {
     headers['Content-Type'] = 'application/json'
     headers.Prefer = 'return=representation'
     init.body = JSON.stringify(data)
-  } else if (method === 'GET' && path !== duong.spec()) {
+  } else if (method === 'GET' && /[?&]limit=/.test(path)) {
     headers.Prefer = 'count=exact'
   }
   return [`${API}${path}`, init]
