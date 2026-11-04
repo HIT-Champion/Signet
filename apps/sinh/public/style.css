@@ -131,3 +131,20 @@ h1:focus-visible, h2:focus-visible { outline: 2px solid var(--focus); outline-of
   .chi-tiet { grid-template-columns: 1fr; }
   .chi-tiet dd { margin-bottom: 0.4rem; }
 }
+
+/* báo cáo động (#587): bảng số luôn có; biểu đồ chỉ để nhìn, độ dài thanh và màu gán bằng el.style */
+.bao-cao { display: grid; gap: 1rem; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #d9ddd4; }
+.bang-so { border-collapse: collapse; width: 100%; max-width: 28rem; }
+.bang-so caption { text-align: left; font-weight: 600; padding-bottom: 0.25rem; }
+.bang-so th, .bang-so td { padding: 0.35rem 0.5rem; border-bottom: 1px solid #d9ddd4; text-align: left; }
+.bang-so tbody th { font-weight: 400; }
+.bang-so td, .bang-so thead th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.bd-cot { display: grid; grid-template-columns: minmax(4rem, max-content) 1fr max-content; gap: 0.4rem 0.75rem;
+  align-items: center; max-width: 36rem; font-size: 0.875rem; }
+.bd-cot .ray { height: 1.25rem; }
+.bd-cot .thanh { height: 100%; min-width: 2px; background: var(--brand-700); border-radius: 0 4px 4px 0; }
+.bd-tron { display: flex; gap: 1.25rem; align-items: center; flex-wrap: wrap; }
+.bd-tron .dia { width: 10rem; height: 10rem; border-radius: 50%; flex: none; }
+.chu-giai { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; font-size: 0.875rem; }
+.chu-giai li { display: flex; align-items: center; gap: 0.5rem; }
+.chu-giai .o { width: 0.875rem; height: 0.875rem; border-radius: 2px; flex: none; }

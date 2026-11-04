@@ -31,6 +31,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   qua Studio); OpenAPI thật và RAM lên artifact (#567).
 - Ứng dụng sinh từ bảng (`apps/sinh`): menu, danh sách, biểu mẫu thêm và sửa dựng từ mô tả API mà PostgREST sinh cho
   bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
+- Trang báo cáo trong `/sinh`: mỗi khai báo ở bảng Báo cáo có nút xem, ra bảng số và biểu đồ cột hay tròn vẽ bằng
+  CSS; gộp theo tháng khi nhóm theo cột ngày, kiểm khai báo trước khi gửi truy vấn (#587).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
