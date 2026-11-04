@@ -56,6 +56,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Thanh bên không cắt mục đang chọn; lịch hạn vừa khung laptop khi phóng to hoặc mở menu (#465).
 - `make release` ký thẻ phát hành khi người phát hành có khóa ký, ký lỗi thì dừng; thẻ không ký bằng khóa SSH
   (không có khóa, khóa GPG) thì báo rõ máy chủ kiểm chữ ký sẽ không nhận (#492, #514).
+- Chữ ký số mang tên mới khi đơn vị đổi tên: svc-files xoay khóa ký, xin chứng thư mới; văn bản ký trước vẫn kiểm đúng
+  (#520).
 - Trợ lý hỏi đáp nhận ra câu chào, câu hỏi "giúp gì cho tôi" và trả lời giới thiệu cho câu ngắn không rõ ý thay
   vì "không tìm thấy văn bản"; lời chào do mô hình viết trong phạm vi trợ lý, hiện như tin nhắn; trang Hỏi đáp chờ
   câu trả lời mô hình tổng hợp thay vì hiện câu trích trước, mô hình thấy các đoạn tìm được không trả lời câu hỏi thì
