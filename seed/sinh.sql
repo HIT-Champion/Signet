@@ -48,6 +48,12 @@ select t, 'seed', v.tieu_de, v.noi_dung, current_date + v.ngay, v.trang_thai::si
                ('Xác nhận lịch bảo vệ đồ án', null, -3, 'xong')) v (tieu_de, noi_dung, ngay, trang_thai)
  where not exists (select 1 from sinh.yeu_cau);
 
+-- Báo cáo mẫu (#589): bảng sinh.bao_cao do migration 1792281604500 tạo
+insert into sinh.bao_cao (tenant_id, created_by, ten, bang, nhom, phep_tinh, kieu_hien)
+select t, 'seed', 'Yêu cầu theo trạng thái', 'yeu_cau', 'trang_thai', 'đếm', 'cột'
+  from (values ('c300d5bb-028f-44cc-ba10-7b5277a4225d'::uuid), ('318da474-60d6-4a90-aa7f-928b31b8fc59'::uuid)) d (t)
+ where not exists (select 1 from sinh.bao_cao);
+
 reset role;
 select sinh_khung.kiem_tat_ca();          -- bảng nào trong sinh thiếu khung thì hủy cả lần nạp
 commit;

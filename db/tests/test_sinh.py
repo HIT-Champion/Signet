@@ -41,6 +41,7 @@ import ung_dung  # noqa: E402
 
 PG = os.environ.get("MOC_IT_PG_CONTAINER", "moc-db-it-postgres")   # container của db/tests/stack.sh
 MIGRATION = REPO / "db/migrations/default/1792281604400_sinh_khung/up.sql"
+REPORTS = REPO / "db/migrations/default/1792281604500_sinh_bao_cao/up.sql"
 
 
 def psql(role: str, script: str, one: bool = True) -> str:
@@ -94,6 +95,34 @@ def test_restore_and_migration_create_the_same_roles():
     assert sql("select proname || ':' || proowner::regrole from pg_proc"
                " where pronamespace = 'sinh_khung'::regnamespace and prosecdef order by 1") \
         == [["ap_khung:moc_harness"], ["ghi_ddl:moc_harness"]]
+
+
+def test_user_roles_stop_long_queries():
+    """Hàm gộp của PostgREST (#589) quét được cả bảng: năm vai trò người dùng dừng truy vấn sau 5 giây. `moc backup
+    restore` đặt lại bằng SINH_ROLE_SETTINGS_SQL: phải đúng đoạn của migration, chạy lại được."""
+    assert ung_dung.SINH_ROLE_SETTINGS_SQL in REPORTS.read_text(encoding="utf-8")
+    sql(ung_dung.SINH_ROLE_SETTINGS_SQL)
+    got = sql("select rolname, array_to_string(rolconfig, ',') from pg_roles"
+              f" where rolname in ({', '.join(repr(r) for r in ung_dung.USER_ROLES)}) order by rolname")
+    assert got == [[role, "statement_timeout=5s"] for role in sorted(ung_dung.USER_ROLES)]
+
+
+def test_report_declarations_are_a_harnessed_table(world):
+    """sinh.bao_cao (#589) tạo qua moc_studio: có khung như bảng Studio tạo, khai báo cách ly theo đơn vị."""
+    oid = "'sinh.bao_cao'::regclass"
+    assert sql(f"select relowner::regrole, relrowsecurity from pg_class where oid = {oid}") == [["moc_studio", "t"]]
+    assert sql(f"select string_agg(tgname, ',' order by tgname) from pg_trigger where tgrelid = {oid}"
+               " and not tgisinternal") == [["moc_cot_chuan,moc_khong_xoa_het,moc_so"]]
+    assert sql(f"select obj_description({oid}, 'pg_class')") == [["Báo cáo"]]
+    ten = f"bc_{uuid.uuid4().hex[:6]}"
+    as_user(world.staff_a1, f"insert into sinh.bao_cao (ten, bang, nhom) values ('{ten}', 'yeu_cau', 'trang_thai')")
+    seen = f"select count(*) from sinh.bao_cao where ten = '{ten}'"
+    assert as_user(world.staff_a1, seen) == "1"
+    assert as_user(world.clerk_b, seen) == "0"
+    # tổng, trung bình cần cột số
+    with pytest.raises(SQLError, match="bao_cao_cot_so"):
+        as_user(world.staff_a1,
+                "insert into sinh.bao_cao (ten, bang, nhom, phep_tinh) values ('x', 'yeu_cau', 'han', 'tổng')")
 
 
 def test_new_table_gets_the_harness(bang):
