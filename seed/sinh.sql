@@ -48,6 +48,19 @@ select t, 'seed', v.tieu_de, v.noi_dung, current_date + v.ngay, v.trang_thai::si
                ('Xác nhận lịch bảo vệ đồ án', null, -3, 'xong')) v (tieu_de, noi_dung, ngay, trang_thai)
  where not exists (select 1 from sinh.yeu_cau);
 
+-- Mẫu in mẫu (#594): bảng sinh.mau_in do migration 1792281604600 tạo; nút In của bảng yeu_cau trên /sinh dùng nó.
+-- Văn bản thuần: {{ten_cot}} là chỗ trống, dòng trống sang đoạn mới, dòng "# " là tiêu đề
+insert into sinh.mau_in (tenant_id, created_by, ten, bang, noi_dung)
+select t, 'seed', 'Phiếu yêu cầu', 'yeu_cau', '# Phiếu yêu cầu
+
+Tiêu đề: {{tieu_de}}
+Hạn xử lý: {{han}}
+Trạng thái: {{trang_thai}}
+
+Nội dung: {{noi_dung}}'
+  from (values ('c300d5bb-028f-44cc-ba10-7b5277a4225d'::uuid), ('318da474-60d6-4a90-aa7f-928b31b8fc59'::uuid)) d (t)
+ where not exists (select 1 from sinh.mau_in);
+
 reset role;
 select sinh_khung.kiem_tat_ca();          -- bảng nào trong sinh thiếu khung thì hủy cả lần nạp
 commit;

@@ -69,6 +69,7 @@ GROUPS = {
     "/api/workflow/{app}/processes": ("loi", "Quy trình của ứng dụng"),
     "/api/workflow/{app}/tasks": ("loi", "Quy trình của ứng dụng"),
     "/api/workflow/{app}/tasks/{task_id}": ("loi", "Quy trình của ứng dụng"),
+    "/api/sinh/{bang}/{row_id}/pdf": ("loi", "Ứng dụng sinh từ bảng"),
     "/api/status": ("loi", "Trạng thái và mốc neo (không cần token)"),
     "/api/verify/anchor-key.pem": ("loi", "Trạng thái và mốc neo (không cần token)"),
     "/api/documents/{document_id}/preview": ("van-phong", "Văn bản"),

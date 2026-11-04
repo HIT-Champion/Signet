@@ -40,6 +40,7 @@ NOT_FOUND = {"detail": "Not Found"}     # Starlette: không route nào khớp đ
 PUBLIC_API = [
     ("/api/files/{file_id}/read", ["POST"]),
     ("/api/documents/ask", ["POST"]),
+    ("/api/sinh/{bang}/{row_id}/pdf", ["GET"]),
     ("/api/files", ["POST"]),
     ("/api/imports/{kind}", ["POST"]),
     ("/api/imports/{job_id}", ["GET"]),
@@ -60,8 +61,8 @@ PUBLIC_API = [
     ("/api/case-files/archive-stats", ["GET"]),
 ]
 # Văn phòng tắt: chỉ còn các đường dẫn của lõi, giữ thứ tự cũ
-CORE_API = ["/api/documents/ask", "/api/files", "/api/files/{file_id}", "/api/search", "/api/verify/anchor-key.pem",
-            "/api/status"]
+CORE_API = ["/api/documents/ask", "/api/sinh/{bang}/{row_id}/pdf", "/api/files", "/api/files/{file_id}", "/api/search",
+            "/api/verify/anchor-key.pem", "/api/status"]
 
 # 12 route khai trong office/api.py, rồi các route Văn phòng gắn qua install(): đọc văn bản đến, gợi ý giao việc, nạp lô
 OFFICE_ROUTES = [
@@ -178,7 +179,7 @@ def test_office_off_core_routes_still_answer(verifier):
         anchor = c.get("/api/verify/anchor-key.pem")
         assert anchor.status_code == 404 and anchor.json()["detail"]["code"] == "no_anchor_key"
         for method, path in [("POST", "/api/files"), ("GET", f"/api/files/{FILE}"), ("GET", "/api/search?q=x"),
-                             ("POST", "/api/documents/ask")]:
+                             ("POST", "/api/documents/ask"), ("GET", "/api/sinh/yeu_cau/1/pdf?mau=1")]:
             r = c.request(method, path)
             assert r.status_code == 401 and r.json() != NOT_FOUND, (method, path)
 

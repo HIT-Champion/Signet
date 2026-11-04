@@ -564,7 +564,7 @@ routes:
 
   - id: svc-files
     uris: ["/api/files", "/api/files/*", "/api/search", "/api/documents/*", "/api/registers/*", "/api/case-files/*",
-           "/api/imports", "/api/imports/*"]
+           "/api/imports", "/api/imports/*", "/api/sinh/*"]
     methods: [GET, POST]
     upstream_id: svc-files
     plugin_config_id: can-token

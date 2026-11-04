@@ -6,12 +6,13 @@
 Tải tệp lên qua trạm kiểm dịch ClamAV, tải xuống theo quyền, tìm văn bản. Gọi qua cổng APISIX với token Bearer do
 Keycloak cấp (docs/api/README.md).
 
-OpenAPI 3.1.0, 21 thao tác:
+OpenAPI 3.1.0, 22 thao tác:
 
 | Thao tác | Tóm tắt |
 |---|---|
 | `POST /api/files/{file_id}/read` | Đọc văn bản đến vừa tải lên (lớp chữ PDF hoặc OCR), gợi ý thông tin tiếp nhận |
 | `POST /api/documents/ask` | Hỏi đáp trên kho văn bản: câu trích nguyên văn có nguồn, tùy chọn câu trả lời do mô hình viết |
+| `GET /api/sinh/{bang}/{row_id}/pdf` | In một dòng của bảng sinh theo mẫu in (#586) |
 | `POST /api/files` | Tải tệp lên: quét ClamAV, sạch mới lưu |
 | `POST /api/imports/{kind}` | Nạp lô: gửi tệp NDJSON/CSV nhiều văn bản đến (kèm zip tệp đính kèm), xử lý nền |
 | `GET /api/imports/{job_id}` | Trạng thái một lô nạp: đã nhận, đang chờ, đạt, trùng, lỗi |
@@ -83,6 +84,32 @@ Trả về:
 | 401 | `missing_token`, `invalid_token` (cả khi Hasura từ chối token lúc hậu kiểm) |  |
 | 403 | `forbidden` — vai trò không phải văn thư, lãnh đạo, trưởng phòng, chuyên viên |  |
 | 503 | `assistant_disabled` · `busy` (kèm `Retry-After: 10`, chờ lượt sinh quá `MOC_ASK_QUEUE_S`) · `search_unavailable` · `database_unavailable` — gồm cả khi chưa ghi được sổ kiểm toán: không ghi được sổ thì không trả lời |  |
+| 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
+
+## `GET /api/sinh/{bang}/{row_id}/pdf`
+
+In một dòng của bảng sinh theo mẫu in (#586)
+
+Mẫu (`sinh.mau_in`) và dòng lấy qua /rest/v1 bằng token của người gọi: RLS lọc theo đơn vị. Mẫu là văn bản thuần:
+`{{ten_cot}}`, dòng trống sang đoạn mới, dòng `# ` là tiêu đề.
+
+Tham số:
+
+| Tên | Ở | Bắt buộc | Kiểu | Mô tả |
+|---|---|:-:|---|---|
+| `bang` | đường dẫn | ✓ | `string` | Tên bảng trong schema `sinh`, vd `yeu_cau` |
+| `row_id` | đường dẫn | ✓ | `string` | Cột `id` của dòng (số nguyên dương) |
+| `mau` | query |  | `string` | `id` của mẫu trong `sinh.mau_in` cho bảng này. Mặc định `""`. |
+
+Trả về:
+
+| Mã | Nghĩa | Nội dung |
+|---|---|---|
+| 200 | Trang A4: đơn vị, quốc hiệu, ngày, thân mẫu | `application/pdf` |
+| 400 | Tên bảng, id hay mau sai dạng |  |
+| 401 | Thiếu hoặc sai token |  |
+| 404 | Không có dòng hay mẫu, mẫu của bảng khác, hoặc của đơn vị khác: trả như nhau |  |
+| 503 | Dịch vụ dữ liệu, CSDL chưa sẵn sàng; `busy` (kèm `Retry-After`) khi in quá giờ |  |
 | 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
 
 ## `POST /api/files`
