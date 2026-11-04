@@ -50,6 +50,8 @@ export function kiemKhaiBao(spec, row) {
   if (!g) return sai(t('report.noColumn', { table: bang, column: nhom }))
   const giaTri = Array.isArray(g.enum) && g.enum.length ? [...g.enum] : null
   const format = String(g.format ?? '')
+  // shortcut: nhóm theo cột timestamptz thì PostgREST trả gần như mỗi dòng nguồn một nhóm (gộp theo tháng ở đây);
+  // bảng lớn thì thêm cột date (generated) cho ngày rồi nhóm theo nó
   if (!giaTri && format !== 'date' && !format.startsWith('timestamp')) {
     return sai(t('report.badGroup', { column: ten(g, nhom) }))
   }
@@ -125,6 +127,11 @@ export function ketQua(kb, rows) {
     return kb.giaTri ? String(k) : `${k.slice(5, 7)}/${k.slice(0, 4)}`
   }
   return keys.map((k) => ({ nhan: nhan(k), giaTri: value(gop.get(k)) }))
+}
+
+/** Tính không được → câu báo. Quá statement_timeout của vai trò (5 giây, #589) PostgREST trả 500 mã 57014. */
+export function loiBaoCao(kq) {
+  return kq.code === '57014' ? t('report.timeout') : t('report.failed', { error: kq.message })
 }
 
 /** Số theo ngôn ngữ, tối đa hai chữ số lẻ; null (trung bình của nhóm rỗng) là "—". */

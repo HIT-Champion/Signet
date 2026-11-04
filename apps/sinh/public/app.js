@@ -22,7 +22,7 @@
 // bảng số luôn có, biểu đồ chỉ để nhìn (aria-hidden), độ dài thanh và màu gán qua el.style vì CSP chặn style=.
 
 import { signIn, signOut } from './auth.js'
-import { BAO_CAO, banhTron, duongBaoCao, ketQua, kiemKhaiBao, so, thanh } from './bao-cao.js'
+import { BAO_CAO, banhTron, duongBaoCao, ketQua, kiemKhaiBao, loiBaoCao, so, thanh } from './bao-cao.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { apps, formSchema } from './openapi.js'
 import { LOI, daSua, docThan, docTraLoi, duong, ngayGio, tenNguoi, tongSo, yeuCau } from './rest.js'
@@ -261,7 +261,7 @@ async function xemBaoCao(row) {
   const kq = await goi('GET', duongBaoCao(kb))
   if (view.xem?.id !== id) return         // đã đóng hay chuyển bảng lúc đang tính
   if (kq.ok) view.xem.data = Array.isArray(kq.data) ? kq.data : []
-  else view.xem.loi = () => t('report.failed', { error: kq.message })
+  else view.xem.loi = () => loiBaoCao(kq)
   veDong()
 }
 

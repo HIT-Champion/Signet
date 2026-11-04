@@ -60,6 +60,8 @@ export const MESSAGES = Object.freeze({
     'report.close': 'Đóng báo cáo',
     'report.loading': 'Đang tính…',
     'report.failed': 'Không tính được báo cáo: {error}',
+    'report.timeout': 'Báo cáo chạy quá lâu nên cơ sở dữ liệu đã dừng. Thử nhóm theo cột khác, hoặc thử lại lúc '
+      + 'ít người dùng.',
     'report.empty': 'Chưa có dòng nào để tính.',
     'report.blank': '(trống)',
     'report.other': 'Khác',
@@ -169,6 +171,8 @@ export const MESSAGES = Object.freeze({
     'report.close': 'Close report',
     'report.loading': 'Calculating…',
     'report.failed': 'Could not calculate the report: {error}',
+    'report.timeout': 'The report ran too long and the database stopped it. Try another group column, or try '
+      + 'again when fewer people are using Signet.',
     'report.empty': 'No rows to calculate yet.',
     'report.blank': '(blank)',
     'report.other': 'Other',

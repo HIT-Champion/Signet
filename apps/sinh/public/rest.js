@@ -78,13 +78,14 @@ export const LOI = Object.freeze({
   500: 'error.unavailable',
 })
 
-/** Trả lời → {ok: true, data} hoặc {ok: false, status, message}. 403 không kèm JSON của PostgREST là WAF ở cổng
- *  chặn nội dung gửi lên, không phải thiếu quyền. */
+/** Trả lời → {ok: true, data} hoặc {ok: false, status, code, message} (code: mã lỗi trong JSON của PostgREST, vd
+ *  57014). 403 không kèm JSON của PostgREST là WAF ở cổng chặn nội dung gửi lên, không phải thiếu quyền. */
 export function docTraLoi(status, body) {
   if (status >= 200 && status < 300) return { ok: true, data: body }
-  if (status === 403 && body === null) return { ok: false, status, message: t('error.blocked') }
+  const code = typeof body?.code === 'string' ? body.code : null
+  if (status === 403 && body === null) return { ok: false, status, code, message: t('error.blocked') }
   const key = LOI[status] || (status >= 500 ? LOI[500] : '')
-  return { ok: false, status, message: key ? t(key) : t('error.rejected', { status }) }
+  return { ok: false, status, code, message: key ? t(key) : t('error.rejected', { status }) }
 }
 
 /** Sửa một dòng: PostgREST trả mảng dòng đã ghi. Mảng rỗng là không có dòng nào khớp mà người dùng được ghi (đã

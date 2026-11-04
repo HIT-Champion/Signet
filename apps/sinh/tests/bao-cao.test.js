@@ -23,9 +23,10 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 import {
-  BAO_CAO, KIEU_HIEN, MAU, PHEP_TINH, banhTron, duongBaoCao, ketQua, kiemKhaiBao, so, thang, thanh,
+  BAO_CAO, KIEU_HIEN, MAU, PHEP_TINH, banhTron, duongBaoCao, ketQua, kiemKhaiBao, loiBaoCao, so, thang, thanh,
 } from '../public/bao-cao.js'
 import { setLocale } from '../public/i18n.js'
+import { docTraLoi } from '../public/rest.js'
 
 const read = (name) => JSON.parse(readFileSync(new URL(name, import.meta.url), 'utf8'))
 const real = read('postgrest-v14-openapi.json')
@@ -133,6 +134,16 @@ test('timestamptz: tháng theo giờ Việt Nam', () => {
   assert.deepEqual(ketQua(k, [
     { created_at: '2026-10-31T17:30:00+00:00', count: 1 }, { created_at: '2026-11-02T01:00:00+00:00', count: 1 },
   ]), [{ nhan: '11/2026', giaTri: 2 }])
+})
+
+test('quá statement_timeout (500, mã 57014) có câu riêng; lỗi khác giữ câu theo mã trả lời', () => {
+  setLocale('vi')
+  assert.match(loiBaoCao(docTraLoi(500, { code: '57014', message: 'canceling statement due to statement timeout' })),
+    /^Báo cáo chạy quá lâu/)
+  assert.equal(loiBaoCao(docTraLoi(400, { code: '42703' })),
+    'Không tính được báo cáo: Dữ liệu bị cơ sở dữ liệu từ chối: kiểm tra lại các ô.')
+  assert.equal(docTraLoi(403, null).code, null)
+  assert.equal(docTraLoi(500, ['x']).code, null)
 })
 
 test('số, thanh, biểu đồ tròn', () => {
