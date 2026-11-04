@@ -35,7 +35,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Nền báo cáo động cho ứng dụng sinh: bảng khai báo `sinh.bao_cao` ("Báo cáo" trên `/sinh`), hàm gộp `count()`,
   `sum()`, `avg()` của PostgREST (WAF cho qua bằng luật 10093), truy vấn của người dùng dừng sau 5 giây (#589).
 - Nền mẫu in cho ứng dụng sinh: bảng `sinh.mau_in` ("Mẫu in" trên `/sinh`, văn bản thuần có chỗ trống
-  `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
+  `{{ten_cot}}`, ô nhập nhiều dòng), svc-files in một dòng ra PDF A4 bằng token người dùng
+  (`/api/sinh/<bảng>/<id>/pdf`) (#594, #601).
 - Nút In trên mỗi dòng của `/sinh` khi bảng có mẫu in (nhiều mẫu thì chọn theo tên); PDF tải về, lỗi báo bằng chữ
   (#586).
 - Trang báo cáo trong `/sinh`: mỗi khai báo ở bảng Báo cáo có nút xem, ra bảng số và biểu đồ cột hay tròn vẽ bằng
@@ -58,8 +59,6 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Đổi, bù lịch giảng gọi cấp duyệt thứ hai là lãnh đạo đơn vị như Văn phòng điện tử, thay cho lãnh đạo khoa (#537).
 
 ### Đã sửa lỗi
-- Sửa mẫu in trên `/sinh` không còn mất xuống dòng: cột `sinh.mau_in.noi_dung` thành `varchar(20000)` nên biểu mẫu
-  hiện ô nhiều dòng (#601).
 - Tải lên không còn chờ lúc ClamAV nạp lại chữ ký: clamd nạp song song, RAM lên khoảng 1,9 GiB trong khoảng 10 giây
   (#288).
 - Nâng cấp máy có dữ liệu thật không còn tự lùi vì smoke cần tài khoản mẫu: bỏ smoke khi tắt client `moc-cli`, chọn
