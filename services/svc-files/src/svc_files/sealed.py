@@ -227,6 +227,10 @@ class Vault:
         """Tạo khóa ký RSA-3072 (két sinh khóa, không cho xuất). Đã có thì két chỉ cảnh báo, không lỗi."""
         await self._request("POST", f"/v1/transit/keys/{name}", {"type": "rsa-3072"}, timeout_s=30.0)
 
+    async def transit_rotate(self, name: str) -> None:
+        """Xoay khóa: két sinh phiên bản mới (chưa có chứng thư); phiên bản cũ giữ nguyên, chữ ký cũ vẫn kiểm được."""
+        await self._request("POST", f"/v1/transit/keys/{name}/rotate", {}, timeout_s=30.0)
+
     async def transit_csr(self, name: str, version: int) -> str:
         """CSR do chính khóa transit ký (chủ thể rỗng: CN do role PKI đặt)."""
         data = await self._request("POST", f"/v1/transit/keys/{name}/csr", {"version": version})

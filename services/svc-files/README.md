@@ -775,7 +775,8 @@ của Signet cấp (CN "CA nội bộ Signet - MẪU, chỉ minh họa"), CA nà
   chứng thư mang đúng khóa công khai của transit → gắn chuỗi lá + CA vào
   phiên bản khóa (`set-certificate`). Chứng thư lá sống 1 năm, KU DigitalSignature + ContentCommitment, EKU Document
   Signing. Hai lần phát hành đầu của một đơn vị chạy song song vẫn chỉ tạo một khóa, xin một chứng thư. CN lấy tên
-  đơn vị lúc xin chứng thư: đổi tên đơn vị sau đó thì chữ ký vẫn mang tên cũ tới khi chứng thư được cấp lại (#520).
+  đơn vị hiện tại: đơn vị đổi tên thì lần ký sau xoay khóa transit (`rotate`) và xin chứng thư tên mới cho phiên bản
+  mới; văn bản ký trước vẫn kiểm đúng vì chứng thư cũ nằm trong PDF (#520).
 - **Luồng `/internal/issue`**: dựng PDF → ký → tự kiểm → SHA-256 → ClamAV → lưu → thêm `core.files` và
   `core.file_signatures` trong **một** mutation. Băm trả svc-workflow, `content_sha256`, sự kiện `issued`, sổ kiểm
   toán, bản liên thông (chép nguyên byte), cổng xác thực đều theo bản đã ký — svc-workflow không đổi. Mã QR mã hóa
@@ -813,7 +814,7 @@ không chứa trích yếu hay PDF. Ký và tự kiểm một PDF chạy trong e
 Giới hạn:
 - Không dấu thời gian tin cậy (PAdES B-T cần dịch vụ TSA), không thông tin kiểm dài hạn (LTV), không CRL/OCSP: giờ
   ký là giờ tự khai — CLI và cổng xác thực ghi rõ.
-- Chứng thư chỉ xin khi phiên bản khóa chưa có; chưa tự cấp lại khi sắp hết hạn, khi đơn vị đổi tên hay két đổi CA.
+- Chứng thư chỉ xin khi phiên bản khóa chưa có; chưa tự cấp lại khi sắp hết hạn hay két đổi CA.
   Chứng thư hết hạn thì tự kiểm không đạt, văn bản phát hành không ký (nhật ký báo `sign_failed`); xoay khóa transit
   (`transit/keys/<khóa>/rotate`, token quản trị) thì svc-files đọc lại khóa sau lần tự kiểm hỏng đó (hoặc khi khởi
   động lại) và xin chứng thư cho phiên bản mới.
