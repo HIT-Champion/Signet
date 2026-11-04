@@ -492,6 +492,18 @@ global_rules:
                 msg:'Sửa, xóa không có bộ lọc trên /rest/v1 (#588)',chain"
               - SecRule REQUEST_FILENAME "@rx ^/rest/v1/[^/.]+$" "t:none,t:urlDecodeUni,chain"
               - SecRule &TX:moc_rest_loc "@eq 0" "t:none"
+              # Loại trừ 14 — hàm gộp của PostgREST cho báo cáo (#589): libinjection (942100) đọc
+              # select=trang_thai,count() là SQL ("n,f()"). Chỉ GET trên /rest/v1/<bảng> (đường như 10090), đúng một
+              # tham số select, giá trị chỉ gồm chữ thường, số, "_" "." "," ":" và cặp "()" liền nhau (tên cột, bí
+              # danh, hàm gộp không đối số): không nháy, khoảng trắng, toán tử. select dạng khác vẫn soi đủ như cũ
+              - >-
+                SecRule REQUEST_FILENAME "@rx ^/rest/v1/[^/.]+$" "id:10093,phase:1,pass,nolog,t:none,t:urlDecodeUni,
+                chain"
+              - SecRule REQUEST_METHOD "@streq GET" "t:none,chain"
+              - SecRule &ARGS:select "@eq 1" "t:none,chain"
+              - >-
+                SecRule ARGS_GET:select "@rx ^(?:[a-z0-9_.,:]|\(\))+$"
+                "t:none,ctl:ruleRemoveTargetById=942100;ARGS:select"
               - Include @owasp_crs/*.conf
               # Loại trừ 4 — Host là địa chỉ IP: Signet được mở bằng IP trong mạng nội bộ; dưới APISIX coraza-proxy-wasm
               # thêm Host lần nữa nên luật cộng điểm hai lần (6 ≥ 5) và chặn mọi yêu cầu vào bằng IP
