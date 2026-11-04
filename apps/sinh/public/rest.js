@@ -45,8 +45,9 @@ export function duongIn(table, id, mau) {
   return `/api/sinh/${encodeURIComponent(table)}/${id}/pdf?mau=${mau}`
 }
 
-/** Một lời gọi → [địa chỉ, tham số của fetch]. Ghi thì xin PostgREST trả lại dòng đã ghi; đọc danh sách thì xin
- *  tổng số dòng (Content-Range). */
+/** Một lời gọi → [địa chỉ, tham số của fetch]. Ghi thì xin PostgREST trả lại dòng đã ghi; đọc danh sách (đường có
+ *  limit=, duong.rows) thì xin tổng số dòng (Content-Range). Truy vấn gộp của báo cáo không xin: đếm thêm chỉ tốn
+ *  thời gian trong statement_timeout. */
 export function yeuCau(token, method, path, data) {
   const headers = { Authorization: `Bearer ${token}`, Accept: 'application/json' }
   const init = { method, headers, cache: 'no-store' }
@@ -54,7 +55,7 @@ export function yeuCau(token, method, path, data) {
     headers['Content-Type'] = 'application/json'
     headers.Prefer = 'return=representation'
     init.body = JSON.stringify(data)
-  } else if (method === 'GET' && path !== duong.spec()) {
+  } else if (method === 'GET' && /[?&]limit=/.test(path)) {
     headers.Prefer = 'count=exact'
   }
   return [`${API}${path}`, init]
@@ -89,13 +90,14 @@ export const LOI = Object.freeze({
   500: 'error.unavailable',
 })
 
-/** Trả lời → {ok: true, data} hoặc {ok: false, status, message}. 403 không kèm JSON của PostgREST là WAF ở cổng
- *  chặn nội dung gửi lên, không phải thiếu quyền. */
+/** Trả lời → {ok: true, data} hoặc {ok: false, status, code, message} (code: mã lỗi trong JSON của PostgREST, vd
+ *  57014). 403 không kèm JSON của PostgREST là WAF ở cổng chặn nội dung gửi lên, không phải thiếu quyền. */
 export function docTraLoi(status, body) {
   if (status >= 200 && status < 300) return { ok: true, data: body }
-  if (status === 403 && body === null) return { ok: false, status, message: t('error.blocked') }
+  const code = typeof body?.code === 'string' ? body.code : null
+  if (status === 403 && body === null) return { ok: false, status, code, message: t('error.blocked') }
   const key = LOI[status] || (status >= 500 ? LOI[500] : '')
-  return { ok: false, status, message: key ? t(key) : t('error.rejected', { status }) }
+  return { ok: false, status, code, message: key ? t(key) : t('error.rejected', { status }) }
 }
 
 /** In không được → câu báo (K4): 404 là không có dòng hay mẫu, hoặc chúng thuộc đơn vị khác (RLS trả như nhau); 503

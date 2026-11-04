@@ -38,6 +38,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
 - Nút In trên mỗi dòng của `/sinh` khi bảng có mẫu in (nhiều mẫu thì chọn theo tên); PDF tải về, lỗi báo bằng chữ
   (#586).
+- Trang báo cáo trong `/sinh`: mỗi khai báo ở bảng Báo cáo có nút xem, ra bảng số và biểu đồ cột hay tròn vẽ bằng
+  CSS; gộp theo tháng khi nhóm theo cột ngày, kiểm khai báo trước khi gửi truy vấn (#587).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người

@@ -18,10 +18,13 @@
 // PostgREST tự sinh (GET /rest/v1/), mỗi bảng có COMMENT ON TABLE thành một mục menu; biểu mẫu thêm, sửa dựng bằng
 // schema-form.js từ JSON Schema do openapi.js đổi ra; danh sách là PAGE dòng mới nhất. Không có mã riêng cho bảng
 // nào: thêm cột trong Studio thì lần quay lại tab này (visibilitychange) nạp lại mô tả và ô mới hiện ngay, giữ chữ
-// đang gõ. Chữ gán bằng textContent, không bao giờ gán HTML. Bảng có mẫu in (bảng mau_in, #586) thì mỗi dòng có nút In:
-// svc-files dựng PDF bằng token của người dùng, trang tải về.
+// đang gõ. Chữ gán bằng textContent, không bao giờ gán HTML. Mỗi dòng của bảng bao_cao (#587) có nút xem báo cáo:
+// bảng số luôn có, biểu đồ chỉ để nhìn (aria-hidden), độ dài thanh và màu gán qua el.style vì CSP chặn style=.
+// Bảng có mẫu in (bảng mau_in, #586) thì mỗi dòng có nút In: svc-files dựng PDF bằng token của người dùng, trang
+// tải về.
 
 import { signIn, signOut } from './auth.js'
+import { BAO_CAO, banhTron, duongBaoCao, ketQua, kiemKhaiBao, loiBaoCao, so, thanh } from './bao-cao.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { apps, formSchema } from './openapi.js'
 import { LOI, daSua, docThan, docTraLoi, duong, duongIn, loiIn, ngayGio, tenNguoi, tongSo, yeuCau } from './rest.js'
@@ -42,6 +45,7 @@ const view = {
   total: null,      // tổng số dòng theo Content-Range
   formMoi: null,    // form thêm mới đang hiện
   sua: null,        // {id, form} dòng đang sửa
+  xem: null,        // {id, data, loi} báo cáo đang xem (bảng bao_cao): data là các dòng gộp, loi là hàm trả câu
   mau: [],          // [{id, ten}] mẫu in của bảng đang mở
 }
 
@@ -126,9 +130,18 @@ function veDong() {
       nut.addEventListener('click', () => moSua(row))
       nutDong.append(nut)
     }
+    const dangXem = key !== null && view.xem !== null && view.xem.id === row[key]
+    if (view.bang === BAO_CAO && key !== null) {
+      const nut = make('button', { type: 'button', className: 'btn ghost',
+        textContent: dangXem ? t('report.close') : t('report.view') })
+      nut.setAttribute('aria-expanded', String(dangXem))
+      nut.addEventListener('click', () => (dangXem ? dongBaoCao() : xemBaoCao(row)))
+      nutDong.append(nut)
+    }
     // svc-files lấy dòng bằng id=eq.<id>: chỉ bảng có khóa chính là cột id (mặc định của Studio) mới in được
     if (key === 'id' && view.mau.length && duongIn(view.bang, row.id, view.mau[0].id)) nutDong.append(nutIn(row))
     li.append(dau, dl)
+    if (dangXem) li.append(veBaoCao(row))
     if (dangSua) li.append(formSua(row))
     return li
   }))
@@ -217,6 +230,107 @@ function moSua(row) {
   document.getElementById(`sua-${view.form.schema['x-moc-order'][0]}`)?.focus()
 }
 
+// --- báo cáo động (#587) ---
+
+/** Khung báo cáo của một khai báo: câu báo lỗi, "đang tính", hoặc bảng số kèm biểu đồ theo kiểu hiện. */
+function veBaoCao(row) {
+  const box = make('div', { className: 'bao-cao' })
+  const kb = kiemKhaiBao(view.spec, row)
+  const loi = !kb.ok ? kb.message : view.xem.loi?.()
+  if (loi) {
+    box.append(make('p', { className: 'loi', textContent: loi }))
+    return box
+  }
+  if (view.xem.data === null) {
+    box.append(make('p', { className: 'status', textContent: t('report.loading') }))
+    return box
+  }
+  const items = ketQua(kb, view.xem.data)
+  if (!items.length) {
+    box.append(make('p', { className: 'empty', textContent: t('report.empty') }))
+    return box
+  }
+  box.append(bangSo(row.ten, kb, items))
+  const ve = { bar: veCot, pie: veTron }[kb.kieu]
+  const hinh = ve?.(items)
+  if (hinh) {
+    hinh.setAttribute('aria-hidden', 'true')   // bảng số ở trên đã có đủ số liệu cho máy đọc màn hình
+    box.append(hinh)
+  }
+  return box
+}
+
+function bangSo(tieuDe, kb, items) {
+  const table = make('table', { className: 'bang-so' })
+  table.append(make('caption', { textContent: tieuDe ?? '' }))
+  const giaTri = {
+    count: () => t('report.count'),
+    sum: () => t('report.sum', { column: kb.tenCot }),
+    avg: () => t('report.avg', { column: kb.tenCot }),
+  }[kb.phep]()
+  const nhom = kb.giaTri ? kb.tenNhom : t('report.byMonth', { column: kb.tenNhom })
+  const dau = make('tr')
+  dau.append(make('th', { scope: 'col', textContent: nhom }), make('th', { scope: 'col', textContent: giaTri }))
+  const than = make('tbody')
+  than.append(...items.map((x) => {
+    const tr = make('tr')
+    tr.append(make('th', { scope: 'row', textContent: x.nhan }), make('td', { textContent: so(x.giaTri, locale()) }))
+    return tr
+  }))
+  table.append(make('thead'), than)
+  table.tHead.append(dau)
+  return table
+}
+
+function veCot(items) {
+  const rong = thanh(items)
+  const box = make('div', { className: 'bd-cot' })
+  items.forEach((x, i) => {
+    const ray = make('div', { className: 'ray' })
+    const bar = make('div', { className: 'thanh' })
+    bar.style.width = `${rong[i]}%`
+    ray.append(bar)
+    box.append(make('span', { textContent: x.nhan }), ray, make('span', { textContent: so(x.giaTri, locale()) }))
+  })
+  return box
+}
+
+function veTron(items) {
+  const banh = banhTron(items)
+  if (!banh) return null
+  const box = make('div', { className: 'bd-tron' })
+  const dia = make('div', { className: 'dia' })
+  dia.style.background = banh.nen
+  const chu = make('ul', { className: 'chu-giai' })
+  chu.append(...banh.lat.map((x) => {
+    const o = make('span', { className: 'o' })
+    o.style.background = x.mau
+    const li = make('li')
+    li.append(o, make('span', { textContent: `${x.nhan}: ${so(x.giaTri, locale())}` }))
+    return li
+  }))
+  box.append(dia, chu)
+  return box
+}
+
+async function xemBaoCao(row) {
+  const id = row[view.form.key]
+  view.xem = { id, data: null, loi: null }
+  veDong()
+  const kb = kiemKhaiBao(view.spec, row)
+  if (!kb.ok) return                      // veBaoCao đã hiện câu báo, không gửi truy vấn sai
+  const kq = await goi('GET', duongBaoCao(kb))
+  if (view.xem?.id !== id) return         // đã đóng hay chuyển bảng lúc đang tính
+  if (kq.ok) view.xem.data = Array.isArray(kq.data) ? kq.data : []
+  else view.xem.loi = () => loiBaoCao(kq)
+  veDong()
+}
+
+function dongBaoCao() {
+  view.xem = null
+  veDong()
+}
+
 async function taiDong() {
   const bang = view.bang
   const kq = await goi('GET', duong.rows(bang))
@@ -247,6 +361,7 @@ async function luuSua(data) {
     baoLoi(() => t('error.sendFailed', { error: kq.message }))
     return
   }
+  if (view.xem?.id === view.sua.id) view.xem = null   // khai báo vừa đổi: số đang hiện đã cũ
   view.sua = null
   baoTin(() => t('notice.saved'))
   await taiDong()
@@ -259,6 +374,7 @@ function moBang(table, { focus = true } = {}) {
   view.rows = null
   view.total = null
   view.sua = null
+  view.xem = null
   view.mau = []
   veMenu()
   el('bang').hidden = view.bang === null
