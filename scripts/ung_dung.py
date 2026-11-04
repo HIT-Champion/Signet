@@ -1107,6 +1107,17 @@ grant staff, clerk, manager, director, tenant_admin to authenticator;
 grant moc_studio to moc_harness;
 """
 
+# statement_timeout của năm vai trò người dùng (#589), đúng đoạn trong migration 1792281604500_sinh_bao_cao (test so
+# khớp): hàm gộp của PostgREST quét được cả bảng. Setting của vai trò thuộc cả máy chủ, pg_dump không chép; `moc
+# backup restore` đặt lại ngay sau SINH_ROLES_SQL
+SINH_ROLE_SETTINGS_SQL = """\
+alter role staff set statement_timeout = '5s';
+alter role clerk set statement_timeout = '5s';
+alter role manager set statement_timeout = '5s';
+alter role director set statement_timeout = '5s';
+alter role tenant_admin set statement_timeout = '5s';
+"""
+
 
 def recreate_roles_sql(roles: list[str]) -> str:
     """Cho `moc backup restore` sang máy mới: vai trò thuộc cả máy chủ PostgreSQL, pg_dump một CSDL không chép, mà bản

@@ -245,7 +245,7 @@ class RulesTest(unittest.TestCase):
         ids = re.findall(r'"id:(10\d\d\d),', self.directives)
         self.assertEqual(ids, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
                                "10060", "10061", "10070", "10080", "10081", "10090", "10091",
-                               "10092"])
+                               "10092", "10093"])
         removed = re.findall(r"SecRuleRemoveById (\d+)", self.directives)
         self.assertEqual(removed, ["920350"])
         for rule_id in ids + removed:
@@ -263,7 +263,7 @@ class RulesTest(unittest.TestCase):
         pattern = r'SecRule REQUEST_FILENAME "@(?:beginsWith|rx|streq) [^"]+"\s+"id:(\d+),\s*phase:1,pass,nolog,'
         scoped = re.findall(pattern, self.directives)
         self.assertEqual(scoped, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
-                                  "10070", "10080", "10081", "10090"])
+                                  "10070", "10080", "10081", "10090", "10093"])
         self.assertNotIn("ctl:ruleEngine=Off", self.directives)
         # tắt soi thân chỉ ở API lưu flow, thư viện của Node-RED (#366), đường neo hai đầu
         # đường có ".." không được gỡ: WAF so đường thô, APISIX chuyển đường đã chuẩn hóa (/tu-dong/library/../x)
@@ -447,6 +447,28 @@ class RulesTest(unittest.TestCase):
                            ("columns=a,b", False), ("on_conflict=id", False), ("items.id=eq.1", False),
                            ("select=*,items(*)&items.id=eq.1", False), ("not.id=eq.1", False)):
             self.assertEqual(has_filter(query), hit, query)
+
+    def test_rest_api_aggregates_skip_libinjection_only_for_plain_select(self) -> None:
+        # #589: select=<nhóm>,count(), <cột>.sum() của trang báo cáo bị 942100 (libinjection, "n,f()") chặn. 10093 gỡ
+        # đúng 942100 trên ARGS:select, chỉ GET /rest/v1/<bảng>, đúng một select chỉ gồm tên, bí danh, hàm gộp
+        rule = self.directives[self.directives.index('"id:10093,'):self.directives.index("Include @owasp_crs")]
+        chain = (r'"id:10093,phase:1,pass,nolog,t:none,t:urlDecodeUni,\s+chain"\n'
+                 r'\s+- SecRule REQUEST_METHOD "@streq GET" "t:none,chain"\n'
+                 r'\s+- SecRule &ARGS:select "@eq 1" "t:none,chain"\n'
+                 r'\s+- >-\n\s+SecRule ARGS_GET:select "@rx (\S+)"\s+'
+                 r'"t:none,ctl:ruleRemoveTargetById=942100;ARGS:select"\n')
+        plain = re.search(chain, rule).group(1)
+        self.assertIn('SecRule REQUEST_FILENAME "@rx ^/rest/v1/[^/.]+$" "id:10093,', self.directives)
+        self.assertEqual(re.findall(r"ctl:([^,\"]+)", rule), ["ruleRemoveTargetById=942100;ARGS:select"])
+        order = [self.directives.index(d) for d in ('"id:10092,', '"id:10093,', "Include @owasp_crs")]
+        self.assertEqual(order, sorted(order))
+        for value, hit in (("tieu_de,count()", True), ("trang_thai,so_tien.sum()", True),
+                           ("trang_thai,so:count()", True), ("han,so_tien.sum(),so_tien.count()", True),
+                           ("id,tieu_de", True),
+                           ("*", False), ("id,pg_sleep(5)", False), ("count(*)", False), ("items(id)", False),
+                           ("id;select 1", False), ("id,'a'", False), ("tieu_de, count()", False),
+                           ("id--", False), ("TIEU_DE,count()", False), ("", False)):
+            self.assertEqual(bool(re.search(plain, value)), hit, value)
 
     def test_argument_limit_rules_block(self) -> None:
         # GHSA-6r3q-mjv7-xr8m: tham số thứ 1000 trở đi không được soi — chặn hẳn

@@ -66,7 +66,7 @@ from typing import Any
 
 from audit_chain import BACKED_UP_SQL, HEAD_SQL, RESTORED_SQL
 from moc_env import ENV, ROOT
-from ung_dung import APP_ROLES_SQL, SINH_ROLES_SQL, AppError, recreate_roles_sql
+from ung_dung import APP_ROLES_SQL, SINH_ROLE_SETTINGS_SQL, SINH_ROLES_SQL, AppError, recreate_roles_sql
 
 COMPOSE = ["docker", "compose", "--profile", "core", "--profile", "app"]
 WRITERS = ("svc-files", "seaweedfs", "openbao")            # tạm dừng suốt lúc sao lưu
@@ -497,7 +497,8 @@ def restore(rid: str | None, *, yes: bool = False) -> dict[str, Any] | None:
                 print("Không khôi phục.")
                 return None
         try:
-            roles = SINH_ROLES_SQL + recreate_roles_sql(manifest.get("app_roles", []))   # lượt cũ chưa có khóa này
+            # lượt cũ chưa có khóa app_roles
+            roles = SINH_ROLES_SQL + SINH_ROLE_SETTINGS_SQL + recreate_roles_sql(manifest.get("app_roles", []))
         except AppError as exc:
             raise BackupError(f"manifest của lượt {manifest['run']}: {exc}") from None
         _check_readable(target, manifest)
