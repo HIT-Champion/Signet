@@ -11,6 +11,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 ### Đã thêm
 - Cổng `/rest/v1` tới PostgREST cho ứng dụng sinh từ bảng, cần token; dòng "API dữ liệu" trên trang trạng thái (#561).
 - WAF cho `PATCH`, `DELETE` trên `/rest/v1/<bảng>` để sửa, xóa dòng qua PostgREST (luật 10090, #567).
+- WAF chặn `PATCH`, `DELETE` không có bộ lọc trên `/rest/v1/<bảng>` (luật 10091, 10092, #588).
 - Ứng dụng ngành Đổi, bù lịch giảng (`apps/lich-giang`): giảng viên đề nghị đổi lịch, dạy bù; trưởng bộ môn rồi lãnh
   đạo khoa duyệt; cắm bằng `moc app install` (#482).
 - Trợ lý hỏi đáp nhúng được qua API ngoài chuẩn OpenAI (cả Azure AI Foundry) bằng `MOC_EMBED_API=openai`; mặc định
@@ -31,6 +32,10 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   qua Studio); OpenAPI thật và RAM lên artifact (#567).
 - Ứng dụng sinh từ bảng (`apps/sinh`): menu, danh sách, biểu mẫu thêm và sửa dựng từ mô tả API mà PostgREST sinh cho
   bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
+- Nền mẫu in cho ứng dụng sinh: bảng `sinh.mau_in` ("Mẫu in" trên `/sinh`, văn bản thuần có chỗ trống
+  `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
+- Nút In trên mỗi dòng của `/sinh` khi bảng có mẫu in (nhiều mẫu thì chọn theo tên); PDF tải về, lỗi báo bằng chữ
+  (#586).
 - Trang báo cáo trong `/sinh`: mỗi khai báo ở bảng Báo cáo có nút xem, ra bảng số và biểu đồ cột hay tròn vẽ bằng
   CSS; gộp theo tháng khi nhóm theo cột ngày, kiểm khai báo trước khi gửi truy vấn (#587).
 

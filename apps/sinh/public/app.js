@@ -20,12 +20,14 @@
 // nào: thêm cột trong Studio thì lần quay lại tab này (visibilitychange) nạp lại mô tả và ô mới hiện ngay, giữ chữ
 // đang gõ. Chữ gán bằng textContent, không bao giờ gán HTML. Mỗi dòng của bảng bao_cao (#587) có nút xem báo cáo:
 // bảng số luôn có, biểu đồ chỉ để nhìn (aria-hidden), độ dài thanh và màu gán qua el.style vì CSP chặn style=.
+// Bảng có mẫu in (bảng mau_in, #586) thì mỗi dòng có nút In: svc-files dựng PDF bằng token của người dùng, trang
+// tải về.
 
 import { signIn, signOut } from './auth.js'
 import { BAO_CAO, banhTron, duongBaoCao, ketQua, kiemKhaiBao, loiBaoCao, so, thanh } from './bao-cao.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { apps, formSchema } from './openapi.js'
-import { LOI, daSua, docThan, docTraLoi, duong, ngayGio, tenNguoi, tongSo, yeuCau } from './rest.js'
+import { LOI, daSua, docThan, docTraLoi, duong, duongIn, loiIn, ngayGio, tenNguoi, tongSo, yeuCau } from './rest.js'
 import { mountForm, summary } from './schema-form.js'
 
 const el = (id) => document.getElementById(id)
@@ -44,6 +46,7 @@ const view = {
   formMoi: null,    // form thêm mới đang hiện
   sua: null,        // {id, form} dòng đang sửa
   xem: null,        // {id, data, loi} báo cáo đang xem (bảng bao_cao): data là các dòng gộp, loi là hàm trả câu
+  mau: [],          // [{id, ten}] mẫu in của bảng đang mở
 }
 
 /** Gọi /rest/v1 bằng token hiện tại → kết quả của docTraLoi, kèm tổng số dòng nếu có. */
@@ -135,6 +138,8 @@ function veDong() {
       nut.addEventListener('click', () => (dangXem ? dongBaoCao() : xemBaoCao(row)))
       nutDong.append(nut)
     }
+    // svc-files lấy dòng bằng id=eq.<id>: chỉ bảng có khóa chính là cột id (mặc định của Studio) mới in được
+    if (key === 'id' && view.mau.length && duongIn(view.bang, row.id, view.mau[0].id)) nutDong.append(nutIn(row))
     li.append(dau, dl)
     if (dangXem) li.append(veBaoCao(row))
     if (dangSua) li.append(formSua(row))
@@ -144,6 +149,62 @@ function veDong() {
   const more = view.total !== null && view.total > rows.length
   el('dem-dong').hidden = !more
   el('dem-dong').textContent = more ? t('list.more', { shown: rows.length, total: view.total }) : ''
+}
+
+/** Nút In của một dòng; bảng có nhiều mẫu thì kèm ô chọn mẫu theo tên. */
+function nutIn(row) {
+  const box = make('span', { className: 'in' })
+  let chon = null
+  if (view.mau.length > 1) {
+    chon = make('select', { className: 'chon-mau' })
+    chon.setAttribute('aria-label', t('print.template'))
+    chon.append(...view.mau.map((m) => make('option', { value: String(m.id), textContent: m.ten || `#${m.id}` })))
+    box.append(chon)
+  }
+  const nut = make('button', { type: 'button', className: 'btn ghost', textContent: t('print.button') })
+  nut.addEventListener('click', () => inDong(row, chon ? Number(chon.value) : view.mau[0].id, nut))
+  box.append(nut)
+  return box
+}
+
+/** Xin svc-files PDF của dòng theo mẫu, kèm token; được thì tải về tên <bảng>-<id>.pdf. */
+async function inDong(row, mau, nut) {
+  if (nut.getAttribute('aria-disabled') === 'true') return      // đang in: bấm thêm không gửi lần nữa
+  const user = await signIn()
+  if (!user) return
+  const bang = view.bang
+  const id = row.id
+  nut.setAttribute('aria-disabled', 'true')
+  try {
+    const res = await fetch(duongIn(bang, id, mau), {
+      headers: { Authorization: `Bearer ${user.access_token}` }, cache: 'no-store',
+    })
+    if (!res.ok || !/^application\/pdf\b/.test(res.headers.get('Content-Type') ?? '')) {
+      const body = docThan(await res.text())
+      baoLoi(() => t('print.failed', { error: loiIn(res.status, body) }))
+      return
+    }
+    const url = URL.createObjectURL(await res.blob())
+    const a = make('a', { href: url, download: `${bang}-${id}.pdf` })
+    document.body.append(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    baoTin(() => t('print.done'))
+  } catch {
+    baoLoi(() => t('print.failed', { error: t(LOI.mang) }))
+  } finally {
+    nut.removeAttribute('aria-disabled')
+  }
+}
+
+/** Mẫu in của bảng đang mở (K4). Bản cài chưa có bảng mau_in (404) hay lỗi khác: không có nút In, không báo lỗi. */
+async function taiMau() {
+  const bang = view.bang
+  const kq = await goi('GET', duong.mau(bang))
+  if (bang !== view.bang) return
+  view.mau = kq.ok && Array.isArray(kq.data) ? kq.data.filter((m) => duongIn(bang, 1, m?.id)) : []
+  if (view.mau.length) veDong()
 }
 
 function formSua(row) {
@@ -314,6 +375,7 @@ function moBang(table, { focus = true } = {}) {
   view.total = null
   view.sua = null
   view.xem = null
+  view.mau = []
   veMenu()
   el('bang').hidden = view.bang === null
   if (view.bang === null) return
@@ -321,6 +383,7 @@ function moBang(table, { focus = true } = {}) {
   veDong()
   if (focus) el('tieu-de-bang').focus()
   taiDong()
+  taiMau()
 }
 
 /** Quay lại tab: nạp lại mô tả API; bảng đổi (thêm cột trong Studio) thì vẽ lại, giữ chữ đang gõ ở form thêm mới. */

@@ -74,7 +74,7 @@ h1:focus-visible, h2:focus-visible { outline: 2px solid var(--focus); outline-of
 .sf-submit { background: var(--brand-700); color: #fff; }
 .sf-submit:hover { background: var(--brand-800); }
 /* lúc đang gửi schema-form.js đặt aria-disabled (nút vẫn nhận tiêu điểm, trình đọc màn hình đọc được) */
-.sf-submit:disabled, .sf-submit[aria-disabled="true"] { opacity: 0.7; cursor: progress; }
+.sf-submit:disabled, .sf-submit[aria-disabled="true"], .btn[aria-disabled="true"] { opacity: 0.7; cursor: progress; }
 
 .status { color: var(--stone-600); min-height: 1.5em; margin: 0 0 0.5rem; }
 .loi { margin: 0 0 1rem; padding: 0.75rem 1rem; border-radius: 0.5rem; background: var(--red-50);
@@ -96,6 +96,9 @@ h1:focus-visible, h2:focus-visible { outline: 2px solid var(--focus); outline-of
   margin-top: 0.75rem; }
 .the-dau { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
 .nut-dong { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.in { display: inline-flex; gap: 0.5rem; align-items: center; }
+.chon-mau { min-height: 44px; max-width: 14rem; padding: 0.5rem 0.65rem; border: 1px solid #8a8466;
+  border-radius: 0.5rem; background: #fff; color: var(--stone-900); }
 .gio { color: var(--stone-600); font-size: 0.875rem; margin: 0.25rem 0 0; }
 .nhan { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 1rem; font-size: 0.875rem; font-weight: 600; }
 .nhan-cho { background: var(--amber-50); color: var(--amber-800); border: 1px solid #fcd34d; }
