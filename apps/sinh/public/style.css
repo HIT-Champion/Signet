@@ -95,6 +95,7 @@ h1:focus-visible, h2:focus-visible { outline: 2px solid var(--focus); outline-of
 .the .khung-form { border: 0; border-top: 1px solid #d9ddd4; border-radius: 0; padding: 0.75rem 0 0;
   margin-top: 0.75rem; }
 .the-dau { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+.nut-dong { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 .gio { color: var(--stone-600); font-size: 0.875rem; margin: 0.25rem 0 0; }
 .nhan { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 1rem; font-size: 0.875rem; font-weight: 600; }
 .nhan-cho { background: var(--amber-50); color: var(--amber-800); border: 1px solid #fcd34d; }

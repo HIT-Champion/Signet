@@ -118,12 +118,14 @@ function veDong() {
       dl.append(make('dt', { textContent: r.label }), make('dd', { textContent: r.value }))
     }
     const dau = make('div', { className: 'the-dau' })
-    dau.append(make('span', { className: 'gio', textContent: t('list.createdAt', { time: ngayGio(row.created_at) }) }))
+    const nutDong = make('div', { className: 'nut-dong' })   // các nút của dòng đứng cạnh nhau ở bên phải
+    dau.append(make('span', { className: 'gio', textContent: t('list.createdAt', { time: ngayGio(row.created_at) }) }),
+      nutDong)
     const dangSua = key !== null && view.sua !== null && view.sua.id === row[key]
     if (key !== null && !dangSua) {
       const nut = make('button', { type: 'button', className: 'btn ghost', textContent: t('list.edit') })
       nut.addEventListener('click', () => moSua(row))
-      dau.append(nut)
+      nutDong.append(nut)
     }
     const dangXem = key !== null && view.xem !== null && view.xem.id === row[key]
     if (view.bang === BAO_CAO && key !== null) {
@@ -131,7 +133,7 @@ function veDong() {
         textContent: dangXem ? t('report.close') : t('report.view') })
       nut.setAttribute('aria-expanded', String(dangXem))
       nut.addEventListener('click', () => (dangXem ? dongBaoCao() : xemBaoCao(row)))
-      dau.append(nut)
+      nutDong.append(nut)
     }
     li.append(dau, dl)
     if (dangXem) li.append(veBaoCao(row))
