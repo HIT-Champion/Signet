@@ -244,7 +244,8 @@ class RulesTest(unittest.TestCase):
         readme = read(APISIX / "README.md")
         ids = re.findall(r'"id:(10\d\d\d),', self.directives)
         self.assertEqual(ids, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
-                               "10060", "10061", "10070", "10080", "10081", "10090"])
+                               "10060", "10061", "10070", "10080", "10081", "10090", "10091",
+                               "10092"])
         removed = re.findall(r"SecRuleRemoveById (\d+)", self.directives)
         self.assertEqual(removed, ["920350"])
         for rule_id in ids + removed:
@@ -419,6 +420,33 @@ class RulesTest(unittest.TestCase):
         # route rest chỉ nhận đúng các phương thức PostgREST cần
         routes = read(APISIX / "apisix.yaml")
         self.assertIn("methods: [GET, HEAD, POST, PATCH, DELETE]\n    upstream_id: rest\n", routes)
+
+    def test_rest_api_refuses_patch_delete_without_filter(self) -> None:
+        # #588: PATCH, DELETE không bộ lọc là câu lệnh không WHERE, sửa, xóa mọi dòng của đơn vị. 10091 đánh dấu có bộ
+        # lọc, 10092 chặn trên đúng đường của 10090. Mô phỏng hai biểu thức trên tên tham số như Coraza chạy chuỗi luật
+        mark, block = self.exclusion("10091"), self.exclusion("10092")
+        names = re.search(r'ARGS_GET_NAMES "@rx (\S+)" "id:10091,', self.directives).group(1)
+        control = re.search(r'MATCHED_VARS "!@rx (\S+)"', self.directives).group(1)
+        self.assertIn("setvar:'tx.moc_rest_loc=1'", self.directives[self.directives.index('"id:10091,'):])
+        self.assertIn("phase:1,pass,nolog,", mark)
+        self.assertIn("phase:1,deny,status:403,log,", block)
+        chain = (r'"id:10092,[^"]+"\n\s+- SecRule REQUEST_FILENAME "@rx \^/rest/v1/\[\^/\.\]\+\$" '
+                 r'"t:none,t:urlDecodeUni,chain"\n\s+- SecRule &TX:moc_rest_loc "@eq 0"')
+        self.assertRegex(self.directives, chain)
+        self.assertIn('SecRule REQUEST_METHOD "@rx ^(?:PATCH|DELETE)$" "id:10092,', self.directives)
+        order = [self.directives.index(d) for d in ('"id:10090,', '"id:10091,', '"id:10092,', "Include @owasp_crs")]
+        self.assertEqual(order, sorted(order))
+
+        def has_filter(query: str) -> bool:
+            keys = [k.split("=", 1)[0] for k in query.split("&") if k]
+            return any(re.search(names, k) and not re.search(control, k) for k in keys)
+
+        for query, hit in (("id=eq.1", True), ("select=id&id=eq.1", True), ("or=(a.eq.1,b.eq.2)", True),
+                           ("not.and=(a.eq.1,b.eq.2)", True), ("trang_thai=eq.xong&order=id", True),
+                           ("", False), ("select=id", False), ("select=id&order=id&limit=1&offset=0", False),
+                           ("columns=a,b", False), ("on_conflict=id", False), ("items.id=eq.1", False),
+                           ("select=*,items(*)&items.id=eq.1", False), ("not.id=eq.1", False)):
+            self.assertEqual(has_filter(query), hit, query)
 
     def test_argument_limit_rules_block(self) -> None:
         # GHSA-6r3q-mjv7-xr8m: tham số thứ 1000 trở đi không được soi — chặn hẳn
