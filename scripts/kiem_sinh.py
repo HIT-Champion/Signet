@@ -235,6 +235,11 @@ def reports(ta: str, tb: str) -> None:
     ok(group(ta, "select=trang_thai,so:count()") == {"mới": 2, "xong": 1}, "bí danh so:count()")
     month = group(ta, "select=han,count()&han=gte.2026-11-01&han=lt.2026-12-01")
     ok(month == {"2026-11-01": 1, "2026-11-15": 1}, "cột ngày gộp theo ngày, lọc khoảng ngày")
+    # trung bình theo tháng ở trang báo cáo: sum và count của chính cột số (count() đếm cả dòng cột số null)
+    query = "select=han,so_tien.sum(),so_tien.count()&order=han"
+    status, rows = rest("GET", f"/{t}?{query}", ta)
+    ok(status == 200 and [(r["han"], float(r["sum"]), r["count"]) for r in rows]
+       == [("2026-11-01", 10, 1), ("2026-11-15", 20, 1), ("2026-12-01", 5, 1)], f"?{query}: {status}, {rows}")
 
     print("\nKhai báo báo cáo (sinh.bao_cao) cách ly theo đơn vị")
     status, rows = rest("POST", "/bao_cao", ta, {"ten": f"Báo cáo {t}", "bang": t, "nhom": "trang_thai"})
