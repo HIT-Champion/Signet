@@ -614,10 +614,10 @@ duyệt, không ủy quyền, không hủy đơn đã gửi.
 
 ## 8. Sinh từ bảng: Studio, PostgREST và trang `/sinh`
 
-Dùng khi ứng dụng chủ yếu là một bảng dữ liệu của đơn vị: xem danh sách, thêm, sửa. Không viết manifest, image, client
-Keycloak, migration hay metadata Hasura. Thành phần: Studio và postgres-meta của Supabase (profile `studio`, tắt mặc
-định), PostgREST (dịch vụ `rest`), một khung bằng SQL của đội và trang `/sinh` ([`architecture.md`](architecture.md)
-QĐ-014).
+Dùng khi ứng dụng chủ yếu là một bảng dữ liệu của đơn vị: xem danh sách, thêm, sửa, xem báo cáo theo nhóm (8.6), in
+phiếu (8.7). Không viết manifest, image, client Keycloak, migration hay metadata Hasura. Thành phần: Studio và
+postgres-meta của Supabase (profile `studio`, tắt mặc định), PostgREST (dịch vụ `rest`), một khung bằng SQL của đội và
+trang `/sinh` ([`architecture.md`](architecture.md) QĐ-014); in phiếu dùng `svc-files` của lõi.
 
 ### 8.1. Các bước
 
@@ -681,7 +681,7 @@ Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser,
 
 | Cần | Đường |
 |---|---|
-| Một bảng dữ liệu của đơn vị: danh sách, thêm, sửa | Mục 8 |
+| Một bảng dữ liệu của đơn vị: danh sách, thêm, sửa, báo cáo theo nhóm, in phiếu | Mục 8 |
 | Quy trình duyệt (BPMN, form) | Manifest có `workflow` (mục 1.10) |
 | Máy chủ riêng, nghe sự kiện của lõi, giao diện riêng | Manifest (mục 1) |
 | Thành phần đi cùng mọi bản cài của lõi | Làm tay (mục 3) |
@@ -698,6 +698,103 @@ Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser,
 - Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; chưa có ô cho cột json, jsonb,
   mảng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
   ([`apps/sinh/README.md`](../apps/sinh/README.md) mục "Chưa làm").
+- Báo cáo (8.6): một cột nhóm, một phép tính; chưa lọc theo khoảng ngày hay giá trị trong khai báo, chưa xuất tệp; chỉ
+  trên bảng `sinh`, không trên dữ liệu Văn phòng điện tử.
+- Mẫu in (8.7): văn bản thuần với chỗ trống, tiêu đề, đoạn; chưa có bảng, ảnh, chữ ký số; khung A4 cố định; chỉ in
+  bảng có khóa chính `id` kiểu số nguyên. Mọi vai trò trong đơn vị sửa được khai báo báo cáo và mẫu in.
 - Hai kiểu API: Văn phòng điện tử và lõi dùng GraphQL, ứng dụng sinh dùng REST.
 - Chặn `PATCH`, `DELETE` không kèm bộ lọc là luật WAF, chỉ có khi `MOC_WAF=On`; ở `DetectionOnly` hay `Off`, một lệnh
   `DELETE` không lọc xóa mọi dòng của đơn vị người gọi trong bảng đó.
+
+### 8.6. Báo cáo khai báo bằng dữ liệu
+
+Báo cáo của bảng sinh là một dòng dữ liệu, không phải mã. Bảng `sinh.bao_cao` có sẵn trên menu `/sinh` với tên
+**Báo cáo** (migration `1792281604500_sinh_bao_cao`, #589). Bảng tạo bằng vai trò `moc_studio` như bảng tạo trong
+Studio, nên khung gắn đơn vị, RLS, sổ kiểm toán như mọi bảng sinh. Người dùng thêm một báo cáo bằng chính biểu mẫu
+chung:
+
+| Ô | Điền gì |
+|---|---|
+| Tên báo cáo | Tên hiện trên danh sách báo cáo |
+| Bảng nguồn | Tên bảng trong `sinh`, vd `yeu_cau` |
+| Nhóm theo cột | Cột kiểu enum, kiểu ngày (`date`) hoặc thời điểm có múi giờ (`timestamptz`, vd `created_at`) |
+| Phép tính | `đếm` (mặc định), `tổng` hoặc `trung bình` |
+| Cột số (khi tính tổng, trung bình) | Cột kiểu số; tính tổng, trung bình mà để trống thì CSDL từ chối |
+| Kiểu hiện | `bảng`, `cột` (mặc định) hoặc `tròn` |
+
+Mỗi dòng của bảng **Báo cáo** có nút **Xem báo cáo**, mở báo cáo ngay trong thẻ của dòng (#587). Trước khi gọi, trang
+kiểm khai báo theo mô tả API: bảng có thật, cột nhóm là enum hay ngày, cột số có kiểu số, tên hai cột chỉ gồm chữ
+thường, số, gạch dưới (luật WAF 10093 chỉ cho qua `select` dạng đó). Sai thì báo một câu, không gửi truy vấn. Đúng thì
+gọi hàm gộp của PostgREST bằng token của người xem ([`api/README.md`](api/README.md) mục 9):
+
+```text
+GET /rest/v1/<bảng>?select=<cột nhóm>,count()
+GET /rest/v1/<bảng>?select=<cột nhóm>,<cột số>.sum()
+GET /rest/v1/<bảng>?select=<cột nhóm>,<cột số>.avg()
+```
+
+RLS lọc trước khi gộp, nên số chỉ gồm dòng của đơn vị người xem. Cột nhóm là enum thì mọi giá trị đều có mặt, theo
+thứ tự của enum; giá trị không có dòng nào ghi 0. Cột nhóm là ngày hay thời điểm thì trang cộng theo tháng (thời điểm
+tính theo giờ Việt Nam); trung bình theo tháng tính từ tổng và số dòng có giá trị của cột số. Dòng có cột nhóm trống
+đứng cuối, ghi "(trống)".
+
+Trang luôn có bảng số (có tiêu đề bảng, tiêu đề cột), đọc được bằng máy đọc màn hình. Kiểu `bảng` chỉ có bảng số;
+`cột` thêm thanh CSS; `tròn` thêm biểu đồ tròn (`conic-gradient`) có chú giải, tám màu, từ nhóm thứ chín gộp vào
+"Khác". Hai biểu đồ ẩn với máy đọc màn hình vì bảng số đã đủ. Không thêm thư viện biểu đồ. `make seed` có sẵn báo
+cáo **Yêu cầu theo trạng thái** (`yeu_cau`, nhóm `trang_thai`, đếm, cột) cho hai đơn vị mẫu.
+
+Mỗi câu lệnh của người dùng qua `/rest/v1` dừng sau 5 giây (`statement_timeout` của năm vai trò người dùng). Báo cáo
+quá giờ thì trang báo "Báo cáo chạy quá lâu nên cơ sở dữ liệu đã dừng" (PostgREST trả `500`, mã `57014`).
+
+Kiểm: `apps/sinh/tests/bao-cao.test.js` (kiểm khai báo trên mô tả thật của PostgREST 14.18, dựng truy vấn, cộng theo
+tháng, biểu đồ tròn); `db/tests/test_sinh.py` (`bao_cao` do `moc_studio` làm chủ, có RLS và trigger của khung,
+khai báo cách ly theo đơn vị, `statement_timeout` của năm vai trò); `scripts/kiem_sinh.py` hàm `reports()`, qua WAF
+với token thật: đếm, tổng, trung bình theo nhóm, mỗi đơn vị chỉ thấy số của mình, khai báo cách ly, báo cáo mẫu chạy
+và tổng bằng số dòng.
+
+### 8.7. Mẫu in
+
+Bảng `sinh.mau_in` (menu **Mẫu in**, migration `1792281604600_sinh_mau_in`, #594) giữ mẫu phiếu của từng bảng: Tên
+mẫu, Bảng, Nội dung mẫu (tối đa 20 000 ký tự). Mẫu là văn bản thuần, không phải HTML. Cú pháp:
+
+- `{{ten_cot}}` là chỗ trống, thay bằng giá trị cột đó của dòng đang in; trong ngoặc có thể có dấu cách
+  (`{{ ten_cot }}`). Cột không có hay giá trị rỗng thì để trống, không báo lỗi.
+- Giá trị in theo kiểu Việt Nam: ngày `dd/mm/yyyy`, thời điểm `HH:MM dd/mm/yyyy` theo giờ Việt Nam, đúng, sai thành
+  Có, Không.
+- Dòng trống sang đoạn mới; các dòng liền nhau trong một đoạn giữ ngắt dòng.
+- Dòng bắt đầu bằng `# ` là tiêu đề, căn giữa, in đậm.
+- Mọi ký tự khác in ra nguyên văn, kể cả `<`, `>`: mẫu không chèn được thẻ, ảnh hay đường dẫn tải về.
+
+Mẫu **Phiếu yêu cầu** cho bảng `yeu_cau` có sẵn từ `make seed` ở hai đơn vị mẫu:
+
+```text
+# Phiếu yêu cầu
+
+Tiêu đề: {{tieu_de}}
+Hạn xử lý: {{han}}
+Trạng thái: {{trang_thai}}
+
+Nội dung: {{noi_dung}}
+```
+
+`svc-files` đặt nội dung dưới khung A4 cố định như đầu văn bản của Văn phòng: cơ quan chủ quản, tên đơn vị, quốc hiệu,
+tiêu ngữ, địa danh và ngày in; số trang ở góc dưới. Trên `/sinh`, mỗi dòng của bảng có mẫu có nút **In** cạnh nút Sửa;
+bảng có nhiều mẫu thì chọn mẫu ở ô **Mẫu in** (#586). Bấm In thì trình duyệt tải về tệp `<bảng>-<id>.pdf`. Gọi thẳng:
+`GET /api/sinh/<bảng>/<id>/pdf?mau=<id mẫu>` ([`api/README.md`](api/README.md) mục 9).
+
+Bảng muốn in được phải có khóa chính là cột `id` kiểu số nguyên, vì `svc-files` tìm dòng bằng `id=eq.<id>`. Studio đặt
+sẵn cột này khi tạo bảng. Bảng dùng khóa khác (vd `uuid`) thì trang không hiện nút In, còn gọi API thẳng thì nhận
+`404`.
+
+An toàn:
+
+- `svc-files` lấy mẫu và dòng qua PostgREST bằng chính token của người in, nên RLS lọc: dòng hay mẫu của đơn vị khác
+  ra `404`, như khi không có. Chỉ tên đơn vị ở khung đọc bằng khóa quản trị Hasura, theo đơn vị trong token.
+- Chữ của mẫu và mọi giá trị đều qua `html.escape`; thay một lượt, nên giá trị chứa `{{…}}` không bị thay tiếp.
+- WeasyPrint chỉ được tải URL `data:`, không theo chuyển hướng: `file:`, `http:` đều bị từ chối, kể cả khi mẫu chứa
+  đường dẫn.
+- Tối đa 2 bản PDF dựng cùng lúc, ngoài vòng sự kiện; chờ hay dựng quá 20 giây thì `503` kèm `Retry-After`.
+
+Kiểm: `services/svc-files/tests/test_sinh_print.py` (thoát HTML, bộ tải từ chối `file:`, `http:`, dòng của đơn vị khác
+`404`, tên bảng sai `400`); `apps/sinh/tests/in.test.js` (đường in, khi nào có nút); `scripts/kiem_sinh.py` qua WAF với
+token thật: mẫu có `{{tieu_de}}` lưu được, in ra `application/pdf` bắt đầu bằng `%PDF`, đơn vị khác nhận `404`.

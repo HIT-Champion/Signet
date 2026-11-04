@@ -944,6 +944,7 @@ trong danh sách của chuông); bấm vào mở trang `/trang-thai`.
 - Thêm một ứng dụng dạng bảng không phải viết máy chủ, migration hay quyền: người vận hành tạo bảng trong Supabase
   Studio, PostgREST sinh API, trang `/sinh` dựng biểu mẫu từ API đó.
 - Thêm một trường lúc hệ thống đang chạy: ô nhập mới hiện ngay, không sửa dòng mã nào, không khởi động lại.
+- Báo cáo và mẫu in cũng là dữ liệu: khai báo một báo cáo theo cột vừa thêm, in phiếu từ mẫu có sẵn, không viết mã.
 - Bảng sinh ra vẫn theo luật của lõi: mỗi đơn vị chỉ thấy dòng của mình, mọi thay đổi vào sổ kiểm toán, lệnh gỡ bảo vệ
   bị hủy.
 
@@ -952,9 +953,10 @@ có sẵn từ `make seed`; kiểu enum `sinh.muc_uu_tien` (`thấp`, `vừa`, `
 Enumerated Types, để lúc diễn chỉ còn một thao tác thêm cột. Phải là enum: cột có `CHECK` thì `/sinh` chỉ hiện ô chữ,
 vì PostgREST không mô tả `CHECK`. Trên bản online, Studio chỉ nghe `127.0.0.1` của máy chủ nên máy trình chiếu mở
 đường hầm SSH từ trước ([`van-hanh.md`](van-hanh.md) mục "Ứng dụng sinh từ bảng"); trên máy dự phòng thì mở thẳng
-`http://127.0.0.1:3400`.
+`http://127.0.0.1:3400`. `make seed` cũng tạo sẵn báo cáo "Yêu cầu theo trạng thái" và mẫu in "Phiếu yêu cầu" của
+bảng `yeu_cau` cho hai đơn vị mẫu.
 
-**Trên giao diện** (khoảng 60–75 giây):
+**Trên giao diện** (khoảng 2 phút):
 
 1. Tab `/sinh/#/yeu_cau`, đăng nhập sẵn bằng `vanthu` (đơn vị CNTT): menu có **Quản lý yêu cầu**; biểu mẫu có Tiêu
    đề, Nội dung, Hạn xử lý, Trạng thái; danh sách bên dưới.
@@ -962,14 +964,24 @@ vì PostgREST không mô tả `CHECK`. Trên bản online, Studio chỉ nghe `12
    mặc định `vừa`, Description "Mức ưu tiên" (ô này là `COMMENT ON COLUMN`, trang dùng làm nhãn). Bấm Save.
 3. Quay lại tab `/sinh`, không tải lại: ô chọn **Mức ưu tiên** đã có, chữ đang gõ dở vẫn còn. Gõ tiêu đề "Máy in
    tầng 3 hỏng", chọn `cao`, bấm Thêm: dòng mới lên đầu danh sách, có "Mức ưu tiên: cao".
+4. Menu **Báo cáo**, bấm Thêm: Tên "Yêu cầu theo mức ưu tiên", Bảng nguồn `yeu_cau`, Nhóm theo cột `muc_uu_tien`,
+   Phép tính `đếm`, Kiểu hiện `cột`. Ở dòng vừa thêm, bấm **Xem báo cáo**: ba nhóm `thấp`, `vừa`, `cao` theo thứ tự
+   của enum (nhóm không có dòng ghi 0), kèm bảng số; nhóm `cao` có yêu cầu vừa thêm. Cột thêm ở bước 2 đã là chiều
+   báo cáo, không sửa mã.
+5. Quay lại **Quản lý yêu cầu**, bấm **In** ở dòng "Máy in tầng 3 hỏng": trình duyệt tải về `yeu_cau-<id>.pdf`. Mở
+   tệp: khổ A4, tên đơn vị CNTT, quốc hiệu, tiêu ngữ, ngày in, tiêu đề "Phiếu yêu cầu", các giá trị của dòng (hạn xử
+   lý dạng `dd/mm/yyyy`).
 
 **Còn giờ, hoặc khi giám khảo hỏi:**
 
-4. Đăng nhập `vanthukt` (đơn vị Kinh tế): **Quản lý yêu cầu** không có dòng nào của đơn vị CNTT.
-5. Đăng nhập `quantri` (quản trị đơn vị CNTT) trong hồ sơ trình duyệt riêng (checklist T-5 phút), mở Sổ kiểm toán: dòng
+6. Đăng nhập `vanthukt` (đơn vị Kinh tế): **Quản lý yêu cầu** không có dòng nào của đơn vị CNTT; **Xem báo cáo**
+   "Yêu cầu theo trạng thái" chỉ đếm dòng của đơn vị Kinh tế.
+7. Đăng nhập `quantri` (quản trị đơn vị CNTT) trong hồ sơ trình duyệt riêng (checklist T-5 phút), mở Sổ kiểm toán: dòng
    thêm yêu cầu (bảng `sinh.yeu_cau`) nằm trong chuỗi băm như dòng của Văn phòng điện tử. Dòng `ddl` của lệnh thêm cột
    không gắn đơn vị nào nên không hiện ở trang này.
-6. Trong Studio, thử tắt RLS của bảng `yeu_cau`: lệnh bị hủy, lỗi bắt đầu bằng `khung:`.
+8. Trong Studio, thử tắt RLS của bảng `yeu_cau`: lệnh bị hủy, lỗi bắt đầu bằng `khung:`.
+9. Menu **Mẫu in**, sửa "Phiếu yêu cầu": thêm dòng `Mức ưu tiên: {{muc_uu_tien}}`, bấm Lưu, quay lại bấm **In**:
+   phiếu có dòng mới.
 
 **Nếu giám khảo hỏi:**
 
@@ -982,9 +994,13 @@ vì PostgREST không mô tả `CHECK`. Trên bản online, Studio chỉ nghe `12
   Quản trị đơn vị không dùng Studio.
 - *"Có quy trình duyệt cho bảng này không?"* Chưa: quy trình vẫn là BPMN viết tay, khai trong manifest
   ([`them-ung-dung.md`](them-ung-dung.md) mục 1.10). Signet không tự sinh toàn bộ backend.
+- *"Báo cáo, mẫu in có phải viết mã không?"* Không, với bảng sinh: cả hai là dòng dữ liệu, nhập bằng biểu mẫu chung;
+  khuôn văn bản đi của Văn phòng vẫn trong mã ([`du-thi/hoi-dap-hoi-dong.md`](du-thi/hoi-dap-hoi-dong.md) câu 21).
+- *"Mẫu có chèn được mã độc không?"* Mẫu là văn bản thuần, không phải HTML; giá trị thoát HTML; bộ dựng PDF chỉ tải
+  `data:` ([`them-ung-dung.md`](them-ung-dung.md) mục 8.7).
 
 **Còn gì chưa làm?** Bảng tạo trong Studio chưa nằm trong git; bảng sinh chưa có tệp đính kèm, thông báo, quy trình;
-chưa có lệnh `make demo-sinh`.
+báo cáo một cột nhóm, chưa xuất tệp; mẫu in chưa có bảng, ảnh; chưa có lệnh `make demo-sinh`.
 
 ## Phương án dự phòng
 
@@ -1074,9 +1090,10 @@ chạy không tải được tệp hay cổng ngắt vài giây:
   `python3 scripts/moc.py backup restore <lượt>` (hỏi lại trước khi thay dữ liệu; Signet dừng trong lúc khôi phục). Chỉ
   làm khi còn thời gian, không thì sang máy dự phòng.
 
-**Màn ứng dụng sinh từ bảng hỏng** (Studio không mở, ô mới không hiện sau khi bấm F5, bấm Thêm báo lỗi): sang video
-của màn này quay lúc tập, nói rõ đó là bản quay. Không mở terminal sửa trước hội đồng. Sau buổi: xóa cột `muc_uu_tien`
-để lần sau diễn lại được.
+**Màn ứng dụng sinh từ bảng hỏng** (Studio không mở, ô mới không hiện sau khi bấm F5, bấm Thêm, Xem báo cáo hay In báo
+lỗi): sang video của màn này quay lúc tập, nói rõ đó là bản quay. Không mở terminal sửa trước hội đồng. Sau buổi, trong
+Studio: xóa dòng "Yêu cầu theo mức ưu tiên" của bảng `bao_cao` (`/sinh` chưa xóa dòng), xóa cột `muc_uu_tien`, trả mẫu
+"Phiếu yêu cầu" về như cũ nếu đã sửa, để lần sau diễn lại được.
 
 **Video quay sẵn:** lớp cuối, không phụ thuộc mạng hay máy chủ. Lưu trên máy trình chiếu và một USB, không đưa vào
 repo ([`git_flow.md`](git_flow.md)).
@@ -1107,7 +1124,9 @@ repo ([`git_flow.md`](git_flow.md)).
 - [ ] Màn ứng dụng sinh từ bảng: bản sẽ trình bày (online và máy dự phòng) đã có #565, #569, #563, #564 và bật profile
       `studio`; cài trang nếu chưa có (`python3 scripts/moc.py app install apps/sinh/app.yaml`); `/sinh/` mở được
       **Quản lý yêu cầu**; kiểu enum `sinh.muc_uu_tien` đã có; cột `muc_uu_tien` chưa có (lần tập trước đã thêm thì
-      xóa cột trong Studio, giữ kiểu enum).
+      xóa cột trong Studio, giữ kiểu enum). Bản đó có cả #592, #591 (báo cáo), #596, #593 (mẫu in) và đã chạy
+      `make seed` sau khi nâng cấp; bảng `bao_cao` chưa có "Yêu cầu theo mức ưu tiên", mẫu "Phiếu yêu cầu" như của
+      `make seed` (lần tập trước đã thêm, sửa thì xóa, sửa lại trong Studio).
 
 ### T-1 giờ
 

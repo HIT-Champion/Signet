@@ -1290,6 +1290,13 @@ ssh -L 3400:127.0.0.1:3400 server    # then open http://localhost:3400
   `rest-init` runs again on every `make up` or upgrade. After rotating the signing key in Keycloak mid-way, run
   `docker compose up -d --force-recreate rest-init rest` in the install directory; until then tokens signed with the new
   key get `401` on `/rest/v1`, GraphQL keeps working. There is no automatic reload yet.
+- **Query time limit.** The five user roles have `statement_timeout = 5s` (migration `1792281604500_sinh_bao_cao`): a
+  report or any query through `/rest/v1` that runs longer stops, and PostgREST returns `500` with code `57014`. Role
+  settings are not in pg_dump: `moc backup restore` applies them again right after it recreates the roles. Studio
+  (`moc_studio`) and Hasura are not under this limit.
+- **Printing** from templates runs in `svc-files` (`/api/sinh/…`), no new service: `svc-files` calls PostgREST on the
+  internal network (`MOC_REST_URL`, default `http://rest:3000`) with the user's token. At most 2 PDFs render at once;
+  waiting or rendering past 20 seconds returns `503`.
 - **Backup.** Tables in `sinh` live in the business database and go into `moc backup` like any table. The new roles
   (`authenticator`, `moc_studio`, `moc_harness`, the five user roles) are not in pg_dump: `moc backup restore`
   recreates them (a fixed list, safe to rerun) before a restore; `rest-init` sets their passwords and login again at

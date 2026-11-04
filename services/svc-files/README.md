@@ -43,6 +43,7 @@ issue #19, #20.
 | Nộp lưu hồ sơ đã đóng sang bucket lạnh (Parquet + tệp + manifest có băm), `GET /api/case-files/{id}/archive` | **Xong** (F3.8) |
 | Phả hệ OpenLineage cho từng bước nộp lưu, kiểm chất lượng bảng Parquet trước khi ghi | **Xong** (F3.9) |
 | `/internal/dispatch-file`: chép bản phát hành sang kho của đơn vị nhận trong hệ thống (kiểm băm, quét, id định trước) | **Xong** (F3.12) |
+| `GET /api/sinh/{bang}/{id}/pdf?mau={id}`: in một dòng của bảng sinh theo mẫu văn bản thuần trong `sinh.mau_in` ra PDF A4; mẫu và dòng lấy qua PostgREST bằng token người gọi (#594) | **Xong** (cụm ④) |
 | `GET /api/status`: trạng thái vận hành từng thành phần theo tầng cho trang công khai `/trang-thai`, lưu đệm 10 giây, không lộ địa chỉ nội bộ | **Xong** |
 | `POST /api/imports/incoming`: nạp lô văn bản đến (NDJSON/CSV + zip tệp đính kèm), xử lý nền theo mẻ, mỗi dòng đi đúng đường tiếp nhận lẻ, báo lỗi từng dòng | **Xong** (cụm ⑤) |
 | Phòng đọc xem tệp đã nộp lưu: chỉ PDF, so băm với manifest, đóng dấu người xem như F3.7, ghi sổ trước khi trả (`GET /api/case-files/{id}/archive/files/{file_id}`) | **Xong** (F3.8) |
@@ -51,8 +52,9 @@ issue #19, #20.
 ## API
 
 Đi qua APISIX ở `/api/files/*`, `/api/search`, `/api/documents/*`, `/api/registers/*`, `/api/verify`,
-`/api/case-files/*`, `/api/status`, `/api/imports*`. OpenAPI tự sinh ở `/openapi.json` (chỉ trong mạng nội bộ), bản
-xuất nằm ở [`docs/api/openapi/svc-files.json`](../../docs/api/openapi/svc-files.json) (`make api-docs`).
+`/api/case-files/*`, `/api/status`, `/api/imports*`, `/api/sinh/*`. OpenAPI tự sinh ở `/openapi.json` (chỉ trong
+mạng nội bộ), bản xuất nằm ở [`docs/api/openapi/svc-files.json`](../../docs/api/openapi/svc-files.json)
+(`make api-docs`).
 
 | Đường dẫn | Kết quả |
 |---|---|
@@ -82,6 +84,7 @@ xuất nằm ở [`docs/api/openapi/svc-files.json`](../../docs/api/openapi/svc-
 | `GET /api/imports/{id}` | Chỉ người tạo lô. `200` `ImportOut` `{id, kind, status: queued\|running\|done, filename, format, register, total, pending, ok, duplicate, failed, note, created_at, started_at, finished_at}`, `Cache-Control: no-store` · `404` `not_found` không có lô hoặc lô của người khác (kể cả cùng đơn vị) · `401` · `503` |
 | `GET /api/imports/{id}/rows` | Như trên. `status=pending\|ok\|duplicate\|failed`, `after` (số dòng cuối của trang trước), `limit` 1–500 (100). `200` `{rows: [{line, status, code, message, fields, document_id, register_number}], next_after}` — không trả lại dữ liệu đã gửi |
 | `GET /api/imports` | `200` `{imports: [ImportOut]}` — lô của chính người gọi, mới trước; `limit` 1–50 (20) |
+| `GET /api/sinh/{bang}/{id}/pdf?mau={id}` | Mọi người có token; mẫu và dòng đọc qua PostgREST (`MOC_REST_URL`) bằng token của người gọi, RLS lọc theo đơn vị. `200` `application/pdf`, tên tệp `<bang>-<id>.pdf` · `400` `bad_request` · `401` · `404` `not_found` (không có, mẫu của bảng khác hay của đơn vị khác: như nhau) · `503` `rest_unavailable`, `database_unavailable`, `busy` (+ `Retry-After: 10`, chờ hay dựng quá 20 giây) — `sinh_print.py`, cú pháp mẫu ở [`docs/them-ung-dung.md`](../../docs/them-ung-dung.md) mục 8.7 |
 | `POST /internal/issue` | Chỉ token tài khoản dịch vụ trong `MOC_SERVICE_CLIENTS` (`403` với token người dùng). `201` `{file_id, sha256, size_bytes}` — `sha256` của bản đã ký số (F4.5) · `409` văn bản chưa cấp số · `503` ClamAV, kho, CSDL không sẵn sàng; `signing_unavailable` két không trả lời khi ký — **không lưu**. Không có trong OpenAPI công khai, APISIX không có route tới |
 | `POST /internal/dispatch-file` | Như `/internal/issue` (chỉ dịch vụ nội bộ). Thân `{dispatch_id, actor_id}`. `201` `{file_id, sha256, size_bytes}` bản sao mới · `200` cùng thân khi bản sao đã có · `404` không có dòng `office.dispatches` · `409` `{code}`: `not_pending` dòng không còn chờ, `not_issued` văn bản chưa phát hành, `restricted` văn bản hạn chế / tệp mã hóa, `cold` tệp đã sang kho lạnh, `integrity` byte trong kho không khớp băm · `422` trạm quét chặn · `503` ClamAV, kho, CSDL không sẵn sàng (mục Liên thông) |
 | `POST /internal/similar-documents` | Như `/internal/issue` (chỉ dịch vụ nội bộ). Thân `{tenant_id, document_id, limit}` (`limit` 1–30, mặc định 15; thừa trường → `422`). `200` `{document_id, hits: [{document_id, score}], terms, semantic, duration_ms}` · `404` `not_found` · `409` `not_incoming`, `restricted` · `503` `assistant_disabled`, `search_unavailable`, `database_unavailable` (mục Văn bản tương tự cho tác tử gợi ý giao việc) |
@@ -1295,6 +1298,7 @@ Két chưa sẵn sàng thì thử lại tới 60 giây; két từ chối (`400`/
 | `HASURA_URL` | `http://hasura:8080` | Gọi trong mạng nội bộ, không qua APISIX |
 | `HASURA_ADMIN_SECRET` | **bắt buộc** | Trùng giá trị Hasura dùng; lấy từ két |
 | `HASURA_TIMEOUT_S` | `10` | |
+| `MOC_REST_URL` | `http://rest:3000` | PostgREST cho đường in bảng sinh (#594); gọi bằng token người dùng, không qua APISIX; thời gian chờ dùng chung `HASURA_TIMEOUT_S` |
 | `MEILISEARCH_URL` | `http://meilisearch:7700` | |
 | `MEILISEARCH_API_KEY` | **bắt buộc** | Hiện dùng master key của Meilisearch (chỉ trong mạng nội bộ); lấy từ két |
 | `MOC_SEARCH_INDEX` | `documents` | Tự tạo và áp cấu hình khi khởi động |
