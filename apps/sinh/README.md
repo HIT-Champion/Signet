@@ -26,7 +26,7 @@ Không có mã riêng cho bảng nào. Trang đọc mô tả API mà PostgREST t
 - **nút In** (#586): bảng có mẫu trong `sinh.mau_in` (`GET /rest/v1/mau_in?bang=eq.<bảng>&select=id,ten`) thì mỗi dòng
   có nút **In** cạnh Sửa; nhiều mẫu thì chọn ở ô **Mẫu in**. Bấm In thì gọi `GET /api/sinh/<bảng>/<id>/pdf?mau=<id>`
   của svc-files kèm token, kiểm là `application/pdf`, tải về `<bảng>-<id>.pdf`. Không có mẫu, bản cài chưa có
-  `mau_in`, hay khóa chính không phải số nguyên (vd `uuid`) thì không có nút. Cú pháp mẫu:
+  `mau_in`, hay khóa chính không phải cột `id` số nguyên dương thì không có nút. Cú pháp mẫu:
   [`docs/them-ung-dung.md`](../../docs/them-ung-dung.md) mục 8.7.
 
 Thêm cột trong Studio thì lần quay lại tab này trang nạp lại mô tả, ô mới hiện ngay, chữ đang gõ vẫn giữ. Bảng, cột,
@@ -61,7 +61,7 @@ quyền nằm trong CSDL: khung CSDL của lõi gắn cách ly đơn vị (RLS),
 | `app.yaml` | Manifest: đường `/sinh`, image dựng từ thư mục này, 64 MiB. `database` chỉ vì manifest bắt buộc: schema trống `trang_sinh`, không migration. Bảng của các ứng dụng sinh ở schema `sinh`, do khung CSDL của lõi làm chủ |
 | `public/openapi.js` | Mô tả API → menu, JSON Schema cho `schema-form.js`. Hàm thuần |
 | `public/bao-cao.js` | Khai báo báo cáo → kiểm theo mô tả API, đường truy vấn hàm gộp, số liệu cho bảng và biểu đồ (cộng theo tháng, màu biểu đồ tròn). Hàm thuần |
-| `public/rest.js` | Đường `/rest/v1`, đường in của svc-files (`duongIn`), tham số fetch (`Prefer: return=representation`, `count=exact`), đọc trả lời theo mã HTTP. 403 không kèm JSON là WAF ở cổng chặn, không phải thiếu quyền |
+| `public/rest.js` | Đường `/rest/v1`, đường in của svc-files (`duongIn`), tham số fetch (`Prefer: return=representation`, `count=exact` cho danh sách), đọc trả lời theo mã HTTP. 403 không kèm JSON là WAF ở cổng chặn, không phải thiếu quyền |
 | `public/app.js` | Vẽ menu, biểu mẫu, danh sách; nạp lại mô tả khi quay lại tab (`visibilitychange`) |
 | `public/auth.js`, `server.py`, `Dockerfile`, `public/style.css` | Như `apps/nghi-phep`: trang tĩnh Python thư viện chuẩn, không root; đăng nhập PKCE bằng client `app-sinh` |
 | `public/i18n.js` | Bảng dịch vi/en của trang. Tên bảng, nhãn ô lấy từ COMMENT trong CSDL nên chỉ một thứ tiếng |
