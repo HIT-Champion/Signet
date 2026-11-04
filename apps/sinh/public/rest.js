@@ -32,6 +32,17 @@ export const duong = {
   rows: (table) => `${tableUrl(table)}?order=created_at.desc&limit=${PAGE}`,
   create: (table) => tableUrl(table),
   row: (table, key, value) => `${tableUrl(table)}?${encodeURIComponent(key)}=eq.${encodeURIComponent(String(value))}`,
+  // mẫu in của bảng (#586, hợp đồng K4); bản cài chưa có bảng mau_in thì PostgREST trả 404
+  mau: (table) => `/mau_in?bang=eq.${encodeURIComponent(table)}&select=id,ten`,
+}
+
+const soNguyen = (v) => Number.isSafeInteger(v) && v > 0
+
+/** Đường in PDF một dòng theo mẫu (svc-files, #586): /api/sinh/<bảng>/<id>/pdf?mau=<id mẫu>. svc-files chỉ nhận id
+ *  là số nguyên dương: khóa khác (uuid) thì null, trang không hiện nút In. */
+export function duongIn(table, id, mau) {
+  if (!soNguyen(id) || !soNguyen(mau)) return null
+  return `/api/sinh/${encodeURIComponent(table)}/${id}/pdf?mau=${mau}`
 }
 
 /** Một lời gọi → [địa chỉ, tham số của fetch]. Ghi thì xin PostgREST trả lại dòng đã ghi; đọc danh sách thì xin
@@ -85,6 +96,16 @@ export function docTraLoi(status, body) {
   if (status === 403 && body === null) return { ok: false, status, message: t('error.blocked') }
   const key = LOI[status] || (status >= 500 ? LOI[500] : '')
   return { ok: false, status, message: key ? t(key) : t('error.rejected', { status }) }
+}
+
+/** In không được → câu báo (K4): 404 là không có dòng hay mẫu, hoặc chúng thuộc đơn vị khác (RLS trả như nhau); 503
+ *  là PostgREST chưa trả lời hoặc dựng PDF quá giờ. 2xx mà không phải PDF, hay 400 (trang tự dựng đường nên không
+ *  gặp) thì báo kèm mã. */
+export function loiIn(status, body) {
+  if (status === 404) return t('print.notFound')
+  if (status === 503) return t('print.busy')
+  if (status < 300 || status === 400) return t('error.rejected', { status })
+  return docTraLoi(status, body).message
 }
 
 /** Sửa một dòng: PostgREST trả mảng dòng đã ghi. Mảng rỗng là không có dòng nào khớp mà người dùng được ghi (đã
