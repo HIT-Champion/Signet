@@ -29,6 +29,7 @@
 | 18 | [Sản phẩm tên Signet, sao lệnh và cấu hình vẫn là `moc`?](#18-sản-phẩm-tên-signet-sao-lệnh-và-cấu-hình-vẫn-là-moc) | PoF #3, #6 |
 | 19 | [Hasura cũng sinh API từ bảng, sao còn thêm PostgREST?](#19-hasura-cũng-sinh-api-từ-bảng-sao-còn-thêm-postgrest) | Tiêu chí 7, 10 |
 | 20 | [Vậy lõi dựng trên Supabase à? Phần của đội ở đâu?](#20-vậy-lõi-dựng-trên-supabase-à-phần-của-đội-ở-đâu) | Tiêu chí 7 |
+| 21 | [Báo cáo, mẫu in có phải viết mã không?](#21-báo-cáo-mẫu-in-có-phải-viết-mã-không) | Tiêu chí 7, 10 |
 
 ## 1. Open-Core nằm ở đâu, ứng dụng khác dùng lại lõi thế nào?
 
@@ -407,3 +408,25 @@ Supabase (sợ yếu ở tính nguyên gốc) đã đính chính, có ghi ngày.
 **Bằng chứng:** [`docs/architecture.md`](../architecture.md) §1.1, QĐ-014; [`olp-2026-de-thi.md`](olp-2026-de-thi.md)
 đoạn "Vì sao không đứng trên Supabase" và dòng đính chính; [`DEPENDENCIES.md`](../../DEPENDENCIES.md) (ba image, giấy
 phép Apache-2.0, MIT); migration `1792281604400_sinh_khung`.
+
+## 21. Báo cáo, mẫu in có phải viết mã không?
+
+Với bảng của ứng dụng sinh thì không. Báo cáo là một dòng trong bảng `sinh.bao_cao`: người dùng chọn bảng nguồn, cột
+nhóm (enum hay ngày), phép tính (đếm, tổng, trung bình) và kiểu hiện (bảng, cột, tròn) bằng chính biểu mẫu chung của
+`/sinh`, rồi bấm Xem báo cáo. Trang kiểm khai báo rồi gọi hàm gộp của PostgREST bằng token người xem; RLS lọc theo đơn
+vị trước khi gộp, nên mỗi đơn vị chỉ thấy số của mình. Mẫu in là một dòng trong `sinh.mau_in`: văn bản thuần có chỗ
+trống `{{tên cột}}`. Bấm In thì `svc-files` lấy dòng bằng token người in, trộn vào mẫu, đặt dưới khung A4 có quốc hiệu
+và tên đơn vị, rồi dựng PDF bằng WeasyPrint.
+
+Mẫu không phải HTML, vì ba lẽ: lưu HTML qua `/rest/v1` sẽ vướng luật XSS của WAF, muốn lưu phải mở ngoại lệ ở đúng chỗ
+người dùng nhập chữ; mẫu không có thẻ thì không có đường chạy script, đọc tệp hay gọi vào mạng nội bộ (WeasyPrint vẫn
+chỉ được tải `data:`); người soạn mẫu là cán bộ nghiệp vụ, không phải người viết HTML.
+
+Phần còn viết trong mã: khuôn văn bản đi và sổ đăng ký của Văn phòng điện tử, bốn view dashboard của Văn phòng. Báo cáo
+mới có một cột nhóm, một phép tính, chưa lọc theo khoảng ngày, chưa xuất tệp; mẫu in chưa có bảng, ảnh.
+
+**Bằng chứng:** [`docs/them-ung-dung.md`](../them-ung-dung.md) mục 8.6, 8.7; migration `1792281604500_sinh_bao_cao`,
+`1792281604600_sinh_mau_in`; `apps/sinh/tests/bao-cao.test.js`, `in.test.js`;
+`services/svc-files/tests/test_sinh_print.py` (thoát HTML, bộ tải từ chối `file:`, `http:`); `scripts/kiem_sinh.py`
+trong job "Chạy thử: e2e" (hai đơn vị chỉ thấy số của mình, in ra PDF, đơn vị khác nhận `404`); lý do văn bản thuần ở
+#586; màn "Ngoài 4 nguyên lý: ứng dụng sinh từ bảng" của [`../demo-script.md`](../demo-script.md).

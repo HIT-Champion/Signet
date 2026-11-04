@@ -55,7 +55,7 @@ tệp `.graphql` là SDL chuẩn, công cụ GraphQL nào cũng nạp được.
 |---|---|---|
 | `/realms/moc/…` | Keycloak: đăng nhập, cấp và làm mới token, JWKS | — |
 | `POST /v1/graphql` | Hasura | Bắt buộc |
-| `POST /api/files`, `GET /api/files/{id}`, `POST /api/files/{id}/read`, `GET /api/search`, `GET /api/documents/{id}/preview`, `POST /api/documents/ask`, `GET /api/registers/…`, `GET /api/case-files/…`, `POST /api/imports/incoming`, `GET /api/imports…` | `svc-files` | Bắt buộc |
+| `POST /api/files`, `GET /api/files/{id}`, `POST /api/files/{id}/read`, `GET /api/search`, `GET /api/documents/{id}/preview`, `POST /api/documents/ask`, `GET /api/registers/…`, `GET /api/case-files/…`, `POST /api/imports/incoming`, `GET /api/imports…`, `GET /api/sinh/<bảng>/<id>/pdf` | `svc-files` | Bắt buộc |
 | `GET`, `POST /api/workflow/{app}/…` | `svc-workflow`: quy trình của ứng dụng cắm bằng manifest (§8) | Bắt buộc, của client `app-{app}` |
 | `GET`, `POST`, `PATCH`, `DELETE /rest/v1/…` | PostgREST: bảng của ứng dụng sinh, schema `sinh` (§9) | Bắt buộc |
 | `GET /api/verify/{mã}`, `GET /api/verify?sha256=…`, `GET /api/verify/ca.pem`, `GET /api/verify/anchor-key.pem` | `svc-files`: cổng xác thực | Không; giới hạn theo IP |
@@ -386,6 +386,10 @@ curl -s -H "Authorization: Bearer $TOKEN" "$MOC_PUBLIC_URL/rest/v1/yeu_cau?selec
 # thêm một yêu cầu, nhận lại dòng vừa tạo
 curl -s -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
      -H 'Prefer: return=representation' -d '{"tieu_de": "Sửa máy chiếu phòng 302"}' "$MOC_PUBLIC_URL/rest/v1/yeu_cau"
+# số yêu cầu của đơn vị theo trạng thái (hàm gộp), vd [{"trang_thai": "mới", "count": 2}, …]
+curl -s -H "Authorization: Bearer $TOKEN" "$MOC_PUBLIC_URL/rest/v1/yeu_cau?select=trang_thai,count()"
+# in yêu cầu 5 theo mẫu in 1 ra PDF
+curl -s -o phieu.pdf -H "Authorization: Bearer $TOKEN" "$MOC_PUBLIC_URL/api/sinh/yeu_cau/5/pdf?mau=1"
 ```
 
 Bảng mẫu `sinh.yeu_cau` ("Quản lý yêu cầu") có `tieu_de`, `noi_dung`, `han` (ngày), `trang_thai` (enum `mới`,
@@ -397,10 +401,20 @@ Bảng mẫu `sinh.yeu_cau` ("Quản lý yêu cầu") có `tieu_de`, `noi_dung`,
   lỗi: RLS ẩn dòng, nên kết quả như khi không dòng nào khớp (`200 []` khi gửi `Prefer: return=representation`, không
   thì `204`).
 - **Lọc, sắp xếp, chọn cột:** cú pháp của PostgREST (`?cot=eq.x`, `lt`, `in.(…)`, `is.null`, `or=(…)`, `order`,
-  `select`). Đi qua WAF như mọi đường. Ngoại lệ CRS duy nhất của đường này là 10090: thêm `PATCH`, `DELETE` vào phương
-  thức được phép, chỉ trên `/rest/v1/<bảng>` (#568); không gỡ luật dò tấn công nào. e2e chạy với WAF bật các mẫu
-  `select=*`, `order`, `limit`/`offset`, `or=(…eq…, …ilike…)`, `not.is.null`, `in.(…)`, `like`, `gte` theo ngày, `eq` có
-  chữ tiếng Việt.
+  `select`). Đi qua WAF như mọi đường. Đường này có hai ngoại lệ CRS, đều chỉ trên `/rest/v1/<bảng>`: 10090 thêm
+  `PATCH`, `DELETE` vào phương thức được phép (#568); 10093 bỏ luật 942100 (libinjection) riêng cho tham số `select` của
+  `GET` khi giá trị chỉ gồm chữ thường, số, `_` `.` `,` `:` và cặp `()` liền nhau, tức tên cột, bí danh, hàm gộp
+  (#589). `select` dạng khác, mọi tham số khác và mọi luật khác vẫn soi đủ. e2e chạy với WAF bật các mẫu `select=*`,
+  `order`, `limit`/`offset`, `or=(…eq…, …ilike…)`, `not.is.null`, `in.(…)`, `like`, `gte` theo ngày, `eq` có chữ tiếng
+  Việt, `select=tieu_de,count()`.
+- **Đếm, tổng, trung bình theo nhóm:** hàm gộp của PostgREST đã bật (`PGRST_DB_AGGREGATES_ENABLED`, #589):
+  `?select=trang_thai,count()`, `?select=trang_thai,<cột số>.sum()`, `.avg()`; đặt tên cột kết quả được
+  (`so:count()`). Hàm gộp chạy bằng vai trò của người gọi, nên RLS lọc trước khi gộp: số chỉ gồm dòng của đơn vị đó.
+  Tên cột trong `select` như vậy phải chỉ gồm chữ thường, số, gạch dưới thì mới được luật 10093 miễn; tên khác (chữ
+  hoa, dấu cách) để WAF soi như thường và có thể bị chặn (`403`). Trang báo cáo của `/sinh` dùng đúng các truy vấn này
+  ([`../them-ung-dung.md`](../them-ung-dung.md) mục 8.6).
+- **Thời gian chạy:** mỗi câu lệnh của năm vai trò người dùng dừng sau 5 giây (`statement_timeout`); quá giờ thì
+  PostgREST trả `500` kèm mã `57014`.
 - **Không có `/rest/v1/rpc/…`:** khung không cho tạo hàm trong `sinh`.
 - **`PATCH`, `DELETE` phải có bộ lọc.** Cổng trả `403` (không kèm JSON, khác `403` của PostgREST có mã `42501`) cho
   `PATCH`, `DELETE` trên `/rest/v1/<bảng>` khi không tham số truy vấn nào là bộ lọc (luật WAF 10091, 10092, #588). Bộ
@@ -412,3 +426,11 @@ Bảng mẫu `sinh.yeu_cau` ("Quản lý yêu cầu") có `tieu_de`, `noi_dung`,
 - **Token của client nào:** token Keycloak của realm có claim Hasura (mọi client `app-*` tạo bằng `moc app install`
   đều có, vd `app-sinh`). Cổng kiểm chữ ký, hạn, `iss`; PostgREST không kiểm `aud`.
 - Bảng, cột mới hiện trong API ngay sau khi tạo trong Studio, không khởi động lại dịch vụ.
+- **In ra PDF:** `GET /api/sinh/<bảng>/<id>/pdf?mau=<id mẫu>` (`svc-files`, #594) trả `application/pdf`, tải về với tên
+  `<bảng>-<id>.pdf`. `svc-files` lấy mẫu (`sinh.mau_in`) và dòng qua PostgREST bằng chính token của người gọi, nên dòng
+  hay mẫu của đơn vị khác ra `404` như khi không có. Bảng phải có khóa chính `id` kiểu số nguyên. Mã lỗi: `400`
+  `bad_request` (tên bảng không khớp `^[a-z_][a-z0-9_]*$`, `id` hay `mau` không phải số nguyên dương); `401`; `404`
+  `not_found` (không có dòng, mẫu, mẫu của bảng khác, hay của đơn vị khác); `503` `rest_unavailable`,
+  `database_unavailable`, hoặc `busy` kèm `Retry-After: 10` khi chờ hay dựng PDF quá 20 giây. Bảng có mẫu nào:
+  `GET /rest/v1/mau_in?bang=eq.<bảng>&select=id,ten`. Cú pháp mẫu: [`../them-ung-dung.md`](../them-ung-dung.md) mục
+  8.7.

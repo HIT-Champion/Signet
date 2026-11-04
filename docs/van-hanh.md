@@ -1148,6 +1148,13 @@ ssh -L 3400:127.0.0.1:3400 máy-chủ    # rồi mở http://localhost:3400
   PostgREST đọc; `rest` chờ `rest-init` xong mới chạy. `rest-init` chạy lại ở mỗi lần `make up` hay nâng cấp. Đổi khóa
   ký trong Keycloak giữa chừng thì chạy `docker compose up -d --force-recreate rest-init rest` trong thư mục cài; chưa
   chạy thì token ký bằng khóa mới bị `/rest/v1` trả `401`, GraphQL vẫn chạy. Chưa tự nạp lại.
+- **Giới hạn thời gian truy vấn.** Năm vai trò người dùng có `statement_timeout = 5s` (migration
+  `1792281604500_sinh_bao_cao`): báo cáo hay truy vấn nào qua `/rest/v1` quá 5 giây thì dừng, PostgREST trả `500` mã
+  `57014`. Setting của vai trò không nằm trong pg_dump: `moc backup restore` đặt lại ngay sau khi tạo lại vai trò.
+  Studio (`moc_studio`) và Hasura không chịu giới hạn này.
+- **In phiếu** từ mẫu chạy trong `svc-files` (`/api/sinh/…`), không thêm dịch vụ: `svc-files` gọi PostgREST trong mạng
+  nội bộ (`MOC_REST_URL`, mặc định `http://rest:3000`) bằng token người dùng. Tối đa 2 bản PDF dựng cùng lúc; chờ hay
+  dựng quá 20 giây thì `503`.
 - **Sao lưu.** Bảng trong `sinh` nằm trong CSDL nghiệp vụ, vào `moc backup` như mọi bảng. Vai trò mới (`authenticator`,
   `moc_studio`, `moc_harness`, năm vai trò người dùng) không nằm trong pg_dump: `moc backup restore` tạo lại chúng
   (danh sách cố định, chạy lại được) trước khi khôi phục; mật khẩu và quyền đăng nhập do `rest-init` đặt lại khi khởi
