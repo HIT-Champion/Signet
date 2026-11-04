@@ -126,7 +126,8 @@ function veDong() {
       nut.addEventListener('click', () => moSua(row))
       nutDong.append(nut)
     }
-    if (key !== null && view.mau.length && duongIn(view.bang, row[key], view.mau[0].id)) nutDong.append(nutIn(row))
+    // svc-files lấy dòng bằng id=eq.<id>: chỉ bảng có khóa chính là cột id (mặc định của Studio) mới in được
+    if (key === 'id' && view.mau.length && duongIn(view.bang, row.id, view.mau[0].id)) nutDong.append(nutIn(row))
     li.append(dau, dl)
     if (dangSua) li.append(formSua(row))
     return li
@@ -159,7 +160,7 @@ async function inDong(row, mau, nut) {
   const user = await signIn()
   if (!user) return
   const bang = view.bang
-  const id = row[view.form.key]
+  const id = row.id
   nut.setAttribute('aria-disabled', 'true')
   try {
     const res = await fetch(duongIn(bang, id, mau), {
