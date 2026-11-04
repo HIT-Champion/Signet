@@ -252,6 +252,24 @@ def __getattr__(name: str) -> Any:
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
+def _latest(name: str, info: dict[str, Any]) -> tuple[int, dict[str, int], str]:
+    """Phiên bản mới nhất của khóa transit: (số, khóa công khai, chuỗi chứng thư PEM hoặc rỗng)."""
+    try:
+        version = int(info["latest_version"])
+        entry = info["keys"][str(version)]
+        return version, _public_key(str(entry["public_key"])), str(entry.get("certificate_chain") or "")
+    except (KeyError, TypeError, ValueError) as exc:
+        raise SigningError(f"két trả thông tin khóa {name} lạ: {type(exc).__name__}") from None
+
+
+def _leaf_cn(chain: str) -> str | None:
+    """CN của chứng thư lá; chuỗi không đọc được thì None (đường kiểm chung báo lỗi)."""
+    try:
+        return _cn(_load_certs(chain)[0].subject)
+    except ValueError:
+        return None
+
+
 class DocumentSigner:
     """Ký bản phát hành bằng khóa transit của đơn vị. Một bộ cho cả tiến trình: nhớ CA của két và khóa từng đơn vị;
     hai lần phát hành đầu của một đơn vị chạy song song vẫn chỉ tạo một khóa, xin một chứng thư.
@@ -259,9 +277,10 @@ class DocumentSigner:
     ``state``: ``unknown`` (chưa dò) · ``ready`` · ``off:no_pki`` (két chưa có CA nội bộ) · ``off:forbidden`` (policy
     của két chưa cho svc-files dùng khóa ký). Đang tắt thì RETRY_OFF_S giây sau mới dò lại.
 
-    Bản tối thiểu: chứng thư chỉ xin khi phiên bản khóa chưa có (sống 1 năm), chưa tự cấp lại khi sắp hết hạn hay đơn
-    vị đổi tên. Tự kiểm không đạt thì quên khóa đã nhớ của đơn vị: xoay khóa transit (token quản trị) thì lần ký kế
-    tiếp đọc lại khóa và xin chứng thư cho phiên bản mới."""
+    Chứng thư xin khi phiên bản khóa chưa có (sống 1 năm). Đơn vị đổi tên (#520): chứng thư của phiên bản mới nhất
+    mang tên cũ thì xoay khóa, xin chứng thư tên mới cho phiên bản mới; phiên bản cũ giữ chứng thư cũ. Chưa tự cấp lại
+    khi sắp hết hạn. Tự kiểm không đạt thì quên khóa đã nhớ của đơn vị: xoay khóa transit (token quản trị) thì lần ký
+    kế tiếp đọc lại khóa và xin chứng thư cho phiên bản mới."""
 
     def __init__(self, vault: Vault, *, monotonic: Callable[[], float] = time.monotonic) -> None:
         self._vault = vault
@@ -338,7 +357,7 @@ class DocumentSigner:
     async def _key_for(self, tenant_id: uuid.UUID, cn: str, ca: x509.Certificate) -> SigningKey:
         name = key_name(tenant_id)
         async with self._locks.setdefault(name, asyncio.Lock()):
-            if (key := self._keys.get(name)) is not None:
+            if (key := self._keys.get(name)) is not None and key.cn == cn:     # đổi tên: đọc lại khóa (#520)
                 return key
             try:
                 key = await self._load_key(name, cn, ca)
@@ -354,13 +373,15 @@ class DocumentSigner:
             _log("office.signing.key_created", key_name=name)
             if (info := await self._vault.transit_key(name)) is None:
                 raise SigningError(f"két không thấy khóa {name} vừa tạo")
-        try:
-            version = int(info["latest_version"])
-            entry = info["keys"][str(version)]
-            public = _public_key(str(entry["public_key"]))
-            chain = str(entry.get("certificate_chain") or "")
-        except (KeyError, TypeError, ValueError) as exc:
-            raise SigningError(f"két trả thông tin khóa {name} lạ: {type(exc).__name__}") from None
+        version, public, chain = _latest(name, info)
+        if chain and (old := _leaf_cn(chain)) not in (None, cn):
+            # đơn vị đổi tên (#520): phiên bản mới nhất mang tên cũ. Xoay khóa rồi xin chứng thư cho phiên bản mới;
+            # phiên bản cũ giữ chứng thư cũ, văn bản đã ký (chứng thư nằm trong PDF) vẫn kiểm đúng
+            await self._vault.transit_rotate(name)
+            if (info := await self._vault.transit_key(name)) is None:
+                raise SigningError(f"két không thấy khóa {name} vừa xoay")
+            version, public, chain = _latest(name, info)
+            _log("office.signing.key_rotated", key_name=name, key_version=version, old_cn=old, cn=cn)
         issued = not chain
         if issued:  # phiên bản khóa chưa có chứng thư: CSR do chính transit ký → CA nội bộ cấp → gắn vào khóa
             csr = await self._vault.transit_csr(name, version)
@@ -379,6 +400,8 @@ class DocumentSigner:
             raise SigningError(f"chuỗi chứng thư của {name} không đọc được: {exc}") from None
         if _rsa_numbers(cert.public_key) != public:
             raise SigningError(f"chứng thư của {name} v{version} không mang khóa công khai của transit")
+        if _cn(cert.subject) != cn:     # vd hai tiến trình cùng xoay: không ký bằng tên khác tên đơn vị hiện tại
+            raise SigningError(f"chứng thư của {name} v{version} mang tên khác tên đơn vị hiện tại")
         if issued:
             await self._vault.transit_set_certificate(name, version, chain)
             _log("office.signing.certificate_issued", key_name=name, key_version=version, serial=_serial_hex(cert),
