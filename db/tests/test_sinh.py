@@ -252,3 +252,21 @@ def test_apps_cannot_take_the_sinh_schemas():
         with pytest.raises(SQLError, match="apps_schema_name_check"):
             sql("insert into core.apps (name, title, path, schema_name, version, manifest, manifest_sha256)"
                 f" values ('thu-lay', 'Thử', '/thu-lay', '{schema}', '1.0.0', '{{}}', repeat('a', 64))")
+
+
+def test_print_templates_are_a_harnessed_table(world):
+    """sinh.mau_in (#594) tạo qua moc_studio: có khung như bảng Studio tạo, mẫu cách ly theo đơn vị, tối đa 20 000 ký
+    tự."""
+    oid = "'sinh.mau_in'::regclass"
+    assert sql(f"select relowner::regrole, relrowsecurity from pg_class where oid = {oid}") == [["moc_studio", "t"]]
+    assert sql(f"select string_agg(tgname, ',' order by tgname) from pg_trigger where tgrelid = {oid}"
+               " and not tgisinternal") == [["moc_cot_chuan,moc_khong_xoa_het,moc_so"]]
+    assert sql(f"select obj_description({oid}, 'pg_class')") == [["Mẫu in"]]
+    ten = f"mau_{uuid.uuid4().hex[:6]}"
+    insert = "insert into sinh.mau_in (ten, bang, noi_dung) values"
+    as_user(world.staff_a1, f"{insert} ('{ten}', 'yeu_cau', '{{{{tieu_de}}}}')")
+    seen = f"select count(*) from sinh.mau_in where ten = '{ten}'"
+    assert as_user(world.staff_a1, seen) == "1"
+    assert as_user(world.clerk_b, seen) == "0"
+    with pytest.raises(SQLError, match="mau_in_noi_dung"):
+        as_user(world.staff_a1, f"{insert} ('x', 'yeu_cau', repeat('a', 20001))")

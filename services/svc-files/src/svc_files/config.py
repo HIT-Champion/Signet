@@ -64,6 +64,7 @@ class Settings:
     hasura_url: str
     hasura_admin_secret: str
     hasura_timeout_s: float
+    rest_url: str                   # PostgREST cho đường in bảng sinh (#586); gọi bằng token người dùng
     meili_url: str
     meili_api_key: str
     search_index: str
@@ -217,6 +218,7 @@ class Settings:
                 hasura_url=env.get("HASURA_URL", "http://hasura:8080").rstrip("/"),
                 hasura_admin_secret=env["HASURA_ADMIN_SECRET"],
                 hasura_timeout_s=float(env.get("HASURA_TIMEOUT_S", "10")),
+                rest_url=env.get("MOC_REST_URL", "http://rest:3000").rstrip("/"),
                 meili_url=env.get("MEILISEARCH_URL", "http://meilisearch:7700").rstrip("/"),
                 meili_api_key=env["MEILISEARCH_API_KEY"],
                 search_index=env.get("MOC_SEARCH_INDEX", "documents"),

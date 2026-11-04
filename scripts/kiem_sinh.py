@@ -204,6 +204,7 @@ def run(out: pathlib.Path) -> None:
 
     filterless(ta)
     reports(ta, tb)
+    print_templates(ta, tb)
 
     print("\n8. Sổ kiểm toán vẫn khớp")
     verify = subprocess.run([sys.executable, str(ROOT / "scripts" / "moc.py"), "audit", "verify"], check=False)
@@ -278,6 +279,37 @@ def reports(ta: str, tb: str) -> None:
     ok(counted == len(rest("GET", "/yeu_cau?select=id", ta)[1]), f"chạy báo cáo mẫu: tổng {counted} = số dòng")
     rest("DELETE", f"/bao_cao?bang=eq.{t}", ta)
     studio(f"drop table sinh.{t}")
+
+
+def print_templates(ta: str, tb: str) -> None:
+    """#594: mẫu in văn bản thuần lưu được qua WAF; svc-files in dòng bằng token người gọi, dòng của đơn vị khác 404."""
+    print("\nMẫu in: lưu qua /rest/v1, in PDF qua svc-files (#594)")
+    body = {"ten": "Phiếu kiểm thử", "bang": "yeu_cau",
+            "noi_dung": "# Phiếu yêu cầu\n\nTiêu đề: {{tieu_de}}\nHạn xử lý: {{han}}\n\nNội dung: {{ noi_dung }}"}
+    status, rows = rest("POST", "/mau_in", ta, body)
+    ok(status == 201, f"lưu mẫu có {{{{tieu_de}}}} qua WAF: {status}")
+    mau = rows[0]["id"]
+    status, rows = rest("POST", "/yeu_cau", ta, {"tieu_de": "In thử phiếu", "han": "2026-11-05"})
+    ok(status == 201, f"CNTT thêm dòng để in: {status}")
+    row = rows[0]["id"]
+
+    def pdf(token: str, path: str) -> tuple[int, str, bytes]:
+        try:
+            status, headers, raw = request("GET", f"{PUBLIC_URL}/api/sinh/{path}",
+                                           headers={"Authorization": f"Bearer {token}"})
+        except HTTPError as exc:
+            return exc.status, "", exc.body.encode()
+        return status, {k.lower(): v for k, v in headers.items()}.get("content-type", ""), raw
+
+    status, kind, raw = pdf(ta, f"yeu_cau/{row}/pdf?mau={mau}")
+    ok(status == 200 and kind == "application/pdf" and raw.startswith(b"%PDF"),
+       f"CNTT in dòng của mình: {status} {kind}")
+    status, _, _ = pdf(tb, f"yeu_cau/{row}/pdf?mau={mau}")
+    ok(status == 404, f"KT in dòng của CNTT: {status} (RLS, như dòng không có)")
+    status, _, _ = pdf(ta, f"yeu_cau/{row}/pdf?mau=abc")
+    ok(status == 400, f"mau không phải số: {status}")
+    rest("DELETE", f"/yeu_cau?id=eq.{row}", ta)
+    rest("DELETE", f"/mau_in?id=eq.{mau}", ta)
 
 
 def main() -> int:

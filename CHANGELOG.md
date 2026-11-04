@@ -34,6 +34,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
 - Nền báo cáo động cho ứng dụng sinh: bảng khai báo `sinh.bao_cao` ("Báo cáo" trên `/sinh`), hàm gộp `count()`,
   `sum()`, `avg()` của PostgREST (WAF cho qua bằng luật 10093), truy vấn của người dùng dừng sau 5 giây (#589).
+- Nền mẫu in cho ứng dụng sinh: bảng `sinh.mau_in` ("Mẫu in" trên `/sinh`, văn bản thuần có chỗ trống
+  `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người

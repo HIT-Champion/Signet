@@ -134,6 +134,84 @@
         ]
       }
     },
+    "/api/sinh/{bang}/{row_id}/pdf": {
+      "get": {
+        "summary": "In một dòng của bảng sinh theo mẫu in (#586)",
+        "description": "Mẫu (`sinh.mau_in`) và dòng lấy qua /rest/v1 bằng token của người gọi: RLS lọc theo đơn vị. Mẫu là văn bản thuần: `{{ten_cot}}`, dòng trống sang đoạn mới, dòng `# ` là tiêu đề.",
+        "operationId": "print_row_api_sinh__bang___row_id__pdf_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "bang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Tên bảng trong schema `sinh`, vd `yeu_cau`",
+              "title": "Bang"
+            },
+            "description": "Tên bảng trong schema `sinh`, vd `yeu_cau`"
+          },
+          {
+            "name": "row_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "Cột `id` của dòng (số nguyên dương)",
+              "title": "Row Id"
+            },
+            "description": "Cột `id` của dòng (số nguyên dương)"
+          },
+          {
+            "name": "mau",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "`id` của mẫu trong `sinh.mau_in` cho bảng này",
+              "default": "",
+              "title": "Mau"
+            },
+            "description": "`id` của mẫu trong `sinh.mau_in` cho bảng này"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trang A4: đơn vị, quốc hiệu, ngày, thân mẫu",
+            "content": {
+              "application/pdf": {}
+            }
+          },
+          "400": {
+            "description": "Tên bảng, id hay mau sai dạng"
+          },
+          "401": {
+            "description": "Thiếu hoặc sai token"
+          },
+          "404": {
+            "description": "Không có dòng hay mẫu, mẫu của bảng khác, hoặc của đơn vị khác: trả như nhau"
+          },
+          "503": {
+            "description": "Dịch vụ dữ liệu, CSDL chưa sẵn sàng; `busy` (kèm `Retry-After`) khi in quá giờ"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/files": {
       "post": {
         "summary": "Tải tệp lên: quét ClamAV, sạch mới lưu",
