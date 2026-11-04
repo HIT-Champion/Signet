@@ -34,6 +34,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   bảng trong schema `sinh`; thêm cột trong Studio thì ô nhập hiện ngay, không sửa mã (#560).
 - Nền mẫu in cho ứng dụng sinh: bảng `sinh.mau_in` ("Mẫu in" trên `/sinh`, văn bản thuần có chỗ trống
   `{{ten_cot}}`), svc-files in một dòng ra PDF A4 bằng token người dùng (`/api/sinh/<bảng>/<id>/pdf`) (#594).
+- Nút In trên mỗi dòng của `/sinh` khi bảng có mẫu in (nhiều mẫu thì chọn theo tên); PDF tải về, lỗi báo bằng chữ
+  (#586).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
