@@ -203,12 +203,14 @@ luồng đăng nhập Keycloak có TOTP, tải lên 28 tệp mẫu, và 7 389 y�
 | 10090 | `/rest/v1/<bảng>` (API dữ liệu của ứng dụng sinh, #567; một đoạn đường, không `/`, `.` sau khi giải mã) | không gỡ luật nào: thêm `PATCH`, `DELETE` vào `tx.allowed_methods` (911100) | PostgREST sửa dòng bằng `PATCH`, xóa bằng `DELETE`; route `rest` chỉ nhận `GET HEAD POST PATCH DELETE`, can-token kiểm token, RLS lọc theo đơn vị. Đường, tham số lọc, thân JSON vẫn soi đủ | `PATCH /rest/v1/<bảng>?id=eq.1` → 403 (911100, "Method is not allowed by policy") — e2e của #567 trên CI |
 | 920350 | mọi đường | gỡ hẳn | Signet được mở bằng IP trong mạng nội bộ. Dưới APISIX, coraza-proxy-wasm thêm `Host` lần nữa nên luật "Host là địa chỉ IP" cộng điểm hai lần (6 ≥ 5) | mọi yêu cầu vào bằng IP → 403 |
 
-Luật riêng — hai lỗ hổng của Coraza 3.3.3 (mục dưới):
+Luật riêng — hai lỗ hổng của Coraza 3.3.3 (mục dưới) và sửa, xóa không có bộ lọc trên `/rest/v1`:
 
 | Luật | Chặn | Vì sao |
 |---|---|---|
 | 10060 | ≥ 1000 tham số truy vấn → 403 | GHSA-6r3q-mjv7-xr8m: từ tham số thứ 1000 Coraza bỏ qua, không soi |
 | 10061 | ≥ 1000 tham số form urlencoded → 403 | như trên, cho thân form |
+| 10091 | không chặn: đặt `tx.moc_rest_loc` khi có ít nhất một tham số truy vấn là bộ lọc — tên không có `.`, không phải `select`, `order`, `limit`, `offset`, `columns`, `on_conflict`; hoặc `or`, `and`, `not.or`, `not.and` | dấu cho 10092. Tên có dấu chấm (`items.id=`) lọc bảng nhúng, không giới hạn dòng của bảng chính |
+| 10092 | `PATCH`, `DELETE` trên `/rest/v1/<bảng>` (đường như 10090) không có dấu của 10091 → 403 (#588) | PostgREST chạy yêu cầu không bộ lọc thành `UPDATE`/`DELETE` không `WHERE`; RLS chỉ giới hạn trong đơn vị, nên gõ nhầm hay lỗi giao diện là sửa, xóa mọi dòng của đơn vị. `apps/sinh` luôn gửi `<khóa chính>=eq.`. Chỉ có tác dụng khi `MOC_WAF=On`; `DetectionOnly`, `Off` thì không chặn. `id=not.is.null` vẫn là bộ lọc: luật chặn yêu cầu quên lọc, không chặn ý định sửa mọi dòng |
 
 Thêm một loại trừ khi có chặn nhầm: lấy `X-Request-Id` của phản hồi 403, đọc các dòng `Coraza: Warning.` của nó
 (mục dưới) để biết luật (`[id "…"]`) và tham số (`… found within ARGS:<tên>`). Viết một `SecRule REQUEST_FILENAME` giới
