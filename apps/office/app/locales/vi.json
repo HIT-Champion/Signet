@@ -356,6 +356,17 @@
       "hint": "Tệp đính kèm trùng SHA-256 với bản chụp của nguồn. Hệ thống không gọi nguồn lúc chạy.",
       "statusLink": "Xem tuổi dữ liệu",
       "stale": "Bản chụp đã {n} ngày, quá hạn làm mới."
+    },
+    "process": {
+      "title": "Sơ đồ quy trình",
+      "label": "Sơ đồ quy trình BPMN của văn bản này. Danh sách các bước ở ngay dưới sơ đồ.",
+      "hint": "Quy trình Flowable của văn bản: bước đã qua, bước đang chờ, nhánh đã đi, timer quá hạn đã bắn.",
+      "loading": "Đang tải sơ đồ…",
+      "none": "Văn bản này chưa có quy trình xử lý.",
+      "done": "Đã qua",
+      "active": "Đang chờ",
+      "todo": "Chưa tới",
+      "steps": "Các bước"
     }
   },
   "form": {

@@ -356,6 +356,17 @@
       "hint": "The attached file has the same SHA-256 as the source snapshot. The system never calls the source at run time.",
       "statusLink": "See data age",
       "stale": "The snapshot is {n} day old, past its refresh limit. | The snapshot is {n} days old, past its refresh limit."
+    },
+    "process": {
+      "title": "Process diagram",
+      "label": "BPMN process diagram of this document. The list of steps is right below the diagram.",
+      "hint": "The Flowable process of this document: steps passed or waiting, branches taken, deadline timers fired.",
+      "loading": "Loading the diagram…",
+      "none": "This document has no process yet.",
+      "done": "Passed",
+      "active": "Waiting",
+      "todo": "Not reached",
+      "steps": "Steps"
     }
   },
   "form": {
