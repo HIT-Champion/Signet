@@ -80,6 +80,16 @@ test('luồng văn bản đến trên giao diện', async ({ browser }) => {
   await expect(director.getByText('Đã chuyển bước tiếp theo.')).toBeVisible()
   await expect(director.getByText('Đang xử lý').first()).toBeVisible()
 
+  // Sơ đồ quy trình (#603): bố cục BPMN của văn bản, bước chỉ đạo đã qua, bước phân công (giao phòng chủ trì) đang
+  // chờ; đọc từ lịch sử Flowable qua Action documentProcess. Chỉ kiểm node: dòng sequenceFlow tùy bản Flowable
+  const diagram = director.getByTestId('process')
+  await diagram.getByText('Sơ đồ quy trình', { exact: true }).click()
+  await expect(diagram).toHaveAttribute('data-state', 'ready')
+  await expect(diagram.getByTestId('node-chiDao')).toHaveAttribute('data-state', 'done')
+  await expect(diagram.getByTestId('node-phanCong')).toHaveAttribute('data-state', 'active')
+  await expect(diagram.getByTestId('step-phanCong')).toContainText('Đang chờ')
+  await shot(director, '4b-so-do-quy-trinh')
+
   // 3. Tổ trưởng Đào tạo phân công chuyên viên
   const manager = await signIn(browser, 'totruongdt', { otp: true })
   await openTask(manager)

@@ -19,9 +19,11 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import type { PanelDepartment, PanelUser } from '~/components/TaskPanel.vue'
+import { ApiError } from '~/composables/useApi'
 import { askAbout, canAskAbout } from '~/utils/answer'
 import { hexOf, loadOpenData, publicOrigin } from '~/utils/openData'
 import type { OpenDataSource } from '~/utils/openData'
+import type { DocumentProcess } from '~/utils/processDiagram'
 import { documentBackTarget, processingBrief } from '~/utils/taskContext'
 
 // Chi tiết văn bản đến hoặc đi: thông tin, tệp, giao xử lý, dòng thời gian (F2.6), lịch sử thay đổi (F3.5) và
@@ -32,6 +34,7 @@ import { documentBackTarget, processingBrief } from '~/utils/taskContext'
 // Nút "Hỏi về văn bản này" (F4.2) mở trang Hỏi đáp chỉ hỏi trong văn bản này — chỉ khi văn bản có trong kho của trợ lý.
 // Văn bản nạp từ nguồn dữ liệu công khai (seed/du-lieu-mo) có thẻ "Nguồn công khai": tệp đính kèm trùng SHA-256 với
 // một tệp trong manifest của nguồn (GET /api/status, khóa open_data), kèm trang gốc, ngày lấy, căn cứ dùng lại.
+// Mục "Sơ đồ quy trình" (#603) vẽ quy trình BPMN của văn bản với bước đã qua, bước đang chờ.
 
 interface Dispatch {
   id: string
@@ -155,6 +158,44 @@ async function openHistory() {
     if (want === id.value) historyLoading.value = false
   }
 }
+// Sơ đồ quy trình (#603): bố cục BPMN của quy trình văn bản kèm trạng thái từng bước, từ Action documentProcess của
+// svc-workflow (đọc lịch sử Flowable, quyền như quyền đọc văn bản). Chỉ tải khi mở mục, như tab Lịch sử
+type ProcessState = '' | 'loading' | 'ready' | 'none' | 'error'
+const flow = ref<DocumentProcess | null>(null)
+const processState = ref<ProcessState>('')
+const processOpen = ref(false)
+const processFailure = ref('')
+function toggleProcess(event: Event) {
+  processOpen.value = (event.target as HTMLDetailsElement).open
+  if (processOpen.value && !processState.value) void loadProcess()
+}
+async function loadProcess() {
+  const want = id.value
+  if (!flow.value) processState.value = 'loading'     // tải lại khi đang xem: giữ sơ đồ cũ tới khi có sơ đồ mới
+  processFailure.value = ''
+  try {
+    const data = await gql<{ documentProcess: DocumentProcess }>(`
+      query ($id: uuid!) {
+        documentProcess(documentId: $id) {
+          key width height
+          nodes { id kind name x y w h state }
+          edges { id name points state }
+        }
+      }`, { id: want })
+    if (want !== id.value) return
+    flow.value = data.documentProcess
+    processState.value = 'ready'
+  } catch (e) {
+    if (want !== id.value) return
+    flow.value = null
+    // văn bản chưa có quy trình (dự thảo chưa trình, văn bản nạp sẵn): một câu, không phải lỗi
+    if (e instanceof ApiError && e.code === 'no_process') processState.value = 'none'
+    else {
+      processState.value = 'error'
+      processFailure.value = errorText(t, e)
+    }
+  }
+}
 const nameOf = (uid: string | null) => users.value.find((u) => u.id === uid)?.full_name ?? (uid ? uid.slice(0, 8) : '')
 const unitName = (tid: string) => unitNames.value.get(tid) ?? tid.slice(0, 8)
 
@@ -236,6 +277,8 @@ async function load() {
     signer.value = doc.value?.signer_id ?? directors.value[0]?.id ?? ''
     // tab Lịch sử đang mở: thao tác vừa xong (vào sổ, trình ký, xử lý) có dòng sổ mới
     if (side.value === 'history') void openHistory()
+    // mục Sơ đồ quy trình đang mở: bước vừa làm chuyển sang "đã qua", bước kế tiếp sang "đang chờ"
+    if (processOpen.value) void loadProcess()
     viewers.value = null
     if (doc.value?.restricted && canManageViewers.value) void loadViewers()
   } catch (e) {
@@ -446,6 +489,9 @@ watch(id, () => {
   historyFailure.value = ''
   historyLoading.value = false
   history.value = null      // lịch sử của văn bản trước: không hiện nhầm trong lúc tải
+  flow.value = null         // sơ đồ cũng vậy; mục đang mở thì load() tải sơ đồ của văn bản mới
+  processState.value = ''
+  processFailure.value = ''
   load()
 })
 onMounted(load)
@@ -752,6 +798,23 @@ watch([doc, locale], ([d]) => { if (d) crumb.value = d.symbol || t(outgoing.valu
               </li>
             </ul>
           </section>
+
+          <!-- sơ đồ quy trình BPMN của văn bản (#603): mở mục thì mới tải; không là tab thứ ba bên cột phải -->
+          <details class="card" data-testid="process" :data-state="processState" @toggle="toggleProcess">
+            <summary class="cursor-pointer p-5">
+              <span id="document-process-title" class="sg-block-title">{{ t('doc.process.title') }}</span>
+            </summary>
+            <div class="space-y-3 px-5 pb-5" :aria-busy="processState === 'loading'">
+              <p class="text-xs text-stone-500">{{ t('doc.process.hint') }}</p>
+              <p v-if="processState === 'loading'" class="text-sm text-stone-500">{{ t('doc.process.loading') }}</p>
+              <p v-else-if="processState === 'none'" class="text-sm text-stone-500">{{ t('doc.process.none') }}</p>
+              <div v-else-if="processState === 'error'" class="text-sm text-red-700" role="alert">
+                {{ processFailure }}
+                <button class="btn-secondary mt-2" @click="loadProcess">{{ t('app.retry') }}</button>
+              </div>
+              <ProcessDiagram v-else-if="flow" :diagram="flow" title-id="document-process-title" />
+            </div>
+          </details>
         </div>
 
         <aside class="sg-doc-side">

@@ -43,6 +43,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   CSS; gộp theo tháng khi nhóm theo cột ngày, kiểm khai báo trước khi gửi truy vấn (#587).
 - Action `documentProcess`: sơ đồ BPMN quy trình của văn bản kèm bước đã qua, đang chờ; hai quy trình lõi có tọa độ
   vẽ (#603).
+- Trang văn bản có mục "Sơ đồ quy trình": sơ đồ BPMN của văn bản vẽ bằng SVG, bước đã qua, đang chờ, timer quá hạn
+  đã bắn, kèm danh sách bước dạng chữ (#603).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người

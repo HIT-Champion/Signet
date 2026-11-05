@@ -108,6 +108,9 @@ test('trợ năng: các trang của giám khảo (chuyên viên)', async ({ brow
   // văn bản có việc đang chờ: khung báo kết quả, luồng xử lý, tệp
   await judge.getByTestId('inbox').getByRole('listitem').filter({ hasText: '152/ĐT-ĐH' }).getByRole('link').click()
   await expect(judge).toHaveURL(/\/van-ban\/[0-9a-f-]{36}/)
+  // mở mục Sơ đồ quy trình (#603) để quét cả SVG, chú giải và danh sách bước
+  await judge.getByTestId('process').getByText('Sơ đồ quy trình', { exact: true }).click()
+  await expect(judge.getByTestId('process')).toHaveAttribute('data-state', 'ready')
   left.push(...await scan(judge, '/van-ban/[id]'))
   left.push(...await scanAll(judge, ['/van-ban-den', '/van-ban-di', '/van-ban-di/soan', '/ho-so', '/cam-bien',
     '/tim-kiem', '/hoi-dap', '/ung-dung', '/gop-y', '/ca-nhan/']))
