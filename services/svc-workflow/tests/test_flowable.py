@@ -165,3 +165,26 @@ def test_task_with_an_id_flowable_cannot_have_is_none():
     # task() là chỗ đầu tiên id từ yêu cầu gửi lên đi qua (apps/api.py, workflow.py): None → "không có việc"
     for given in ("..", "", "a/b", "t-1#x"):
         assert raw_paths(lambda client: client.task(given)) == (None, [])
+
+
+def test_activities_read_the_whole_history_of_one_process():
+    """Sơ đồ quy trình (#603): mặc định Flowable chỉ trả 10 dòng, văn bản bị trả lại vài lần đã quá số đó."""
+    seen: list[httpx2.Request] = []
+    row = {"activityId": "chiDao", "activityType": "userTask", "endTime": None}
+
+    def handler(request: httpx2.Request) -> httpx2.Response:
+        seen.append(request)
+        return httpx2.Response(200, json={"data": [row], "total": 1})
+
+    async def go():
+        client = FlowableClient(BASE, "rest-admin", "x", transport=httpx2.MockTransport(handler))
+        try:
+            return await client.activities("p-1")
+        finally:
+            await client.aclose()
+
+    assert asyncio.run(go()) == [row]
+    assert seen[0].method == "GET" and seen[0].url.path.endswith("/history/historic-activity-instances")
+    assert dict(seen[0].url.params) == {"processInstanceId": "p-1", "size": "1000", "sort": "startTime"}
+    error, _ = calls([(500, OTHER_500)], lambda c: c.activities("p-1"))
+    assert isinstance(error, FlowableError) and error.status == 500

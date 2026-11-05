@@ -76,6 +76,8 @@ class FakeFlowable:
     fail_complete: int = 0  # số lần hoàn thành việc tiếp theo lỗi (Flowable quá tải), các lệnh khác vẫn chạy
     deleted: list[str] = field(default_factory=list)
     slow: bool = False  # nhường lượt khi khởi chạy quy trình: hai lần gọi chen nhau như trên mạng thật
+    # lịch sử bước của từng phiên quy trình (id → historic activity instances), cho sơ đồ quy trình (#603)
+    activity_rows: dict[str, list[dict[str, Any]]] = field(default_factory=dict)
 
     def add_task(self, task_id: str, form_key: str, *, assignee: str | None = None, groups: list[str] | None = None,
                  tenant: uuid.UUID = TENANT, urgency: str = "normal", created: str = "2026-10-18T09:00:00Z",
@@ -175,6 +177,11 @@ class FakeFlowable:
         if self.down:
             raise FlowableError("down")
         self.variables.setdefault(process_id, {}).update(variables)
+
+    async def activities(self, process_id: str) -> list[dict[str, Any]]:
+        if self.down:
+            raise FlowableError("down")
+        return self.activity_rows.get(process_id, [])
 
 
 @dataclass
@@ -555,9 +562,15 @@ class FakeHasura:
         return {}
 
     async def as_user(self, actor: Actor, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
-        assert "query Visible" in query
+        doc_id = (variables or {})["id"]
         seen = actor.tenant_id == TENANT and actor.user_id in self.viewers
-        return {"office_documents_by_pk": {"id": (variables or {})["id"]} if seen else None}
+        if "query DocumentProcess" in query:
+            # như quyền select của Hasura: cùng đơn vị; văn bản hạn chế thì phải có tên trong danh sách xem
+            doc = {DOC: self.document, OUT: self.outgoing}.get(doc_id)
+            ok = doc is not None and actor.tenant_id == TENANT and (not doc.get("restricted") or seen)
+            return {"office_documents_by_pk": {"process_id": doc["process_id"]} if ok else None}
+        assert "query Visible" in query
+        return {"office_documents_by_pk": {"id": doc_id} if seen else None}
 
     async def aclose(self) -> None: ...
 

@@ -41,6 +41,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   (#586).
 - Trang báo cáo trong `/sinh`: mỗi khai báo ở bảng Báo cáo có nút xem, ra bảng số và biểu đồ cột hay tròn vẽ bằng
   CSS; gộp theo tháng khi nhóm theo cột ngày, kiểm khai báo trước khi gửi truy vấn (#587).
+- Action `documentProcess`: sơ đồ BPMN quy trình của văn bản kèm bước đã qua, đang chờ; hai quy trình lõi có tọa độ
+  vẽ (#603).
 - Trang văn bản có mục "Sơ đồ quy trình": sơ đồ BPMN của văn bản vẽ bằng SVG, bước đã qua, đang chờ, timer quá hạn
   đã bắn, kèm danh sách bước dạng chữ (#603).
 

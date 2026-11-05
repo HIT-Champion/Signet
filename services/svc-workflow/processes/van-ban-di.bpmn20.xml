@@ -36,6 +36,9 @@
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:flowable="http://flowable.org/bpmn"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+             xmlns:omgdc="http://www.omg.org/spec/DD/20100524/DC"
+             xmlns:omgdi="http://www.omg.org/spec/DD/20100524/DI"
              targetNamespace="https://moc.example/bpmn">
 
   <process id="van-ban-di" name="Duyệt và phát hành văn bản đi" isExecutable="true">
@@ -101,4 +104,119 @@
     <sequenceFlow id="h9" sourceRef="nhacHan" targetRef="daNhac"/>
     <endEvent id="daNhac" name="Đã nhắc"/>
   </process>
+
+  <!-- Sơ đồ (BPMN DI): trang văn bản vẽ từ đây (svc_workflow/so_do.py), trình vẽ BPMN cũng mở được;
+       động cơ quy trình không đọc phần này. Thêm hay đổi id phần tử thì sửa cả ở đây (test_so_do.py). -->
+  <bpmndi:BPMNDiagram id="soDo">
+    <bpmndi:BPMNPlane id="soDoQuyTrinh" bpmnElement="van-ban-di">
+      <bpmndi:BPMNShape id="trinh_hinh" bpmnElement="trinh">
+        <omgdc:Bounds x="40" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="duyetPhong_hinh" bpmnElement="duyetPhong">
+        <omgdc:Bounds x="120" y="210" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hanDuyetPhong_hinh" bpmnElement="hanDuyetPhong">
+        <omgdc:Bounds x="202" y="192" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sauDuyetPhong_hinh" bpmnElement="sauDuyetPhong" isMarkerVisible="true">
+        <omgdc:Bounds x="300" y="225" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="duyetDonVi_hinh" bpmnElement="duyetDonVi">
+        <omgdc:Bounds x="440" y="210" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hanDuyetDonVi_hinh" bpmnElement="hanDuyetDonVi">
+        <omgdc:Bounds x="522" y="192" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="sauDuyetDonVi_hinh" bpmnElement="sauDuyetDonVi" isMarkerVisible="true">
+        <omgdc:Bounds x="620" y="225" width="50" height="50"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="phatHanh_hinh" bpmnElement="phatHanh">
+        <omgdc:Bounds x="760" y="210" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hanPhatHanh_hinh" bpmnElement="hanPhatHanh">
+        <omgdc:Bounds x="842" y="192" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="daPhatHanh_hinh" bpmnElement="daPhatHanh">
+        <omgdc:Bounds x="960" y="232" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="chinhSua_hinh" bpmnElement="chinhSua">
+        <omgdc:Bounds x="440" y="370" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="hanChinhSua_hinh" bpmnElement="hanChinhSua">
+        <omgdc:Bounds x="532" y="432" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="nhacHan_hinh" bpmnElement="nhacHan">
+        <omgdc:Bounds x="760" y="60" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="daNhac_hinh" bpmnElement="daNhac">
+        <omgdc:Bounds x="960" y="82" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="f1_duong" bpmnElement="f1">
+        <omgdi:waypoint x="76" y="250"/>
+        <omgdi:waypoint x="120" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f2_duong" bpmnElement="f2">
+        <omgdi:waypoint x="250" y="250"/>
+        <omgdi:waypoint x="300" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f3_duong" bpmnElement="f3">
+        <omgdi:waypoint x="350" y="250"/>
+        <omgdi:waypoint x="440" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f4_duong" bpmnElement="f4">
+        <omgdi:waypoint x="325" y="275"/>
+        <omgdi:waypoint x="325" y="410"/>
+        <omgdi:waypoint x="440" y="410"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f5_duong" bpmnElement="f5">
+        <omgdi:waypoint x="570" y="250"/>
+        <omgdi:waypoint x="620" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f6_duong" bpmnElement="f6">
+        <omgdi:waypoint x="670" y="250"/>
+        <omgdi:waypoint x="760" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f7_duong" bpmnElement="f7">
+        <omgdi:waypoint x="645" y="275"/>
+        <omgdi:waypoint x="645" y="410"/>
+        <omgdi:waypoint x="570" y="410"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f8_duong" bpmnElement="f8">
+        <omgdi:waypoint x="505" y="450"/>
+        <omgdi:waypoint x="505" y="480"/>
+        <omgdi:waypoint x="185" y="480"/>
+        <omgdi:waypoint x="185" y="290"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f9_duong" bpmnElement="f9">
+        <omgdi:waypoint x="890" y="250"/>
+        <omgdi:waypoint x="960" y="250"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="h1_duong" bpmnElement="h1">
+        <omgdi:waypoint x="220" y="192"/>
+        <omgdi:waypoint x="220" y="100"/>
+        <omgdi:waypoint x="760" y="100"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="h2_duong" bpmnElement="h2">
+        <omgdi:waypoint x="540" y="192"/>
+        <omgdi:waypoint x="540" y="120"/>
+        <omgdi:waypoint x="760" y="120"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="h3_duong" bpmnElement="h3">
+        <omgdi:waypoint x="550" y="468"/>
+        <omgdi:waypoint x="550" y="500"/>
+        <omgdi:waypoint x="1040" y="500"/>
+        <omgdi:waypoint x="1040" y="30"/>
+        <omgdi:waypoint x="840" y="30"/>
+        <omgdi:waypoint x="840" y="60"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="h4_duong" bpmnElement="h4">
+        <omgdi:waypoint x="860" y="192"/>
+        <omgdi:waypoint x="860" y="140"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="h9_duong" bpmnElement="h9">
+        <omgdi:waypoint x="890" y="100"/>
+        <omgdi:waypoint x="960" y="100"/>
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
 </definitions>

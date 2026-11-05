@@ -365,6 +365,15 @@ class FlowableClient:
                                    json={**query, "includeProcessVariables": True, "size": 500})
         return data["data"]
 
+    async def activities(self, process_id: str) -> list[dict[str, Any]]:
+        """Các bước một phiên đã qua và đang chờ (``endTime`` rỗng), cả đường đã đi (``sequenceFlow``).
+
+        Flowable mặc định chỉ trả 10 dòng; 1000 đủ cho một văn bản bị trả lại nhiều lần.
+        """
+        data = await self._request("GET", "/history/historic-activity-instances",
+                                   params={"processInstanceId": process_id, "size": 1000, "sort": "startTime"})
+        return data["data"]
+
     async def complete_typed(self, task_id: str, variables: list[dict[str, Any]]) -> None:
         """Như complete() nhưng biến đã ghi kiểu (REST variable): số, đúng/sai của form ứng dụng giữ nguyên kiểu."""
         await self._post_again_if_concurrent(f"/runtime/tasks/{_path_id(task_id)}",
