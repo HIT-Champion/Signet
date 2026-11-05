@@ -800,7 +800,8 @@ watch([doc, locale], ([d]) => { if (d) crumb.value = d.symbol || t(outgoing.valu
           </section>
 
           <!-- sơ đồ quy trình BPMN của văn bản (#603): mở mục thì mới tải; không là tab thứ ba bên cột phải -->
-          <details class="card" data-testid="process" :data-state="processState" @toggle="toggleProcess">
+          <!-- min-w-0: cột chính là grid, thiếu nó thì mục giãn theo bề rộng sơ đồ, tràn sang cột phải -->
+          <details class="card min-w-0" data-testid="process" :data-state="processState" @toggle="toggleProcess">
             <summary class="cursor-pointer p-5">
               <span id="document-process-title" class="sg-block-title">{{ t('doc.process.title') }}</span>
             </summary>

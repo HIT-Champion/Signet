@@ -60,8 +60,10 @@ def layout(path: pathlib.Path) -> dict[str, Any]:
         edges[el.get("id")] = {"name": el.get("name"), "points": points}
     xs = [n["x"] + n["w"] for n in nodes.values()] + [v for e in edges.values() for v in e["points"][0::2]]
     ys = [n["y"] + n["h"] for n in nodes.values()] + [v for e in edges.values() for v in e["points"][1::2]]
+    exits = {i: [f for f, el in elements.items() if el.get("sourceRef") == i]
+             for i, n in nodes.items() if n["kind"] == "boundaryEvent"}
     return {"key": process.get("id"), "width": max(xs, default=0) + MARGIN, "height": max(ys, default=0) + MARGIN,
-            "nodes": nodes, "edges": edges}
+            "nodes": nodes, "edges": edges, "exits": exits}
 
 
 def with_states(diagram: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -69,7 +71,7 @@ def with_states(diagram: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str
 
     ``active``: có lượt chưa xong (``endTime`` rỗng); ``done``: đã chạy qua; ``""``: chưa tới. Một bước quay lại
     (bị trả lại rồi trình lại) có lượt cũ đã xong và lượt mới đang chờ: ``active`` thắng. Đường đã đi là dòng
-    ``sequenceFlow`` cùng id.
+    ``sequenceFlow`` cùng id. Boundary chỉ ``done`` khi một đường ra của nó đã đi, ngoài ra là ``""``.
     """
     state: dict[str, str] = {}
     for row in rows:
@@ -77,6 +79,9 @@ def with_states(diagram: dict[str, Any], rows: list[dict[str, Any]]) -> dict[str
             state[row["activityId"]] = "active"
         else:
             state.setdefault(row["activityId"], "done")
+    # Flowable mở dòng của boundary khi việc chủ bắt đầu và đóng khi việc chủ xong, kể cả khi boundary chưa bắn
+    for boundary, flows in diagram["exits"].items():
+        state[boundary] = "done" if any(state.get(f) == "done" for f in flows) else ""
     return {
         "key": diagram["key"], "width": diagram["width"], "height": diagram["height"],
         "nodes": [{"id": i, **n, "state": state.get(i, "")} for i, n in diagram["nodes"].items()],

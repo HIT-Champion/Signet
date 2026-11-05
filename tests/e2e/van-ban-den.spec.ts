@@ -88,6 +88,9 @@ test('luồng văn bản đến trên giao diện', async ({ browser }) => {
   await expect(diagram.getByTestId('node-chiDao')).toHaveAttribute('data-state', 'done')
   await expect(diagram.getByTestId('node-phanCong')).toHaveAttribute('data-state', 'active')
   await expect(diagram.getByTestId('step-phanCong')).toContainText('Đang chờ')
+  // sơ đồ rộng hơn cột chính thì cuộn ngang trong mục, không tràn xuống dưới cột phải
+  const [box, side] = await Promise.all([diagram.boundingBox(), director.locator('.sg-doc-side').boundingBox()])
+  expect(box!.x + box!.width).toBeLessThanOrEqual(side!.x)
   await shot(director, '4b-so-do-quy-trinh')
 
   // 3. Tổ trưởng Đào tạo phân công chuyên viên

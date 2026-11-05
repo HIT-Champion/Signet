@@ -139,6 +139,8 @@ test('trang văn bản: <details> trong cột chính gọi Action documentProces
   const main = page.slice(page.indexOf('<div class="sg-doc-main">'), page.indexOf('<aside class="sg-doc-side">'))
   assert.match(main, /<details[^>]*data-testid="process"[^>]*:data-state="processState"/)
   assert.match(main, /<ProcessDiagram\b/)
+  // .sg-doc-main là grid: thiếu min-w-0 thì <details> giãn theo bề rộng SVG, tràn sang cột phải thay vì cuộn ngang
+  assert.match(main, /<details class="card min-w-0"/)
   // đúng hợp đồng K5 (db/metadata/actions.graphql của PR A)
   const fields = /documentProcess\(documentId: \$id\) \{\s*key width height\s*nodes \{ id kind name x y w h state \}\s*/
   assert.match(page, new RegExp(fields.source + /edges \{ id name points state \}/.source))

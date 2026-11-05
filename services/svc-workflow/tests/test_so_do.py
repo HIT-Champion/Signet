@@ -108,6 +108,17 @@ def test_states_follow_the_flowable_history():
     assert next(n for n in result["nodes"] if n["id"] == "sauDuyetPhong")["kind"] == "exclusiveGateway"
 
 
+def test_a_boundary_event_is_done_only_once_it_fired():
+    # như ảnh e2e của #605: dòng của boundary mở cùng việc chủ, đóng khi việc chủ xong dù boundary chưa bắn
+    diagram = layout(PROCESSES / "van-ban-den.bpmn20.xml")
+    history = rows("van-ban-den", done=("goiYGiaoViec", "boGoiY", "chiDao", "hanChiDao", "h1"),
+                   active=("phanCong", "hanPhanCong", "nhacHan"))
+    nodes = {n["id"]: n["state"] for n in with_states(diagram, history)["nodes"]}
+    assert nodes["boGoiY"] == "" and nodes["hanPhanCong"] == "" and nodes["hanXuLy"] == ""
+    assert nodes["hanChiDao"] == "done" and nodes["nhacHan"] == "active" and nodes["goiYGiaoViec"] == "done"
+    assert set(diagram["exits"]) == {"boGoiY", "hanChiDao", "hanPhanCong", "hanXuLy"}
+
+
 # --- Workflow.document_process ---------------------------------------------------------------------
 
 def test_reader_gets_the_diagram_of_the_document(workflow, hasura, flowable):
