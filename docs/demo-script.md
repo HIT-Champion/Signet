@@ -1019,9 +1019,10 @@ báo cáo một cột nhóm, chưa xuất tệp; mẫu in chưa có bảng, ản
 - Đọc được không cần nhìn: danh sách **Các bước** bằng chữ dưới sơ đồ; ba trạng thái khác nhau cả ở nét viền chứ không
   chỉ ở màu; trang có mục này vẫn qua quét axe (e2e `tro-nang.spec.ts`).
 
-**Chuẩn bị** (trước buổi, xem checklist): bản sẽ trình bày đã có #604, #605. Muốn thấy timer quá hạn bắn trong buổi
-thì máy đó đặt `MOC_SLA_DURATION` ngắn (vd `PT1M`) **trước khi** tạo văn bản demo, vì thời hạn gắn vào quy trình lúc
-khởi chạy. Văn thư (`vanthu`) và lãnh đạo đơn vị (`truongkhoa`) đăng nhập sẵn trong hai hồ sơ trình duyệt.
+**Chuẩn bị** (trước buổi, xem checklist): bản sẽ trình bày đã có #604, #605 và hai bản sửa #607 (sơ đồ cuộn ngang trong
+cột), #608 (trạng thái timer). Muốn thấy timer quá hạn bắn trong buổi thì máy đó đặt `MOC_SLA_DURATION` ngắn (vd `PT1M`)
+**trước khi** tạo văn bản demo, vì thời hạn gắn vào quy trình lúc khởi chạy. Văn thư (`vanthu`) và lãnh đạo đơn vị
+(`truongkhoa`) đăng nhập sẵn trong hai hồ sơ trình duyệt.
 
 **Trên giao diện** (khoảng 2 phút):
 
@@ -1030,12 +1031,14 @@ khởi chạy. Văn thư (`vanthu`) và lãnh đạo đơn vị (`truongkhoa`) �
    qua sau vài giây) và "Cho ý kiến chỉ đạo" đang chờ (nền vàng, viền đậm). Dưới sơ đồ: chú giải ba trạng thái và
    danh sách **Các bước**, mỗi bước ghi "Đã qua", "Đang chờ" hay "Chưa tới".
 2. `truongkhoa` mở việc chỉ đạo ngay trên trang văn bản, mở sẵn **Sơ đồ quy trình**, giao phòng chủ trì (Tổ Đào
-   tạo): sơ đồ tự tải lại, "Cho ý kiến chỉ đạo" đã qua, "Phân công xử lý" đang chờ; "Xử lý văn bản" và nhánh "Lưu,
-   không xử lý" vẫn chưa tới (viền đứt). Đây đúng là điều e2e `van-ban-den.spec.ts` kiểm trên mỗi commit. Ở tab của
-   người khác thì tải lại trang rồi mở mục.
-3. Nếu đã đặt `MOC_SLA_DURATION=PT1M`: quá một phút, lãnh đạo phòng có thông báo nhắc hạn; tải lại trang, mở mục:
-   đường từ timer trên mép "Phân công xử lý" tới "Nhắc hạn, báo lãnh đạo" đổi màu, bước nhắc hạn sáng lên, còn
-   "Phân công xử lý" vẫn đang chờ — timer không cắt ngang bước.
+   tạo): sơ đồ tự tải lại, "Cho ý kiến chỉ đạo" và đường "Giao phòng chủ trì" đã qua, "Phân công xử lý" đang chờ;
+   "Xử lý văn bản" và "Đã lưu" vẫn chưa tới (viền đứt), đường "Lưu, không xử lý" vẫn mảnh, màu xám. Đây đúng là điều
+   e2e `van-ban-den.spec.ts` kiểm trên mỗi commit. Ở tab của người khác thì tải lại trang rồi mở mục.
+3. Nếu đã đặt `MOC_SLA_DURATION=PT1M`: quá một phút, timer trên mép "Phân công xử lý" bắn. Tải lại trang, mở mục:
+   danh sách bước có thêm "Quá hạn — Đã qua" (timer chưa bắn thì không có trong danh sách), đường từ timer tới "Nhắc
+   hạn, báo lãnh đạo" đổi màu. Bước nhắc hạn "Đang chờ" tới khi svc-workflow lấy việc (mỗi `MOC_SLA_POLL_INTERVAL_S`
+   giây, mặc định 5), rồi "Đã qua" và lãnh đạo phòng có thông báo nhắc hạn. "Phân công xử lý" vẫn đang chờ: timer
+   không cắt ngang bước.
 
 **Còn giờ, hoặc khi giám khảo hỏi:**
 
@@ -1184,8 +1187,8 @@ repo ([`git_flow.md`](git_flow.md)).
       xóa cột trong Studio, giữ kiểu enum). Bản đó có cả #592, #591 (báo cáo), #596, #593 (mẫu in) và đã chạy
       `make seed` sau khi nâng cấp; bảng `bao_cao` chưa có "Yêu cầu theo mức ưu tiên", mẫu "Phiếu yêu cầu" như của
       `make seed` (lần tập trước đã thêm, sửa thì xóa, sửa lại trong Studio).
-- [ ] Màn xem quy trình BPMN: bản sẽ trình bày đã có #604, #605. Muốn thấy timer quá hạn bắn trong buổi thì đặt
-      `MOC_SLA_DURATION=PT1M` trong `.env` của máy đó, `docker compose up -d svc-workflow`, rồi mới tạo văn bản demo
+- [ ] Màn xem quy trình BPMN: bản sẽ trình bày đã có #604, #605, #607, #608. Muốn thấy timer quá hạn bắn trong buổi thì
+      đặt `MOC_SLA_DURATION=PT1M` trong `.env` của máy đó, `docker compose up -d svc-workflow`, rồi mới tạo văn bản demo
       (giá trị chỉ áp cho quy trình khởi chạy sau khi đổi). Mỗi bước của văn bản tạo trong lúc này nhắc sau 1 phút, báo
       lãnh đạo sau 2 phút; xong buổi thì trả về giá trị cũ. Trên bản online, Nam chọn giờ đổi.
 

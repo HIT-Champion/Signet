@@ -118,11 +118,13 @@ phần DI (tọa độ hình, đường) cạnh phần quy trình. `layout()` đ
 đọc từ Flowable, và nhớ kết quả; `with_states()` gắn `state` theo lịch sử của phiên (`FlowableClient.activities`:
 `/history/historic-activity-instances`, `size=1000` vì Flowable mặc định trả 10 dòng): bước có lượt chưa xong là
 `active`, đã chạy qua là `done`, bước bị trả lại rồi trình lại thì `active` thắng; đường là `done` khi lịch sử có dòng
-`sequenceFlow` cùng id. Quyền: svc-workflow hỏi Hasura `office_documents_by_pk { process_id }` bằng phiên người gọi,
-nên văn bản của đơn vị khác, hay văn bản hạn chế mà người gọi không được đọc, ra cùng 404 `document_not_found` như
-văn bản không có. Bố cục lấy theo tệp hiện hành: phiên khởi chạy trước khi có DI vẫn vẽ được vì id phần tử không đổi;
-bản sau đổi id thì phải đọc DI theo `processDefinitionId` của phiên. `so_do.py` thuộc lõi
-(`scripts/ranh_gioi_loi.py`), không biết gì về Văn phòng; phần đọc văn bản nằm ở `workflow.py`.
+`sequenceFlow` cùng id. Riêng timer trên mép bước (`boundaryEvent`): Flowable mở dòng của nó khi bước chủ bắt đầu và
+đóng khi bước chủ xong, kể cả khi timer chưa bắn, nên nó chỉ là `done` khi một đường ra của nó đã đi, còn lại là rỗng
+(#608). Quyền: svc-workflow hỏi Hasura `office_documents_by_pk { process_id }` bằng phiên người gọi, nên văn bản của
+đơn vị khác, hay văn bản hạn chế mà người gọi không được đọc, ra cùng 404 `document_not_found` như văn bản không có.
+Bố cục lấy theo tệp hiện hành: phiên khởi chạy trước khi có DI vẫn vẽ được vì id phần tử không đổi; bản sau đổi id thì
+phải đọc DI theo `processDefinitionId` của phiên. `so_do.py` thuộc lõi (`scripts/ranh_gioi_loi.py`), không biết gì về
+Văn phòng; phần đọc văn bản nằm ở `workflow.py`.
 
 **IT/OT** (F3.10, `ot.py`, chỉ khi đặt `MOC_NGSI_URL`): mỗi `MOC_OT_SUBSCRIPTION_INTERVAL_S` giây đảm bảo mỗi
 đơn vị có một subscription NGSI-LD (id cố định `urn:ngsi-ld:Subscription:moc-ot-alarm`, `temperature>MOC_OT_THRESHOLD`)
