@@ -50,7 +50,8 @@ def layout(path: pathlib.Path) -> dict[str, Any]:
         if el is None or bounds is None:
             continue
         x, y, w, h = (float(bounds.get(k)) for k in ("x", "y", "width", "height"))
-        nodes[el.get("id")] = {"kind": el.tag.removeprefix(MODEL), "name": el.get("name"), "x": x, "y": y, "w": w, "h": h}
+        nodes[el.get("id")] = {"kind": el.tag.removeprefix(MODEL), "name": el.get("name"),
+                               "x": x, "y": y, "w": w, "h": h}
     for edge in root.iter(f"{BPMNDI}BPMNEdge"):
         el = elements.get(edge.get("bpmnElement"))
         if el is None:
