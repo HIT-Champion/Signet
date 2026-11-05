@@ -45,7 +45,8 @@ gửi mô hình và trong nhật ký (`make demo-che-pii`, F4.4) là bằng ch�
 đơn vị (`make demo-canh-bao`, F3.13, dưới hai phút) là bằng chứng cho cụm ⑥ — xem
 [mục cuối](#ngoài-4-nguyên-lý-cảnh-báo-vận-hành-ra-chuông--make-demo-canh-bao).
 Màn ứng dụng sinh từ bảng (Supabase Studio, PostgREST, trang `/sinh`) chạy trên giao diện, chưa có lệnh `make` —
-xem [mục này](#ngoài-4-nguyên-lý-ứng-dụng-sinh-từ-bảng--thêm-trường-trước-hội-đồng).
+xem [mục này](#ngoài-4-nguyên-lý-ứng-dụng-sinh-từ-bảng--thêm-trường-trước-hội-đồng). Màn xem quy trình BPMN của một
+văn bản cũng chạy trên giao diện — xem [mục này](#ngoài-4-nguyên-lý-xem-quy-trình-bpmn-của-một-văn-bản).
 
 ## (i) Nóng → lạnh — `make demo-nong-lanh`
 
@@ -1002,6 +1003,65 @@ bảng `yeu_cau` cho hai đơn vị mẫu.
 **Còn gì chưa làm?** Bảng tạo trong Studio chưa nằm trong git; bảng sinh chưa có tệp đính kèm, thông báo, quy trình;
 báo cáo một cột nhóm, chưa xuất tệp; mẫu in chưa có bảng, ảnh; chưa có lệnh `make demo-sinh`.
 
+## Ngoài 4 nguyên lý: xem quy trình BPMN của một văn bản
+
+**Điều muốn chứng minh:**
+
+- Mỗi văn bản là một phiên quy trình trong Flowable, và người đọc được văn bản thì xem được chính phiên đó: trang văn
+  bản có mục **Sơ đồ quy trình** vẽ sơ đồ BPMN thật (`van-ban-den` hoặc `van-ban-di`), mỗi bước **Đã qua**, **Đang
+  chờ** hoặc **Chưa tới**.
+- Sơ đồ là tệp BPMN mà Flowable đang chạy, không phải ảnh vẽ lại: bố cục lấy từ phần DI của tệp trong
+  `services/svc-workflow/processes/`, trạng thái lấy từ lịch sử của phiên (`historic-activity-instances`).
+  Đường đã đi cũng tô cùng màu với bước đã qua.
+- Phần chạy ngầm cũng hiện: nhánh gợi ý giao việc chạy song song với bước chỉ đạo; timer quá hạn trên mép mỗi bước.
+- Quyền theo văn bản: Action `documentProcess` đọc văn bản bằng phiên của người gọi; ai không đọc được văn bản (khác
+  đơn vị, văn bản hạn chế không có tên) thì nhận 404 như khi đọc văn bản.
+- Đọc được không cần nhìn: danh sách **Các bước** bằng chữ dưới sơ đồ; ba trạng thái khác nhau cả ở nét viền chứ không
+  chỉ ở màu; trang có mục này vẫn qua quét axe (e2e `tro-nang.spec.ts`).
+
+**Chuẩn bị** (trước buổi, xem checklist): bản sẽ trình bày đã có #604, #605 và hai bản sửa #607 (sơ đồ cuộn ngang trong
+cột), #608 (trạng thái timer). Muốn thấy timer quá hạn bắn trong buổi thì máy đó đặt `MOC_SLA_DURATION` ngắn (vd `PT1M`)
+**trước khi** tạo văn bản demo, vì thời hạn gắn vào quy trình lúc khởi chạy. Văn thư (`vanthu`) và lãnh đạo đơn vị
+(`truongkhoa`) đăng nhập sẵn trong hai hồ sơ trình duyệt.
+
+**Trên giao diện** (khoảng 2 phút):
+
+1. `vanthu` vào sổ một văn bản đến (hoặc mở văn bản vừa vào sổ ở màn gợi ý giao việc). Trên trang văn bản, bấm mở
+   **Sơ đồ quy trình** ở cuối cột chính: "Đã vào sổ" đã qua; hai nhánh song song từ cổng `+`: "Gợi ý giao việc" (đã
+   qua sau vài giây) và "Cho ý kiến chỉ đạo" đang chờ (nền vàng, viền đậm). Dưới sơ đồ: chú giải ba trạng thái và
+   danh sách **Các bước**, mỗi bước ghi "Đã qua", "Đang chờ" hay "Chưa tới".
+2. `truongkhoa` mở việc chỉ đạo ngay trên trang văn bản, mở sẵn **Sơ đồ quy trình**, giao phòng chủ trì (Tổ Đào
+   tạo): sơ đồ tự tải lại, "Cho ý kiến chỉ đạo" và đường "Giao phòng chủ trì" đã qua, "Phân công xử lý" đang chờ;
+   "Xử lý văn bản" và "Đã lưu" vẫn chưa tới (viền đứt), đường "Lưu, không xử lý" vẫn mảnh, màu xám. Đây đúng là điều
+   e2e `van-ban-den.spec.ts` kiểm trên mỗi commit. Ở tab của người khác thì tải lại trang rồi mở mục.
+3. Nếu đã đặt `MOC_SLA_DURATION=PT1M`: quá một phút, timer trên mép "Phân công xử lý" bắn. Tải lại trang, mở mục:
+   danh sách bước có thêm "Quá hạn — Đã qua" (timer chưa bắn thì không có trong danh sách), đường từ timer tới "Nhắc
+   hạn, báo lãnh đạo" đổi màu. Bước nhắc hạn "Đang chờ" tới khi svc-workflow lấy việc (mỗi `MOC_SLA_POLL_INTERVAL_S`
+   giây, mặc định 5), rồi "Đã qua" và lãnh đạo phòng có thông báo nhắc hạn. "Phân công xử lý" vẫn đang chờ: timer
+   không cắt ngang bước.
+
+**Còn giờ, hoặc khi giám khảo hỏi:**
+
+4. Một văn bản đi đã bị trả lại một lần (màn ký số dùng `chuyenviendt` → `totruongdt` → `truongkhoa`): sơ đồ
+   `van-ban-di` có "Sửa dự thảo theo ý kiến" đã qua, và bước duyệt được trình lại đang chờ.
+5. Đăng nhập `vanthukt` (đơn vị Kinh tế): không mở được văn bản của đơn vị CNTT, nên cũng không xem được sơ đồ của nó.
+6. Bấm phím Tab tới khung sơ đồ: khung cuộn ngang được bằng phím mũi tên; rê chuột vào một bước thì thấy tên đầy đủ.
+
+**Nếu giám khảo hỏi:**
+
+- *"Sao không dùng bpmn-js?"* Giấy phép của bpmn.io không phải giấy phép OSI ([`architecture.md`](architecture.md)
+  QĐ-009). Sơ đồ là SVG tự vẽ từ DI của tệp BPMN, không thêm phụ thuộc.
+- *"Sao không lấy ảnh PNG của Flowable?"* Flowable REST không có giao diện, cổng chặn `/flowable-rest/*`; ảnh dựng
+  trong container khó đúng phông tiếng Việt. Trang chỉ gọi GraphQL như mọi chức năng khác.
+- *"Văn bản cũ, trước khi có DI, có vẽ được không?"* Có: bố cục đọc từ tệp hiện hành trong `processes/`, id bước giữ
+  nguyên nên phiên chạy trên định nghĩa cũ vẫn tô đúng. Đổi id bước ở bản sau thì phải đọc DI theo định nghĩa của
+  phiên.
+- *"Có sửa quy trình trên giao diện được không?"* Chưa: đây là trang xem. Quy trình vẫn viết BPMN XML bằng tay
+  ([`architecture.md`](architecture.md) QĐ-009).
+
+**Còn gì chưa làm?** Chỉ hai quy trình lõi; quy trình của ứng dụng cắm thêm (nghỉ phép, lịch giảng) chưa có sơ đồ.
+Tên bước lấy từ BPMN nên vẫn là tiếng Việt khi giao diện tiếng Anh. Không có trình sửa quy trình.
+
 ## Phương án dự phòng
 
 Bản trình diễn chính là bản online <https://signet.htechcs.com>: từ 31/10/2026 là bản cài `/opt/moc` trên một máy
@@ -1127,6 +1187,10 @@ repo ([`git_flow.md`](git_flow.md)).
       xóa cột trong Studio, giữ kiểu enum). Bản đó có cả #592, #591 (báo cáo), #596, #593 (mẫu in) và đã chạy
       `make seed` sau khi nâng cấp; bảng `bao_cao` chưa có "Yêu cầu theo mức ưu tiên", mẫu "Phiếu yêu cầu" như của
       `make seed` (lần tập trước đã thêm, sửa thì xóa, sửa lại trong Studio).
+- [ ] Màn xem quy trình BPMN: bản sẽ trình bày đã có #604, #605, #607, #608. Muốn thấy timer quá hạn bắn trong buổi thì
+      đặt `MOC_SLA_DURATION=PT1M` trong `.env` của máy đó, `docker compose up -d svc-workflow`, rồi mới tạo văn bản demo
+      (giá trị chỉ áp cho quy trình khởi chạy sau khi đổi). Mỗi bước của văn bản tạo trong lúc này nhắc sau 1 phút, báo
+      lãnh đạo sau 2 phút; xong buổi thì trả về giá trị cũ. Trên bản online, Nam chọn giờ đổi.
 
 ### T-1 giờ
 

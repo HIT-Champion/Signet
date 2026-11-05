@@ -14,6 +14,7 @@ Chủ: issue #15.
 | `myTasks` | người dùng nghiệp vụ | Việc của người gọi và của nhóm vai trò của họ, khẩn trước |
 | `completeTask(taskId, outcome, data)` | người được giao | Kiểm quyền và dữ liệu → nhận việc → ghi CSDL (một giao dịch) → hoàn thành trong Flowable. Phát hành văn bản đi (`vbdi.phatHanh`): cấp số đi (hàm `office.number_outgoing`) → `svc-files` dựng PDF có mã QR → ghi băm, `issued` → liên thông tới đơn vị nhận trong hệ thống |
 | `otSensorMap` | `clerk`, `staff`, `manager`, `director` | Chỉ đọc: số đo mới nhất và cờ chất lượng của các cảm biến NGSI-LD trong đơn vị người gọi (mục IT/OT bên dưới) |
+| `documentProcess(documentId)` | `clerk`, `staff`, `manager`, `director` | Chỉ đọc: sơ đồ BPMN quy trình của văn bản cho mục "Sơ đồ quy trình" trên trang văn bản (#603): hình, đường theo tọa độ DI, `state` từng bước `done`, `active` hoặc rỗng. Không đọc được văn bản → 404 `document_not_found`; chưa vào quy trình → 404 `no_process`; Flowable không trả lời → 503 `workflow_unavailable` (mục Sơ đồ quy trình bên dưới) |
 | `notifyFromFlow(roles, title, text, document_id, key)` | `tu_dong` (robot của flow Node-RED) | Báo người đang hoạt động của đơn vị robot theo vai trò, thông báo `flow.message` (mục Tự động hóa bên dưới) |
 
 Chi tiết từng loại việc, dữ liệu và nhóm ứng viên: [`docs/mo-hinh-du-lieu.md`](../../docs/mo-hinh-du-lieu.md) §4.
@@ -111,6 +112,19 @@ không có số điện thoại, chat_id, mã liên kết hay nội dung tin.
 **Nhắc hạn** (`sla.py`): mỗi việc trong BPMN có timer `R2/${slaDuration}`; timer bắn thì Flowable tạo việc giao
 ra ngoài (external worker, topic `moc-sla`), dịch vụ lấy về mỗi `MOC_SLA_POLL_INTERVAL_S` giây: quá một thời
 hạn thì nhắc người phải làm, quá hai thì báo thêm lãnh đạo của họ.
+
+**Sơ đồ quy trình** (#603, `so_do.py`, Action `documentProcess`): hai tệp `processes/van-ban-{den,di}.bpmn20.xml` có
+phần DI (tọa độ hình, đường) cạnh phần quy trình. `layout()` đọc DI của tệp trong image (`MOC_PROCESSES_DIR`), không
+đọc từ Flowable, và nhớ kết quả; `with_states()` gắn `state` theo lịch sử của phiên (`FlowableClient.activities`:
+`/history/historic-activity-instances`, `size=1000` vì Flowable mặc định trả 10 dòng): bước có lượt chưa xong là
+`active`, đã chạy qua là `done`, bước bị trả lại rồi trình lại thì `active` thắng; đường là `done` khi lịch sử có dòng
+`sequenceFlow` cùng id. Riêng timer trên mép bước (`boundaryEvent`): Flowable mở dòng của nó khi bước chủ bắt đầu và
+đóng khi bước chủ xong, kể cả khi timer chưa bắn, nên nó chỉ là `done` khi một đường ra của nó đã đi, còn lại là rỗng
+(#608). Quyền: svc-workflow hỏi Hasura `office_documents_by_pk { process_id }` bằng phiên người gọi, nên văn bản của
+đơn vị khác, hay văn bản hạn chế mà người gọi không được đọc, ra cùng 404 `document_not_found` như văn bản không có.
+Bố cục lấy theo tệp hiện hành: phiên khởi chạy trước khi có DI vẫn vẽ được vì id phần tử không đổi; bản sau đổi id thì
+phải đọc DI theo `processDefinitionId` của phiên. `so_do.py` thuộc lõi (`scripts/ranh_gioi_loi.py`), không biết gì về
+Văn phòng; phần đọc văn bản nằm ở `workflow.py`.
 
 **IT/OT** (F3.10, `ot.py`, chỉ khi đặt `MOC_NGSI_URL`): mỗi `MOC_OT_SUBSCRIPTION_INTERVAL_S` giây đảm bảo mỗi
 đơn vị có một subscription NGSI-LD (id cố định `urn:ngsi-ld:Subscription:moc-ot-alarm`, `temperature>MOC_OT_THRESHOLD`)

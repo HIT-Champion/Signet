@@ -968,12 +968,18 @@ Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dư
   3. Flowable không gọi ra ngoài: nhắc hạn và gợi ý giao việc là việc giao ra ngoài (external worker, topic `moc-sla`,
      `moc-goi-y`) do `svc-workflow` kéo về — khác kế hoạch ban đầu (Flowable gọi lại bằng HTTP task). Mỗi
      `MOC_RECONCILE_INTERVAL_S` giây, vòng đối soát xử lý văn bản đã vào sổ mà chưa có quy trình.
+  4. Xem quy trình của một văn bản cũng chỉ qua GraphQL: Action `documentProcess` (`svc_workflow/so_do.py`) đọc bố
+     cục từ phần DI của tệp BPMN trong `processes/`, trạng thái từng bước từ lịch sử của phiên trong Flowable, và
+     kiểm quyền bằng chính truy vấn đọc văn bản theo phiên người gọi. Trang văn bản tự vẽ SVG từ dữ liệu đó
+     (`apps/office/app/components/ProcessDiagram.vue`), không dùng `bpmn-js` hay ảnh PNG của Flowable.
 - **Hệ quả:** thêm một JVM (README đo khoảng 0,35 GB khi chạy; `mem_limit` 1 GB). Hai nơi giữ trạng thái nên phải có
-  đối soát và chống ghi hai lần. Thêm quy trình là viết BPMN XML bằng tay cộng Action trong `svc-workflow`: không có
-  trình vẽ quy trình vì `bpmn-js` bị loại do giấy phép (`ROADMAP.md`, "Sau vòng trường" mục 7). `svc-workflow` dừng thì
+  đối soát và chống ghi hai lần. Thêm quy trình là viết BPMN XML bằng tay, kèm phần DI để có sơ đồ, cộng Action trong
+  `svc-workflow`: không có trình vẽ quy trình vì `bpmn-js` bị loại do giấy phép (`ROADMAP.md`, "Sau vòng trường" mục
+  7); sơ đồ trên trang văn bản chỉ để xem. Bố cục đọc từ tệp hiện hành, nên phiên chạy trên định nghĩa cũ vẫn vẽ được
+  khi id bước giữ nguyên; đổi id bước ở bản sau thì phải đọc DI theo định nghĩa của phiên. `svc-workflow` dừng thì
   việc giao ra ngoài nằm chờ trong Flowable tới khi dịch vụ chạy lại; nhánh gợi ý tự hết sau `PT10M` (QĐ-005). Cả hai
   quy trình là của Văn phòng điện tử (§4). Bằng chứng: `services/svc-workflow/processes/`, `svc_workflow/flowable.py`,
-  `svc_workflow/workflow.py`, `db/metadata/actions.yaml`, README của `svc-workflow`.
+  `svc_workflow/workflow.py`, `svc_workflow/so_do.py`, `db/metadata/actions.yaml`, README của `svc-workflow`.
 
 ### QĐ-010: SeaweedFS làm kho tệp, mọi tệp chỉ đi qua `svc-files`
 

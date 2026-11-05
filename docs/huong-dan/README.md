@@ -51,21 +51,29 @@ bước duyệt dự thảo (văn bản đi) trở đi, mỗi bước là một 
 flowchart LR
   subgraph den[Văn bản đến]
     A[Văn thư tiếp nhận, vào sổ] --> B[Lãnh đạo đơn vị chỉ đạo]
+    A -.->|song song| S[Tác tử gợi ý phòng chủ trì, hạn]
+    B -->|lưu, không xử lý| L[Đã lưu]
     B -->|giao một phòng| C[Lãnh đạo phòng phân công]
     B -->|giao một người| D[Chuyên viên xử lý, báo cáo kết quả]
     C --> D
+    B & C & D -.-> Q1([Quá hạn: nhắc người làm, quá hai lần hạn thì báo lãnh đạo])
   end
   subgraph di[Văn bản đi]
     E[Chuyên viên soạn, trình] --> F[Lãnh đạo phòng duyệt]
-    F --> G[Lãnh đạo đơn vị ký duyệt]
-    G --> H[Văn thư cấp số, phát hành]
-    F -->|trả lại| E
-    G -->|trả lại| E
+    F -->|đồng ý| G[Lãnh đạo đơn vị ký duyệt]
+    G -->|ký| H[Văn thư cấp số, phát hành]
+    F -->|trả lại| R[Chuyên viên sửa dự thảo]
+    G -->|trả lại| R
+    R --> F
+    F & G & H & R -.-> Q2([Quá hạn: nhắc người làm, quá hai lần hạn thì báo lãnh đạo])
   end
 ```
 
-Lãnh đạo đơn vị có thể lưu một văn bản đến mà không giao xử lý. Lãnh đạo phòng có thể tự xử lý thay vì giao cho người
-khác. Quy trình đầy đủ: [`dac-ta-san-pham.md`](../dac-ta-san-pham.md) mục 3 (vai trò) và mục 4 (chức năng).
+Nét đứt là phần chạy ngầm. Văn bản vừa vào sổ thì tác tử gợi ý phòng chủ trì và hạn, hiện trong form chỉ đạo của lãnh
+đạo đơn vị; gợi ý không chắn bước chỉ đạo và tự bỏ sau 10 phút. Mỗi bước có người làm đều có hạn (mặc định 24 giờ): quá
+hạn thì người đó được nhắc, quá hai lần hạn thì lãnh đạo của họ được báo; bước vẫn chờ người làm. Lãnh đạo đơn vị có thể
+lưu một văn bản đến mà không giao xử lý. Lãnh đạo phòng có thể tự xử lý thay vì giao cho người khác. Quy trình đầy đủ:
+[`dac-ta-san-pham.md`](../dac-ta-san-pham.md) mục 3 (vai trò) và mục 4 (chức năng).
 
 Một số mục mới có trong mã nguồn trước khi lên bản online. Danh sách nằm ở mục "Chưa phát hành" của
 [`CHANGELOG.md`](../../CHANGELOG.md).

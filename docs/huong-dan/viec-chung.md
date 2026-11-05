@@ -32,6 +32,13 @@ Trang văn bản còn có khung **Thông tin văn bản**, **Tệp đính kèm**
 **Lịch sử** lấy từ sổ kiểm toán: ai đổi gì, lúc nào. Văn bản còn đang xử lý mà hạn cách ngày vào sổ không quá 13 ngày
 thì dưới tên văn bản có một dải ngày, từ ngày vào sổ tới hạn.
 
+Mục **Sơ đồ quy trình** ở cuối cột chính của trang văn bản (bấm để mở) vẽ quy trình mà văn bản đang đi. Mỗi bước mang
+một trong ba trạng thái **Đã qua**, **Đang chờ**, **Chưa tới**, khác nhau cả ở màu lẫn nét viền (liền, đậm, đứt), có
+chú giải ngay dưới. Dưới sơ đồ là danh sách **Các bước** bằng chữ, kèm trạng thái từng bước. Sơ đồ rộng thì kéo ngang,
+hoặc bấm Tab tới khung sơ đồ rồi dùng phím mũi tên. Ai mở được văn bản thì xem được sơ đồ của nó. Văn bản chưa vào quy
+trình (văn bản đến chưa vào sổ, dự thảo chưa trình) thì mục này báo "Văn bản này chưa có quy trình xử lý.". Tên bước
+là tên trong quy trình, nên vẫn là tiếng Việt khi giao diện tiếng Anh.
+
 ## Thông báo
 
 Chuông trên thanh trên cùng báo việc mới, việc hoặc văn bản quá hạn, văn bản vừa phát hành, văn bản liên thông từ
