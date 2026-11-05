@@ -12,7 +12,7 @@ OpenAPI 3.1.0, 10 thao tác:
 | Thao tác | Tóm tắt |
 |---|---|
 | `POST /ot/notify/{tenant}` | Nhận thông báo của subscription NGSI-LD: cảm biến vượt ngưỡng → dự thảo báo cáo sự cố (F3.10) |
-| `POST /actions/{name}` | Chạy một Hasura Action: receiveIncoming, registerIncoming, submitOutgoing, myTasks, completeTask, otSensorMap |
+| `POST /actions/{name}` | Chạy một Hasura Action: receiveIncoming, registerIncoming, submitOutgoing, myTasks, completeTask, otSensorMap, documentProcess |
 | `GET /api/workflow/{app}/forms/{form_key}` | JSON Schema của một form, đúng tệp manifest khai |
 | `POST /api/workflow/{app}/processes/{process_key}` | Bắt đầu quy trình với dữ liệu form bắt đầu |
 | `GET /api/workflow/{app}/processes` | Đơn người này đã gửi qua ứng dụng, mới nhất trước |
@@ -47,7 +47,8 @@ Trả về:
 
 ## `POST /actions/{name}`
 
-Chạy một Hasura Action: receiveIncoming, registerIncoming, submitOutgoing, myTasks, completeTask, otSensorMap
+Chạy một Hasura Action: receiveIncoming, registerIncoming, submitOutgoing, myTasks, completeTask, otSensorMap,
+documentProcess
 
 Tham số:
 

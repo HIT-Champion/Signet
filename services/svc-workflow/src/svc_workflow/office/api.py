@@ -187,7 +187,7 @@ class Office:
 
         @app.post("/actions/{name}",
                      summary="Chạy một Hasura Action: receiveIncoming, registerIncoming, submitOutgoing, myTasks, "
-                             "completeTask, otSensorMap",
+                             "completeTask, otSensorMap, documentProcess",
                      openapi_extra=ACTION_DOC)
         async def action(name: str, request: Request) -> JSONResponse:
             given = request.headers.get("x-moc-action-secret", "")
@@ -219,6 +219,11 @@ class Office:
                     # sơ đồ cảm biến (F3.10): chỉ tenant NGSI-LD của đơn vị trong phiên; chưa bật IT/OT thì "off"
                     result = (await ot.sensor_map(actor.tenant_id) if ot is not None
                               else map_result("off", settings.ot_threshold, settings.ot_stale_min, datetime.now(UTC)))
+                elif name == "documentProcess" and actor.role in MAP_ROLES:
+                    # sơ đồ quy trình (#603): bốn vai trò đọc văn bản; quyền từng văn bản do Hasura xét theo phiên
+                    result = await workflow.document_process(
+                        actor, str(payload.get("documentId", "")), settings.processes_dir,
+                    )
                 elif name == "completeTask":
                     result = await workflow.complete_task(
                         actor, str(payload.get("taskId", "")), str(payload.get("outcome", "")), payload.get("data"),

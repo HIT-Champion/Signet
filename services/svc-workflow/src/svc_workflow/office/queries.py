@@ -98,6 +98,12 @@ query Visible($id: uuid!) {
   office_documents_by_pk(id: $id) { id }
 }"""
 
+# Sơ đồ quy trình của văn bản (#603), cũng hỏi bằng phiên của người gọi: null nếu không đọc được văn bản
+DOCUMENT_PROCESS = """
+query DocumentProcess($id: uuid!) {
+  office_documents_by_pk(id: $id) { process_id }
+}"""
+
 TASK_DONE = """
 query TaskDone($doc: uuid!, $task: jsonb!) {
   office_document_events(where: {document_id: {_eq: $doc}, data: {_contains: $task}}, limit: 1) { id data }

@@ -85,7 +85,7 @@ NHOM: dict[str, str] = {
     # svc-workflow
     "svc_workflow/alerts.py": LOI, "svc_workflow/flowable.py": LOI, "svc_workflow/openbao.py": LOI,
     "svc_workflow/parts.py": LOI, "svc_workflow/pii.py": LOI, "svc_workflow/tracing.py": LOI,
-    "svc_workflow/thoi_gian.py": LOI,
+    "svc_workflow/thoi_gian.py": LOI, "svc_workflow/so_do.py": LOI,
     "svc_workflow/channels.py": DANG, "svc_workflow/directory.py": DANG, "svc_workflow/hasura.py": DANG,
     "svc_workflow/notify.py": DANG, "svc_workflow/schemas.py": DANG, "svc_workflow/subscriptions.py": DANG,
     "svc_workflow/tu_dong.py": DANG,                  # robot báo kèm văn bản: đọc office_documents_by_pk

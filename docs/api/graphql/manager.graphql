@@ -43,6 +43,15 @@ type CompleteTaskOutput {
   task_id: String!
 }
 
+type DocumentProcess {
+  edges: [ProcessEdge!]!
+  height: Float!
+  "van-ban-den hoặc van-ban-di"
+  key: String!
+  nodes: [ProcessNode!]!
+  width: Float!
+}
+
 "Boolean expression to compare columns of type \"Int\". All fields are combined with logical 'AND'."
 input Int_comparison_exp {
   _eq: Int
@@ -87,6 +96,26 @@ type OtSensorMap {
   stale_after_min: Int!
   status: String!
   threshold: Float!
+}
+
+type ProcessEdge {
+  id: String!
+  name: String
+  "Các điểm gãy x1, y1, x2, y2, …"
+  points: [Float!]!
+  state: String!
+}
+
+type ProcessNode {
+  h: Float!
+  id: String!
+  "Tên thẻ BPMN: startEvent, endEvent, userTask, serviceTask, exclusiveGateway, parallelGateway, boundaryEvent"
+  kind: String!
+  name: String
+  state: String!
+  w: Float!
+  x: Float!
+  y: Float!
 }
 
 "Boolean expression to compare columns of type \"String\". All fields are combined with logical 'AND'."
@@ -2883,6 +2912,7 @@ type query_root {
   ): [core_users!]!
   "fetch data from the table: \"core.users\" using primary key columns"
   core_users_by_pk(id: String!): core_users
+  documentProcess(documentId: uuid!): DocumentProcess!
   myChannels: [MyChannel!]!
   myTasks: [WorkTask!]!
   "fetch data from the table: \"office.assignments\""
