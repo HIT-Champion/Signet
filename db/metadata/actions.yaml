@@ -98,6 +98,23 @@ actions:
       - role: staff
       - role: manager
       - role: director
+  # Sơ đồ quy trình của văn bản (#603), chỉ đọc: svc-workflow hỏi Hasura bằng phiên người gọi, không đọc được văn bản
+  # thì như không có. Đúng các vai trò đọc văn bản (quản trị đơn vị không đọc văn bản nào)
+  - name: documentProcess
+    definition:
+      kind: ""
+      handler: '{{MOC_WORKFLOW_URL}}/actions/documentProcess'
+      forward_client_headers: true
+      headers:
+        - name: X-Moc-Action-Secret
+          value_from_env: MOC_ACTION_SECRET
+      timeout: 15
+      type: query
+    permissions:
+      - role: clerk
+      - role: staff
+      - role: manager
+      - role: director
   # Kênh SMS, Zalo của thông báo (#365): phần chung của svc-workflow, chạy cả khi tắt Văn phòng điện tử nên route riêng
   # /actions/channels/…; người gọi chỉ đọc, sửa kênh của chính mình (biến phiên). Mọi vai trò người dùng
   - name: myChannels
@@ -184,4 +201,7 @@ custom_types:
     - name: OtSensor
     - name: MyChannel
     - name: NotifyFromFlowOutput
+    - name: DocumentProcess
+    - name: ProcessNode
+    - name: ProcessEdge
   scalars: []

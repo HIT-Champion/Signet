@@ -40,6 +40,7 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pydantic import ValidationError
@@ -54,6 +55,7 @@ from .office.queries import (
     CLAIM_PROCESS,
     DISPATCH_UNITS,
     DOCUMENT,
+    DOCUMENT_PROCESS,
     NUMBER_OUTGOING,
     OPEN_ASSIGNMENTS,
     OUTGOING,
@@ -66,6 +68,7 @@ from .office.queries import (
     VISIBLE,
 )
 from .schemas import FormSchema
+from .so_do import layout, with_states
 
 if TYPE_CHECKING:
     from .dispatch import Dispatcher
@@ -659,6 +662,31 @@ class Workflow:
             for t in mine
             if t.variables.get("documentId")
         ]
+
+    # --- sơ đồ quy trình (#603) -------------------------------------------------------------------------
+
+    async def document_process(self, actor: Actor, doc_id: str, processes_dir: str) -> dict[str, Any]:
+        """Sơ đồ BPMN quy trình của một văn bản kèm trạng thái từng bước. Ai đọc được văn bản thì xem được."""
+        try:
+            uuid.UUID(doc_id)
+        except ValueError:
+            raise WorkflowError("document_not_found", "Không tìm thấy văn bản", 404) from None
+        try:
+            doc = (await self.hasura.as_user(actor, DOCUMENT_PROCESS, {"id": doc_id}))["office_documents_by_pk"]
+        except HasuraError as exc:
+            raise _db_error(exc) from exc
+        if doc is None:  # khác đơn vị hay văn bản hạn chế: như không có, không lộ là có
+            raise WorkflowError("document_not_found", "Không tìm thấy văn bản", 404)
+        rows: list[dict[str, Any]] = []
+        if doc.get("process_id"):
+            try:
+                rows = await self.flowable.activities(doc["process_id"])
+            except FlowableError as exc:
+                raise WorkflowError("workflow_unavailable", "Chưa lấy được quy trình, thử lại sau", 503) from exc
+        key = rows[0]["processDefinitionId"].split(":")[0] if rows else ""
+        if key not in OFFICE_PROCESSES:
+            raise WorkflowError("no_process", "Văn bản chưa vào quy trình", 404)
+        return with_states(layout(Path(processes_dir) / f"{key}.bpmn20.xml"), rows)
 
     # --- hoàn thành việc --------------------------------------------------------------------------------
 

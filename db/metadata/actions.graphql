@@ -48,6 +48,11 @@ type Query {
 }
 
 type Query {
+  "Sơ đồ BPMN quy trình của một văn bản kèm trạng thái từng bước (#603); không đọc được văn bản thì document_not_found"
+  documentProcess(documentId: uuid!): DocumentProcess!
+}
+
+type Query {
   "Kênh SMS, Zalo bản cài đã cấu hình cho thông báo, kèm trạng thái của người gọi; rỗng khi chưa cấu hình kênh nào"
   myChannels: [MyChannel!]!
 }
@@ -113,6 +118,37 @@ type OtSensor {
   value: Float
   observed_at: timestamptz
   flags: [String!]!
+}
+
+# Sơ đồ quy trình (#603): tọa độ lấy từ BPMN DI của tệp quy trình, gốc ở góc trên trái; width, height là khung vẽ.
+# state của hình và đường: done (đã qua) | active (đang chờ) | "" (chưa tới) — luật ở svc_workflow/so_do.py
+type DocumentProcess {
+  "van-ban-den hoặc van-ban-di"
+  key: String!
+  width: Float!
+  height: Float!
+  nodes: [ProcessNode!]!
+  edges: [ProcessEdge!]!
+}
+
+type ProcessNode {
+  id: String!
+  "Tên thẻ BPMN: startEvent, endEvent, userTask, serviceTask, exclusiveGateway, parallelGateway, boundaryEvent"
+  kind: String!
+  name: String
+  x: Float!
+  y: Float!
+  w: Float!
+  h: Float!
+  state: String!
+}
+
+type ProcessEdge {
+  id: String!
+  name: String
+  "Các điểm gãy x1, y1, x2, y2, …"
+  points: [Float!]!
+  state: String!
 }
 
 "Kết quả notifyFromFlow: số người vừa nhận thông báo (người đã có thông báo cùng khóa không tính)"
