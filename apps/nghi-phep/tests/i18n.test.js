@@ -217,7 +217,7 @@ test('tiếng Anh: trạng thái đơn, câu báo theo mã trả lời, số ng�
   const xong = (quyetDinh) => trangThai({ endedAt: '2026-10-26T03:00:00Z', data: { quyetDinh } }).nhan
   try {
     setLocale('en')
-    assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Awaiting department head' })
+    assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Awaiting approval' })
     assert.deepEqual([xong('dong-y'), xong('tu-choi'), xong(undefined)], ['Approved', 'Declined', 'Closed'])
     assert.equal(docTraLoi(401, null).message, 'Your session has expired. Reload the page to sign in again.')
     assert.equal(docTraLoi(503, null).message, 'The Signet workflow service is not responding. Try again in a few '

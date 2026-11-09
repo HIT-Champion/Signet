@@ -49,7 +49,8 @@ export const MESSAGES = Object.freeze({
     'tab.mine': 'Đơn của tôi',
     'tab.review': 'Việc cần duyệt',
     'request.heading': 'Gửi đơn nghỉ phép',
-    'request.hint': 'Trưởng phòng của phòng bạn nhận đơn và duyệt. Kết quả hiện ở phần "Đơn của tôi".',
+    'request.hint': 'Trưởng phòng của phòng bạn duyệt; nghỉ quá 3 ngày làm việc thì Hiệu trưởng duyệt tiếp. Kết quả '
+      + 'hiện ở phần "Đơn của tôi".',
     'request.submit': 'Gửi đơn',
     'mine.heading': 'Đơn của tôi',
     'mine.empty': 'Bạn chưa gửi đơn nào.',
@@ -67,7 +68,7 @@ export const MESSAGES = Object.freeze({
     // tiếng Anh phân biệt số ít, số nhiều: một ngày dùng khóa riêng
     'detail.oneDay': '1 ngày',
     'detail.dayCount': '{n} ngày',
-    'state.pending': 'Chờ trưởng phòng duyệt',
+    'state.pending': 'Đang chờ duyệt',
     'state.approved': 'Đã duyệt',
     'state.declined': 'Bị từ chối',
     'state.ended': 'Đã kết thúc',
@@ -159,7 +160,8 @@ export const MESSAGES = Object.freeze({
     'tab.mine': 'My requests',
     'tab.review': 'To review',
     'request.heading': 'Request leave',
-    'request.hint': 'Your department head receives and reviews the request. The outcome appears under "My requests".',
+    'request.hint': 'Your department head reviews the request; over 3 working days the principal approves it too. The '
+      + 'outcome appears under "My requests".',
     'request.submit': 'Send request',
     'mine.heading': 'My requests',
     'mine.empty': 'You have not sent any requests yet.',
@@ -176,7 +178,7 @@ export const MESSAGES = Object.freeze({
     'detail.days': 'Days of leave',
     'detail.oneDay': '1 day',
     'detail.dayCount': '{n} days',
-    'state.pending': 'Awaiting department head',
+    'state.pending': 'Awaiting approval',
     'state.approved': 'Approved',
     'state.declined': 'Declined',
     'state.ended': 'Closed',

@@ -70,7 +70,7 @@ test('trả lời: 2xx là xong, 422 giữ lỗi từng trường, mã khác th�
 })
 
 test('trạng thái đơn theo lúc kết thúc và quyết định của trưởng phòng', () => {
-  assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Chờ trưởng phòng duyệt' })
+  assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Đang chờ duyệt' })
   // quyết định chưa chốt (quy trình còn chạy) thì vẫn là chờ
   assert.equal(trangThai({ endedAt: null, data: { quyetDinh: 'dong-y' } }).ma, 'cho')
   assert.deepEqual(trangThai({ endedAt: '2026-10-26T03:00:00Z', data: { quyetDinh: 'dong-y' } }),
