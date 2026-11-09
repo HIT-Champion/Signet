@@ -336,6 +336,15 @@ def test_timer_on_a_user_task_passes(time, cancel):
     (with_timer().replace('attachedToRef="duyet"', 'attachedToRef="khongCo"'), "phải là id một userTask"),
     (with_timer().replace(' attachedToRef="duyet"', ""), "phải là id một userTask"),
     (with_timer(target="ketQua"), "luồng ra từ timer chỉ tới userTask hoặc endEvent"),
+    # vòng: quay về chính việc gắn (bắn lại mãi; không ngắt thì nhân đôi mỗi lần), hai timer không ngắt gọi nhau
+    (with_timer("PT1M", "false", target="duyet"), "không quay về chính việc timer gắn"),
+    (with_timer("PT1M", "true", target="duyet"), "không quay về chính việc timer gắn"),
+    (with_timer("PT1M", "false", extra=TIMER.format(time="PT1M", cancel="false", target="duyet").replace(
+        'attachedToRef="duyet"', 'attachedToRef="xemLai"').replace('"quaHan"', '"quaHan2"').replace(
+        '"hen"', '"hen2"').replace('"fHan"', '"fHan2"')), "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
+    (with_timer("PT1M", "false", extra=TIMER.format(time="P1D", cancel="true", target="tuChoi").replace(
+        'attachedToRef="duyet"', 'attachedToRef="xemLai"').replace('"quaHan"', '"quaHan2"').replace(
+        '"hen"', '"hen2"').replace('"fHan"', '"fHan2"')), "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
     (with_timer(extra='\n    <sequenceFlow id="fVao" sourceRef="gui" targetRef="quaHan"/>'),
      "không luồng nào được vào timer"),
     (with_timer().replace('targetRef="xemLai"/>',

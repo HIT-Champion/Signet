@@ -35,8 +35,10 @@ những gì một quy trình duyệt cần, mọi thứ khác bị từ chối k
 - boundaryEvent: gắn vào một userTask của cùng process (``attachedToRef``), ``cancelActivity`` true (quá hạn thì rời
   việc đó, đi nhánh của timer) hoặc false (việc vẫn còn, thêm một nhánh); trong đó đúng một timerEventDefinition có
   đúng một ``timeDuration`` là khoảng ISO 8601 viết sẵn từ PT1M tới P365D — không ``timeDate``, ``timeCycle`` (lặp mãi),
-  không biểu thức. Không luồng nào vào timer; luồng ra không điều kiện, chỉ tới userTask hoặc endEvent. Timer không
-  ngắt để lại một nhánh song song: quy trình chỉ xong khi cả nhánh đó xong;
+  không biểu thức. Không luồng nào vào timer; luồng ra không điều kiện, chỉ tới userTask hoặc endEvent, không quay về
+  chính việc timer gắn. Timer không ngắt để lại một nhánh song song: quy trình chỉ xong khi cả nhánh đó xong; nó chỉ
+  được tới endEvent hay userTask không gắn timer — tới việc có timer không ngắt là mỗi lần bắn thêm một nhánh, số
+  việc nhân đôi không cần ai bấm;
 - userTask: ``flowable:formKey`` bắt buộc, có tiền tố ``<tên app>.``, có trong manifest; ``flowable:candidateGroups``
   chỉ ``t:${tenantId}:<vai trò>`` hoặc ``t:${tenantId}:d:${departmentId}:<vai trò>`` (vai trò của realm);
   ``flowable:assignee`` chỉ ``${initiator}``; ``flowable:dueDate`` chỉ một khoảng ISO 8601 viết sẵn (P3D, PT24H);
@@ -451,6 +453,7 @@ def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str],
     flow_ids = {f.attrs.get("id") for f in flows}
     used: set[str] = set()
     timers = {n.attrs.get("id"): n for n in nodes if n.tag == "boundaryEvent"}
+    with_timer = {t.attrs.get("attachedToRef") for t in timers.values()}
     kind_of = {n.attrs.get("id"): n.tag for n in nodes}
     for flow in flows:
         for ref in ("sourceRef", "targetRef"):
@@ -467,8 +470,14 @@ def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str],
         if flow.attrs.get("sourceRef") in timers:
             if conds:
                 c.err(flow, "luồng ra từ timer không có điều kiện — điều kiện sai thì nhánh của timer kẹt lại")
-            if kind_of.get(flow.attrs.get("targetRef")) not in (None, "userTask", "endEvent"):
+            timer, target = timers[flow.attrs["sourceRef"]], flow.attrs.get("targetRef")
+            if kind_of.get(target) not in (None, "userTask", "endEvent"):
                 c.err(flow, "luồng ra từ timer chỉ tới userTask hoặc endEvent")
+            elif target == timer.attrs.get("attachedToRef"):
+                c.err(flow, "luồng ra từ timer không quay về chính việc timer gắn — timer bắn lại mãi")
+            elif timer.attrs.get("cancelActivity") == "false" and target in with_timer:
+                c.err(flow, "timer không ngắt chỉ tới endEvent hay userTask không gắn timer — tới việc có timer thì "
+                            "mỗi lần bắn thêm một nhánh, số việc nhân lên không cần ai bấm")
     for timer in timers.values():
         if kind_of.get(timer.attrs.get("attachedToRef")) != "userTask":
             c.err(timer, f"attachedToRef {timer.attrs.get('attachedToRef')!r} phải là id một userTask của process")
