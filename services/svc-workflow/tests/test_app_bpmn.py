@@ -301,6 +301,19 @@ def with_timer(time: str = "P2D", cancel: str = "true", target: str = "xemLai", 
     return after_end(TIMER.format(time=time, cancel=cancel, target=target) + extra)
 
 
+def second_timer(time: str, cancel: str, target: str) -> str:
+    """Timer thứ hai, gắn vào xemLai."""
+    xml = TIMER.format(time=time, cancel=cancel, target=target)
+    for old, new in (('attachedToRef="duyet"', 'attachedToRef="xemLai"'), ('"quaHan"', '"quaHan2"'),
+                     ('"hen"', '"hen2"'), ('"fHan"', '"fHan2"')):
+        xml = xml.replace(old, new)
+    return xml
+
+
+def test_timers_chained_without_a_loop_pass():
+    assert errors_of(with_timer("PT1M", "true", extra=second_timer("P1D", "true", "tuChoi"))) == []
+
+
 @pytest.mark.parametrize("time", ["P2D", "PT1M", "PT4H", "P1DT12H", "P365D", "PT9999M", "P364DT23H59M"])
 @pytest.mark.parametrize("cancel", ["true", "false"])
 def test_timer_on_a_user_task_passes(time, cancel):
@@ -339,12 +352,12 @@ def test_timer_on_a_user_task_passes(time, cancel):
     # vòng: quay về chính việc gắn (bắn lại mãi; không ngắt thì nhân đôi mỗi lần), hai timer không ngắt gọi nhau
     (with_timer("PT1M", "false", target="duyet"), "không quay về chính việc timer gắn"),
     (with_timer("PT1M", "true", target="duyet"), "không quay về chính việc timer gắn"),
-    (with_timer("PT1M", "false", extra=TIMER.format(time="PT1M", cancel="false", target="duyet").replace(
-        'attachedToRef="duyet"', 'attachedToRef="xemLai"').replace('"quaHan"', '"quaHan2"').replace(
-        '"hen"', '"hen2"').replace('"fHan"', '"fHan2"')), "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
-    (with_timer("PT1M", "false", extra=TIMER.format(time="P1D", cancel="true", target="tuChoi").replace(
-        'attachedToRef="duyet"', 'attachedToRef="xemLai"').replace('"quaHan"', '"quaHan2"').replace(
-        '"hen"', '"hen2"').replace('"fHan"', '"fHan2"')), "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
+    (with_timer("PT1M", "false", extra=second_timer("PT1M", "false", "duyet")),
+     "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
+    (with_timer("PT1M", "false", extra=second_timer("P1D", "true", "tuChoi")),
+     "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
+    (with_timer("PT1M", "true", extra=second_timer("PT1M", "true", "duyet")),
+     "timer nối thành vòng duyet → xemLai → duyet"),
     (with_timer(extra='\n    <sequenceFlow id="fVao" sourceRef="gui" targetRef="quaHan"/>'),
      "không luồng nào được vào timer"),
     (with_timer().replace('targetRef="xemLai"/>',
