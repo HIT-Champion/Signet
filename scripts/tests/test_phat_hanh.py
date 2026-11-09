@@ -33,6 +33,7 @@ import importlib.util
 import json
 import os
 import pathlib
+import re
 import shutil
 import subprocess
 import sys
@@ -503,6 +504,61 @@ class WorkflowNotesTest(unittest.TestCase):
         proc = self.step("0.3.0")
         self.assertEqual(proc.returncode, 1)
         self.assertIn("::error::CHANGELOG.md chưa có mục [0.3.0]", proc.stdout)
+
+
+class ImageJobTest(unittest.TestCase):
+    """release.yml, job image (#344): mỗi image compose dựng là một dòng ma trận cùng thư mục, cùng build context phụ;
+    chỉ job này ghi GHCR; PR chỉ dựng, thẻ mới đẩy; không thêm action, không phụ thuộc job gói nguồn."""
+
+    def setUp(self) -> None:
+        self.text = WORKFLOW.read_text(encoding="utf-8")
+        self.job = self.text[self.text.index("\n  image:\n"):]
+
+    def test_matrix_covers_every_image_compose_builds(self) -> None:
+        compose = (WORKFLOW.parents[2] / "docker-compose.yml").read_text(encoding="utf-8")
+        built = set()
+        pairs = re.findall(r"\n    build: (.+)\n    image: moc/([a-z0-9-]+):\$\{MOC_VERSION:-dev\}\n", compose)
+        for build, name in pairs:
+            if build.startswith("{"):
+                context = re.search(r"context: \./([^,}]+)", build).group(1)
+                extra = re.findall(r"(\w+): \./([^,}]+)", build.partition("additional_contexts:")[2])
+                built.add((name, context, ",".join(f"{k}={v}" for k, v in extra)))
+            else:
+                built.add((name, build.removeprefix("./"), ""))
+        self.assertEqual(len(built), compose.count("\n    build: "))
+        rows = {(n, c, e) for n, c, e in re.findall(
+            r"- \{name: ([a-z0-9-]+), context: ([^,}]+)(?:, extra: ([^}]+))?\}", self.job)}
+        self.assertEqual(rows, built)
+
+    def test_only_tags_push_and_only_this_job_writes_packages(self) -> None:
+        self.assertIn("\npermissions: {}\n", self.text)
+        self.assertEqual(self.text.count("packages: write"), 1)
+        self.assertIn("packages: write", self.job)
+        release = self.text[self.text.index("\n  release:\n"):self.text.index("\n  image:\n")]
+        self.assertIn("    if: github.event_name == 'push'\n", release)       # PR không đăng Release
+        self.assertIn('if [ "$GITHUB_EVENT_NAME" = push ]; then args+=(--push); fi', self.job)
+        self.assertIn("--sbom=true --provenance=mode=max", self.job)
+        self.assertNotIn("\n  workflow_dispatch", self.text)
+        self.assertEqual(re.findall(r"uses: ([^@\s]+)@", self.job), ["actions/checkout"])
+        self.assertIn("persist-credentials: false", self.job)
+        self.assertNotIn("needs:", self.job)
+
+    def version(self, event: str, tag: str) -> tuple[subprocess.CompletedProcess[str], str]:
+        with tempfile.NamedTemporaryFile("r", encoding="utf-8") as out:
+            env = {**GIT_ENV, "GITHUB_EVENT_NAME": event, "GITHUB_REF_NAME": tag, "GITHUB_REF": f"refs/tags/{tag}",
+                   "GITHUB_OUTPUT": out.name}
+            proc = subprocess.run(["bash", "-e", "-c", step_script("Phiên bản của image")], env=env,
+                                  capture_output=True, text=True)
+            return proc, out.read()
+
+    def test_pull_request_builds_under_a_placeholder_tag(self) -> None:
+        proc, out = self.version("pull_request", "613/merge")
+        self.assertEqual((proc.returncode, out), (0, "version=pr\n"), proc.stderr)
+
+    def test_tag_with_shell_characters_stops(self) -> None:
+        proc, out = self.version("push", "v1.0.0$(id)")
+        self.assertEqual((proc.returncode, out), (1, ""))
+        self.assertIn("::error::Thẻ 'v1.0.0$(id)' không đúng dạng", proc.stdout)
 
 if __name__ == "__main__":
     unittest.main()

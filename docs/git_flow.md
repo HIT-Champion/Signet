@@ -337,7 +337,8 @@ make release VERSION=1.1.0       # tạo thẻ v1.1.0 (có khóa thì git tag -s
 #    sửa qua PR như thường rồi chạy lại
 
 # 4. Đẩy thẻ — GitHub Actions kiểm thẻ nằm trên main, chưa có Release, đóng gói và kiểm lại gói bằng cùng
-#    scripts/kiem_goi.py, rồi mới tạo Release kèm .tar.gz, SBOM .cdx.json (make sbom) và .sha256 của cả hai
+#    scripts/kiem_goi.py, rồi mới tạo Release kèm .tar.gz, SBOM .cdx.json (make sbom) và .sha256 của cả hai;
+#    song song, job image dựng image của đội kèm SBOM, provenance và đẩy lên GHCR (xem dưới)
 git push origin v1.1.0
 
 # 5. Gộp ngược main vào develop để thẻ nằm trong lịch sử develop. Không làm thì bản clone develop (nhánh mặc định)
@@ -382,6 +383,14 @@ gh pr create --base develop --title "chore(release): merge v1.1.1 back into deve
 - Phiên bản trong gói: `git archive` điền thẻ vào dòng cuối của `VERSION` (`.gitattributes`: `VERSION export-subst`),
   `make install` từ gói giải nén đọc dòng đó, không cần đặt tay `MOC_VERSION`; bản clone git vẫn lấy `git describe`.
   Gói cũ chưa có tệp `VERSION` (đến `v1.1.0`) thì vẫn đặt tay.
+- **Image trên GHCR** (job `image` của `release.yml`, #344): cùng lần đẩy thẻ, mỗi image mà `docker-compose.yml`
+  dựng (`build:`) được dựng lại bằng `docker buildx build --sbom=true --provenance=mode=max` và đẩy lên
+  `ghcr.io/hit-champion/signet/<tên>:X.Y.Z` (vd `svc-workflow`, `app-office`), kèm SBOM và provenance SLSA của
+  BuildKit (`docker buildx imagetools inspect <image> --format '{{json .SBOM}}'`). Job chạy song song với job gói nguồn,
+  một image hỏng không chặn Release. Chỉ dùng docker CLI và `GITHUB_TOKEN`; quyền `packages: write` chỉ ở job này. PR
+  sửa `release.yml` chạy job image để dựng thử, không đẩy. `make up` vẫn dựng từ mã nguồn (PoF #4); image trên GHCR
+  là cách cài thêm. Gói mới trên GHCR mặc định riêng tư: người quản trị repo đổi sang công khai một lần ở trang
+  Packages.
 - Không xóa hay gắn lại thẻ đã đẩy — ruleset thẻ `v*` chặn hẳn, `release.yml` và `release.sh` cũng từ
   chối phát hành lại. Phát hành nhầm thì ra bản vá `vX.Y.Z+1`.
 

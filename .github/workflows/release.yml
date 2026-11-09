@@ -16,6 +16,8 @@
 
 # Sinh bản phát hành khi đẩy thẻ phiên bản (thẻ trên main, docs/git_flow.md mục 6).
 # Gói nguồn dùng định dạng MỞ .tar.gz (tiêu chí PoF #3 trừ điểm nếu dùng .zip/.rar).
+# Job image (#344) dựng image của đội kèm SBOM và provenance, đẩy lên GHCR; độc lập với job gói nguồn. PR sửa tệp này
+# chỉ chạy job image để dựng thử, không đẩy; không chạy tay (workflow_dispatch).
 # Đẩy thẻ thì GitHub chạy bản release.yml ở commit được gắn thẻ: các chốt dưới đây chỉ có ở thẻ gắn sau khi chúng vào
 # main, thẻ cũ (v0.1.0) chỉ được ruleset thẻ v* (cấm sửa, cấm xóa) bảo vệ.
 name: Release
@@ -23,14 +25,19 @@ name: Release
 on:
   push:
     tags: ['v*.*.*']
+  pull_request:
+    paths: ['.github/workflows/release.yml']
 
-permissions:
-  contents: write
+# quyền theo từng job: gói nguồn ghi Release, image ghi GHCR
+permissions: {}
 
 jobs:
   release:
     name: Phát hành gói nguồn
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -134,3 +141,69 @@ jobs:
             echo "::error::Chỉ tải lên $n/4 tệp — Release đã có tệp cùng tên từ trước, xem lại trang Release"
             exit 1
           fi
+
+  # Image của đội (mọi dịch vụ có build: trong docker-compose.yml) lên GHCR: ghcr.io/<chủ>/<repo>/<tên>:X.Y.Z, kèm SBOM
+  # và provenance SLSA của BuildKit (--sbom, --provenance=mode=max) để người kéo kiểm được image dựng từ commit nào, có
+  # gói gì. Chỉ docker CLI và GITHUB_TOKEN, không thêm action. Một image hỏng không chặn image khác, không chặn gói
+  # nguồn. make up vẫn dựng từ mã nguồn (PoF #4); image trên GHCR là cách cài thêm, không thay cách đó
+  image:
+    name: Image ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: keycloak-fonts, context: platform/keycloak/fonts}
+          - {name: apisix, context: platform/apisix}
+          - {name: svc-files, context: services/svc-files}
+          - {name: svc-workflow, context: services/svc-workflow, extra: schemas=schemas}
+          - {name: app-office, context: apps/office, extra: schemas=schemas}
+          - {name: app-ca-nhan, context: apps/ca-nhan}
+          - {name: app-tai-lieu-api, context: apps/tai-lieu-api, extra: openapi=docs/api/openapi}
+          - {name: wiki, context: platform/wiki}
+          - {name: tu-dong, context: platform/tu-dong}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # Như job gói nguồn: thẻ đúng dạng, nằm trên main thì mới có image mang số phiên bản. PR: thẻ giả "pr", không đẩy
+      - name: Phiên bản của image
+        id: ver
+        run: |
+          if [ "$GITHUB_EVENT_NAME" != push ]; then echo "version=pr" >> "$GITHUB_OUTPUT"; exit 0; fi
+          [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] \
+            || { echo "::error::Thẻ '$GITHUB_REF_NAME' không đúng dạng vMAJOR.MINOR.PATCH"; exit 1; }
+          git merge-base --is-ancestor "$GITHUB_REF" origin/main \
+            || { echo "::error::Thẻ $GITHUB_REF_NAME không nằm trên main"; exit 1; }
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Đăng nhập GHCR
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+
+      # SBOM, provenance là attestation của BuildKit: cần builder docker-container. PR không có --push: kết quả chỉ nằm
+      # trong cache của builder, đủ để biết image và hai attestation dựng được
+      - name: Dựng image, kèm SBOM và provenance (thẻ thì đẩy lên GHCR)
+        env:
+          V: ${{ steps.ver.outputs.version }}
+          NAME: ${{ matrix.name }}
+          CONTEXT: ${{ matrix.context }}
+          EXTRA: ${{ matrix.extra }}
+        run: |
+          ref="ghcr.io/${GITHUB_REPOSITORY,,}/$NAME:$V"
+          args=(--sbom=true --provenance=mode=max -t "$ref"
+                --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+                --label "org.opencontainers.image.version=$V"
+                --label "org.opencontainers.image.revision=$GITHUB_SHA")
+          if [ -n "$EXTRA" ]; then args+=(--build-context "$EXTRA"); fi
+          if [ "$GITHUB_EVENT_NAME" = push ]; then args+=(--push); fi
+          docker buildx create --use --driver docker-container > /dev/null
+          docker buildx build "${args[@]}" "$CONTEXT"
+          echo "$ref" >> "$GITHUB_STEP_SUMMARY"
