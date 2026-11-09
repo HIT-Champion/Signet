@@ -38,7 +38,8 @@ những gì một quy trình duyệt cần, mọi thứ khác bị từ chối k
   không biểu thức. Không luồng nào vào timer; luồng ra không điều kiện, chỉ tới userTask hoặc endEvent, không quay về
   chính việc timer gắn. Timer không ngắt để lại một nhánh song song: quy trình chỉ xong khi cả nhánh đó xong; nó chỉ
   được tới endEvent hay userTask không gắn timer — tới việc có timer không ngắt là mỗi lần bắn thêm một nhánh, số
-  việc nhân đôi không cần ai bấm;
+  việc nhân đôi không cần ai bấm. Các timer không được nối thành vòng (việc A quá hạn sang B, B quá hạn về A): vòng đó
+  tự chạy mãi;
 - userTask: ``flowable:formKey`` bắt buộc, có tiền tố ``<tên app>.``, có trong manifest; ``flowable:candidateGroups``
   chỉ ``t:${tenantId}:<vai trò>`` hoặc ``t:${tenantId}:d:${departmentId}:<vai trò>`` (vai trò của realm);
   ``flowable:assignee`` chỉ ``${initiator}``; ``flowable:dueDate`` chỉ một khoảng ISO 8601 viết sẵn (P3D, PT24H);
@@ -408,6 +409,28 @@ class _Checker:
             self.walk(child, node)
 
 
+
+def _timer_loop(edges: Mapping[str, set[str]]) -> list[str] | None:
+    """Một vòng trong đồ thị việc → việc, dạng [a, b, …, a]; không có thì None. DFS không đệ quy: tệp 512 KB chứa
+    được hàng nghìn việc nối nhau, đệ quy sẽ vượt giới hạn của Python."""
+    done: set[str] = set()
+    for root in sorted(edges):
+        if root in done:
+            continue
+        path, todo = [root], [iter(sorted(edges.get(root, ())))]
+        while todo:
+            nxt = next(todo[-1], None)
+            if nxt is None:
+                done.add(path.pop())
+                todo.pop()
+            elif nxt in path:
+                return path[path.index(nxt):] + [nxt]
+            elif nxt not in done:
+                path.append(nxt)
+                todo.append(iter(sorted(edges.get(nxt, ()))))
+    return None
+
+
 def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str],
           kinds: Mapping[str, str] | None = None) -> tuple[Process | None, list[str]]:
     """Một tệp BPMN của ứng dụng → (process, []) hoặc (None, lỗi tiếng Việt kèm dòng, phần tử).
@@ -486,6 +509,17 @@ def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str],
             c.err(timer, "cần đúng một <timerEventDefinition> chứa đúng một <timeDuration>")
         if not any(f.attrs.get("sourceRef") == timer.attrs.get("id") for f in flows):
             c.err(timer, "cần một sequenceFlow đi ra — quá hạn thì quy trình đi tiếp đường đó")
+    # việc → việc mà timer gắn ở việc đầu đưa tới: vòng chỉ gồm các cạnh này tự chạy mãi, mỗi lần bắn thêm lịch sử,
+    # không cần ai bấm (duyet →PT1M→ xemLai →PT1M→ duyet)
+    by_timer: dict[str, set[str]] = {}
+    for flow in flows:
+        timer = timers.get(flow.attrs.get("sourceRef"))
+        if (timer is not None and kind_of.get(flow.attrs.get("targetRef")) == "userTask"
+                and flow.attrs.get("targetRef") != timer.attrs.get("attachedToRef")):   # tự vòng: báo ở trên
+            by_timer.setdefault(str(timer.attrs.get("attachedToRef")), set()).add(flow.attrs["targetRef"])
+    if loop := _timer_loop(by_timer):
+        c.err(timers[next(t for t in timers if timers[t].attrs.get("attachedToRef") == loop[0])],
+              f"timer nối thành vòng {' → '.join(loop)} — quy trình tự chạy vòng mãi không cần ai bấm")
     for gw in (n for n in nodes if n.tag == "exclusiveGateway" and "default" in n.attrs):
         if gw.attrs["default"] not in flow_ids:
             c.err(gw, f"default {gw.attrs['default']!r} không phải sequenceFlow của process")
