@@ -56,7 +56,7 @@ tệp `.graphql` là SDL chuẩn, công cụ GraphQL nào cũng nạp được.
 | `/realms/moc/…` | Keycloak: đăng nhập, cấp và làm mới token, JWKS | — |
 | `POST /v1/graphql` | Hasura | Bắt buộc |
 | `POST /api/files`, `GET /api/files/{id}`, `POST /api/files/{id}/read`, `GET /api/search`, `GET /api/documents/{id}/preview`, `POST /api/documents/ask`, `GET /api/registers/…`, `GET /api/case-files/…`, `POST /api/imports/incoming`, `GET /api/imports…`, `GET /api/sinh/<bảng>/<id>/pdf` | `svc-files` | Bắt buộc |
-| `GET`, `POST /api/workflow/{app}/…` | `svc-workflow`: quy trình của ứng dụng cắm bằng manifest (§8) | Bắt buộc, của client `app-{app}` |
+| `GET`, `POST`, `DELETE /api/workflow/{app}/…` | `svc-workflow`: quy trình của ứng dụng cắm bằng manifest (§8) | Bắt buộc, của client `app-{app}` |
 | `GET`, `POST`, `PATCH`, `DELETE /rest/v1/…` | PostgREST: bảng của ứng dụng sinh, schema `sinh` (§9) | Bắt buộc |
 | `GET /api/verify/{mã}`, `GET /api/verify?sha256=…`, `GET /api/verify/ca.pem`, `GET /api/verify/anchor-key.pem` | `svc-files`: cổng xác thực | Không; giới hạn theo IP |
 | `GET /api/status` | `svc-files`: trạng thái hệ thống | Không; giới hạn theo IP |
@@ -336,7 +336,7 @@ Ví dụ `overview` của lần phát hành: `{"status": ["approved", "issued"],
 ## 8. Quy trình của ứng dụng: `/api/workflow/{app}/…`
 
 Ứng dụng cắm bằng `moc app install` khai quy trình BPMN và form JSON Schema ở mục `workflow` của manifest; lõi kiểm,
-triển khai lên Flowable của `svc-workflow` và mở năm đường dưới đây cho trang của ứng dụng
+triển khai lên Flowable của `svc-workflow` và mở sáu đường dưới đây cho trang của ứng dụng
 ([`docs/them-ung-dung.md`](../them-ung-dung.md) mục 1.10). Token phải do client công khai `app-{app}` của chính ứng
 dụng cấp (`azp`): token của Văn phòng điện tử, của `moc-cli` hay của ứng dụng khác bị trả `403`. Đơn vị, phòng, vai trò,
 người dùng lấy từ claim của token, không lấy từ dữ liệu gửi lên.
@@ -345,7 +345,8 @@ người dùng lấy từ claim của token, không lấy từ dữ liệu gửi
 |---|---|
 | `GET /api/workflow/{app}/forms/{formKey}` | `200`: JSON Schema của form, đúng tệp manifest khai |
 | `POST /api/workflow/{app}/processes/{processKey}` `{"data": {…}}` | `201 {"id"}`: kiểm theo form của sự kiện bắt đầu rồi bắt đầu quy trình; lõi tự đặt biến `tenantId`, `departmentId`, `initiator` |
-| `GET /api/workflow/{app}/processes` | `200 [{id, processKey, startedAt, endedAt, data}]`: đơn người gọi đã gửi, mới nhất trước; `endedAt` là `null` khi chưa xong; `data` gồm dữ liệu đơn và các bước đã xong |
+| `GET /api/workflow/{app}/processes?limit=50&offset=0` | `200 [{id, processKey, startedAt, endedAt, cancelled, data}]`: đơn người gọi đã gửi, mới nhất trước, từng trang (`limit` 1–100, mặc định 50; `offset` 0–10000; ngoài khoảng `422`); `endedAt` là `null` khi chưa xong; `cancelled` là `true` khi đơn bị hủy; `data` gồm dữ liệu đơn và các bước đã xong (#325) |
+| `DELETE /api/workflow/{app}/processes/{id}` | `204`: người gửi hủy đơn còn chờ duyệt; `404 process_not_found` (đơn không có hay không phải của người gọi), `409 already_finished` (đã xong, đã hủy) (#325) |
 | `GET /api/workflow/{app}/tasks` | `200 [{id, name, formKey, processKey, processId, createdAt, dueAt, initiatorName, data}]`: việc giao cho người gọi hoặc nhóm của người gọi, cùng đơn vị, cũ nhất trước; `data` là dữ liệu đã ghi vào quy trình; `initiatorName` là họ tên người gửi đơn theo danh bạ `core.users` của đơn vị, `null` khi không tìm được (tài khoản lạ, đã khóa, đơn không có người gửi, danh bạ tạm lỗi) — không trả id người gửi (#506) |
 | `POST /api/workflow/{app}/tasks/{taskId}` `{"data": {…}}` | `204`: kiểm theo form của việc, nhận việc rồi hoàn thành |
 

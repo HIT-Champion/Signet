@@ -385,14 +385,15 @@ biến); còn lại lõi kiểm bằng đúng `schemas.FormSchema` của form ti
 trường sau; kiểm sau cùng, bỏ qua khi một trong hai trường đã có lỗi). Chỉ trường đã khai, có mặt và khác `null` được
 ghi thành biến, giữ kiểu (chuỗi, long, double, boolean).
 
-**API** (route APISIX `svc-workflow`: `/api/workflow/*`, `GET`/`POST`, cùng kiểm token, giới hạn tốc độ như
-`/api/files`; bảng đủ ở [`docs/api/README.md`](api/README.md)):
+**API** (route APISIX `svc-workflow`: `/api/workflow/*`, `GET`/`POST`/`DELETE` — WAF chỉ cho `DELETE` ở đường hủy
+đơn, luật 10099 —, cùng kiểm token, giới hạn tốc độ như `/api/files`; bảng đủ ở [`docs/api/README.md`](api/README.md)):
 
 | Yêu cầu | Trả |
 |---|---|
 | `GET /api/workflow/<tên>/forms/<formKey>` | `200`: JSON Schema của form, đúng tệp manifest khai (bản mới nhất) |
 | `POST /api/workflow/<tên>/processes/<processKey>` `{"data": {…}}` | `201 {"id"}`; kiểm theo form của sự kiện bắt đầu; lõi tự đặt `tenantId`, `departmentId` (rỗng nếu người gửi không thuộc phòng nào), `initiator` từ token |
-| `GET /api/workflow/<tên>/processes` | Đơn người này đã gửi, mới nhất trước: `[{id, processKey, startedAt, endedAt, data}]` — `data` gồm dữ liệu đơn và dữ liệu các bước đã xong (vd `quyetDinh`, `ghiChu`) |
+| `GET /api/workflow/<tên>/processes?limit=50&offset=0` | Đơn người này đã gửi, mới nhất trước, từng trang (`limit` 1–100, mặc định 50; `offset` 0–10000; ngoài khoảng → `422`): `[{id, processKey, startedAt, endedAt, cancelled, data}]` — `data` gồm dữ liệu đơn và dữ liệu các bước đã xong (vd `quyetDinh`, `ghiChu`); `cancelled` là `true` khi đơn bị hủy (#325) |
+| `DELETE /api/workflow/<tên>/processes/<id>` | `204`: người gửi hủy đơn còn chờ duyệt, việc đang chờ của đơn mất theo, nhật ký ghi `app.workflow.cancelled`; `404 process_not_found` khi đơn không có, của người khác, ứng dụng hay đơn vị khác (không lộ đơn có tồn tại hay không); `409 already_finished` khi đơn đã xong hay đã hủy (#325) |
 | `GET /api/workflow/<tên>/tasks` | Việc của ứng dụng giao cho người này (`assignee`) hoặc cho một nhóm của người này, cùng đơn vị, cũ nhất trước: `[{id, name, formKey, processKey, processId, createdAt, dueAt, initiatorName, data}]` — `initiatorName`: họ tên người gửi đơn theo danh bạ `core.users`, `null` khi không tìm được (tài khoản lạ, đã khóa, không có người gửi, danh bạ tạm lỗi); không trả id người gửi (#506) |
 | `POST /api/workflow/<tên>/tasks/<taskId>` `{"data": {…}}` | `204`: kiểm theo form của việc, nhận việc rồi hoàn thành |
 

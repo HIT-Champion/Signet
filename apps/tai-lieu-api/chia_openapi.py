@@ -67,6 +67,7 @@ GROUPS = {
     "/api/workflow/{app}/forms/{form_key}": ("loi", "Quy trình của ứng dụng"),
     "/api/workflow/{app}/processes/{process_key}": ("loi", "Quy trình của ứng dụng"),
     "/api/workflow/{app}/processes": ("loi", "Quy trình của ứng dụng"),
+    "/api/workflow/{app}/processes/{process_id}": ("loi", "Quy trình của ứng dụng"),
     "/api/workflow/{app}/tasks": ("loi", "Quy trình của ứng dụng"),
     "/api/workflow/{app}/tasks/{task_id}": ("loi", "Quy trình của ứng dụng"),
     "/api/sinh/{bang}/{row_id}/pdf": ("loi", "Ứng dụng sinh từ bảng"),
