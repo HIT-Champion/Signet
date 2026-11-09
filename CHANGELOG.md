@@ -45,6 +45,10 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   vẽ (#603).
 - Trang văn bản có mục "Sơ đồ quy trình": sơ đồ BPMN của văn bản vẽ bằng SVG, bước đã qua, đang chờ, timer quá hạn
   đã bắn, kèm danh sách bước dạng chữ (#603).
+- Quy trình của ứng dụng cài thêm có timer quá hạn gắn vào bước duyệt (`timeDuration` hằng PT1M–P365D) và điều kiện
+  so lớn nhỏ trên trường số, trường ngày của form; lõi kiểm kiểu trường lúc cài (#325).
+- Đơn nghỉ phép có trường "Số ngày làm việc nghỉ": quá 3 ngày thì thêm bước Hiệu trưởng duyệt, trưởng phòng để quá 2
+  ngày thì đơn chuyển lên Hiệu trưởng (#325).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
