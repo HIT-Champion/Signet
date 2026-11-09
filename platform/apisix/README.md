@@ -202,6 +202,8 @@ luồng đăng nhập Keycloak có TOTP, tải lên 28 tệp mẫu, và 7 389 y�
 | 10081 | `/tu-dong/flows`, `/tu-dong/flow`, `/tu-dong/flow/<id>`, `/tu-dong/library/…` (đường neo hai đầu; đường có `..`, kể cả `%2e%2e`, không được gỡ vì APISIX chuyển đường đã chuẩn hóa) | tắt soi thân yêu cầu (`ctl:requestBodyAccess=Off`); tham số truy vấn, header, cookie vẫn soi | Thân là flow của Node-RED: mã JavaScript của node Function, HTML của node Template, câu truy vấn — đúng thứ CRS chặn, mỗi loại node một tên trường nên không gỡ theo khóa được; flow còn mang thông tin đăng nhập của node, không để WAF ghi ra log. Node-RED chỉ nhận flow kèm token trình soạn (vai trò `operator`, docs/van-hanh.md mục Tự động hóa bằng Node-RED) | không triển khai được flow có mã, HTML (Triển khai báo 403); `make demo-tu-dong` triển khai một flow như vậy qua cổng |
 | 10090 | `/rest/v1/<bảng>` (API dữ liệu của ứng dụng sinh, #567; một đoạn đường, không `/`, `.` sau khi giải mã) | không gỡ luật nào: thêm `PATCH`, `DELETE` vào `tx.allowed_methods` (911100) | PostgREST sửa dòng bằng `PATCH`, xóa bằng `DELETE`; route `rest` chỉ nhận `GET HEAD POST PATCH DELETE`, can-token kiểm token, RLS lọc theo đơn vị. Đường, tham số lọc, thân JSON vẫn soi đủ | `PATCH /rest/v1/<bảng>?id=eq.1` → 403 (911100, "Method is not allowed by policy") — e2e của #567 trên CI |
 | 10093 | `GET /rest/v1/<bảng>` (đường như 10090), đúng một tham số `select` chỉ gồm chữ thường, số, `_` `.` `,` `:` và cặp `()` liền nhau | 942100 trên `ARGS:select` | Trang báo cáo của ứng dụng sinh (#589) đếm, cộng bằng hàm gộp của PostgREST: `select=<cột nhóm>,count()`, `<cột số>.sum()`, `.avg()`. Giá trị như vậy chỉ là tên cột, bí danh, hàm gộp không đối số, không có nháy, khoảng trắng, toán tử; PostgREST tự đặt nháy cho tên cột. `select` dạng khác (nhúng bảng, ép kiểu), mọi tham số khác và mọi luật khác vẫn soi đủ | `GET /rest/v1/<bảng>?select=tieu_de,count()` → 403 (942100, "n,f()") — e2e của #589 trên CI |
+| 10094 | `/v1/graphql` | 931100, 931120 trên `ARGS:json.variables.d.issuer_name` (vào sổ văn bản đến — `tiep-nhan.vue`) và `json.variables.issuer_name` (kiểm trùng khi rời ô Cơ quan ban hành, cùng trang) | Cơ quan ban hành: người dùng dán đường dẫn văn bản khi Signet mở bằng IP, hay gõ câu hỏi vào nhầm ô. Tên chỉ được lưu, so khớp `_ilike` (Hasura tham số hóa), hiện ra — không tải URL, không include. Luật RFI khác (931110), SQLi, XSS, duyệt thư mục, Log4Shell, chèn lệnh, PHP vẫn soi; khóa khác — kể cả `d.issuer`, `x.issuer_name`, `d.issuer_name.x`, `issuer` — soi đủ | lượt dò 7 389 yêu cầu (mục "Dò chặn nhầm trên dữ liệu thật", #260): `http://192.168.1.10:8080/van-ban/12`, `Ftp://10.0.0.5/van-ban/12` → 931100; "File đính kèm ở đâu?", "HTTPS là gì?", "Ftp của phòng còn dùng được không?" → 931120 — 11 câu, 11 trong 13 lần chặn ở ô này |
+| 10095 | `/v1/graphql` | 931100, 931120 trên `ARGS:json.variables.o.recipients.0` … `.49` và `set.recipients.0` … `.49` (soạn, sửa văn bản đi — `soan.vue`) | Nơi nhận: mỗi dòng là một phần tử mảng; Coraza đặt tên khóa theo vị trí và `ctl` không nhận regex nên kê từng khóa. CSDL không giới hạn số dòng (`text[]`): phủ 50 dòng đầu, dòng thứ 51 trở đi soi đủ như cũ — chỉ có thể chặn nhầm, không lọt. Lý do và phần vẫn soi như 10094; `o.recipient.0`, `o.recipients.0.x` soi đủ | như 10094, cùng 11 câu ở một dòng Nơi nhận — 11 trong 13 lần chặn |
 | 10099 | `/api/workflow/<ứng dụng>/processes/<id>` (hủy đơn của ứng dụng, #325; tên như manifest, id một đoạn không `/`, `.` sau khi giải mã) | không gỡ luật nào: thêm `DELETE` vào `tx.allowed_methods` (911100) | Người gửi hủy đơn đang chờ duyệt bằng `DELETE`; route `svc-workflow` nhận `GET POST DELETE`, can-token kiểm token, svc-workflow chỉ hủy đơn của chính người gọi, cùng đơn vị, cùng ứng dụng. Mọi đường khác dưới `/api/workflow` vẫn chỉ `GET HEAD POST OPTIONS`; header, tham số vẫn soi đủ | `DELETE /api/workflow/nghi-phep/processes/<id>` → 403 (911100, "Method is not allowed by policy") |
 | 920350 | mọi đường | gỡ hẳn | Signet được mở bằng IP trong mạng nội bộ. Dưới APISIX, coraza-proxy-wasm thêm `Host` lần nữa nên luật "Host là địa chỉ IP" cộng điểm hai lần (6 ≥ 5) | mọi yêu cầu vào bằng IP → 403 |
 
@@ -307,17 +309,19 @@ giờ trả 403, nên mọi 403 là WAF):
 | Cấu hình | Bị 403 | Chữ lấy từ dữ liệu mẫu bị 403 |
 |---|---|---|
 | Không có 10031–10040 | 169 (2,29 %): 931120 ×72, 932125 ×40, 931100 ×36, 920120 ×10, 932130 ×9, 933135 ×9, 933160 ×9, 933210 ×2, 922130 ×2 | 24 — chữ của 4/21 PDF |
-| Hiện tại | 28 (0,38 %) | 0 |
+| Có 10031–10093 (trước #260) | 28 (0,38 %) | 0 |
 
-28 lần còn lại đều là câu tự viết đặt vào ô không dành cho chúng: 26 ở Cơ quan ban hành và Nơi nhận (mục "Hạn chế"),
+28 lần còn lại đều là câu tự viết đặt vào ô không dành cho chúng: 26 ở Cơ quan ban hành và Nơi nhận (mục "Hạn chế";
+22 trong số đó là 931100, 931120 — 10094, 10095 gỡ từ #260),
 2 là chỗ giữ chỗ `Kính gửi ${ten_don_vi}` gõ vào ô Tìm kiếm (932130, 933135). Trong các ô chữ tự do, câu hỏi, tên tệp:
 0. Thử lẩn qua chính các loại trừ (223 ca): SQLi, XSS, duyệt thư mục, `/etc/passwd`, Log4Shell trong các khóa đã loại
 trừ vẫn 403; cùng tải trong khóa gần giống (`o.type_code`, `o.bodyx`, `x.body`, `o.body.x`, `q2`), ở đường khác
 (`/v1/graphql/`), hay khóa của đường này gửi tới đường kia vẫn 403; tên tệp `../…`, `.php`, tên trường có `' ; =` vẫn
 403. Chèn lệnh, PowerShell, PHP (trừ khi kèm đường tệp hệ thống như `file('/etc/passwd')`), `http://<IP>` trong ô
 chữ tự do thì qua — cố ý. Smoke (`check_waf`) gửi lại mỗi lần chạy một mẫu chữ thật cho từng luật đã gỡ: tên tệp có
-`' ; = :`, nội dung có đề mục `I.` `II.` `III.`, khối ký hai cột, "File …?", `http://<IP>`, "03 file (…)" — bỏ loại
-trừ nào thì smoke đỏ.
+`' ; = :`, nội dung có đề mục `I.` `II.` `III.`, khối ký hai cột, "File …?", `http://<IP>`, "03 file (…)", và 11 câu
+của #260 ở Cơ quan ban hành, Nơi nhận (dòng đầu, dòng thứ 50) — bỏ loại trừ nào thì smoke đỏ. Smoke cũng gửi SQLi,
+XSS, duyệt thư mục, `/etc/passwd`, Log4Shell vào hai ô đó và khóa gần giống (dòng thứ 51 của Nơi nhận): phải 403.
 
 ### Lỗ hổng của Coraza 3.3.3 và biện pháp
 
@@ -371,9 +375,12 @@ trong bộ nhớ: mỗi worker tới ~230 MB sau khi soi tệp 24 MB.
   (`(024) 3000 0000`, `(+84) 912 345 678`) thì qua.
 - Ô chữ tự do (10031, 10032) không còn luật chèn lệnh, PHP, RFI: chữ như `$(curl …|sh)`, `<?php …`, `http://<IP>/x`
   lưu được — cố ý, chữ chỉ được lưu và hiện ra. SQLi, XSS, duyệt thư mục, Log4Shell vẫn bị chặn ở đó.
-- Các ô chữ ngắn khác (Cơ quan ban hành, Nơi nhận, Số hiệu, tên đơn vị, tên người…) vẫn soi đủ, không loại trừ vì chữ
-  thật ở đó không có dạng này. Giá trị chỉ là một đường dẫn `http(s)://<IP>…` (931100), mở đầu bằng "File", "http",
-  "ftp" và kết thúc bằng `?` (931120), hay có `${…}`, `file (` (932130, 933135, 933160) → 403. Ô Tìm kiếm: `${…}` → 403.
+- Cơ quan ban hành, Nơi nhận (10094, 10095, #260) chỉ bỏ hai luật RFI: dán đường dẫn `http(s)://<IP>…`, gõ câu
+  "File …?", "HTTPS là gì?" thì qua; `${…}`, `file (` (932130, 933135, 933160) vẫn 403. Nơi nhận phủ 50 dòng đầu,
+  dòng thứ 51 trở đi soi đủ.
+- Các ô chữ ngắn khác (Số hiệu, tên đơn vị, tên người…) vẫn soi đủ, không loại trừ vì chữ thật ở đó không có dạng
+  này. Giá trị chỉ là một đường dẫn `http(s)://<IP>…` (931100), mở đầu bằng "File", "http", "ftp" và kết thúc
+  bằng `?` (931120), hay có `${…}`, `file (` (932130, 933135, 933160) → 403. Ô Tìm kiếm: `${…}` → 403.
   Người dùng thấy: lưu không được, thường kèm "Có lỗi xảy ra: Unexpected token '<' … is not valid JSON" (giao diện đọc
   trang 403 của cổng như JSON); trong công cụ nhà phát triển, yêu cầu `/v1/graphql` trả `403` kèm `X-Request-Id`. Cách
   đi tiếp: thêm chữ trước đường dẫn ("Xem tại http://…"), bỏ dấu `?` cuối; người quản trị tra `X-Request-Id` (mục "Đọc

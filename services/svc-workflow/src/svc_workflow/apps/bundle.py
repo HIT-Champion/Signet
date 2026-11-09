@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import bpmn
-from .forms import AppForm, check_form
+from .forms import AppForm, check_form, field_kinds
 
 MANIFEST = "moc-workflow.json"
 INDEX = "moc-app.json"
@@ -162,6 +162,7 @@ def check_bundle(app: str, data: bytes) -> Bundle:
             resources[form_resource(form_key)] = files[path]
     fields = {f for form in forms.values() for f in form.fields}
     required = {f for form in forms.values() for f in form.required}
+    kinds = field_kinds(forms.values())
     processes: dict[str, bpmn.Process] = {}
     for path in paths:
         if path not in files:
@@ -171,7 +172,7 @@ def check_bundle(app: str, data: bytes) -> Bundle:
             errors.append(f"workflow.processes: {path} phải có đuôi .bpmn20.xml")
             continue
         # chưa kiểm được form nào thì vẫn kiểm BPMN theo tên khai, để một lần chạy báo đủ lỗi
-        proc, problems = bpmn.check(app, path, files[path], set(form_paths), fields)
+        proc, problems = bpmn.check(app, path, files[path], set(form_paths), fields, kinds)
         errors += problems
         if proc is None:
             continue

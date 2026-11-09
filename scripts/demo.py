@@ -4440,14 +4440,15 @@ QT_WRONG_TYPE, QT_BAD_TYPE = "nghi-mat", {"loai": "enum"}
 QT_WRONG_DECISION, QT_BAD_DECISION = "Đồng ý", {"quyetDinh": "enum"}
 
 
-def leave_request(today: Any, tag: str) -> dict[str, str]:
-    """Đơn hợp lệ theo forms/don.json: phép năm từ một tuần sau, ba ngày; lý do ở dạng NFC như form dọn."""
+def leave_request(today: Any, tag: str) -> dict[str, Any]:
+    """Đơn hợp lệ theo forms/don.json: phép năm từ một tuần sau, ba ngày, ba ngày làm việc — không quá 3 nên trưởng
+    phòng duyệt là xong, không thêm bước Hiệu trưởng; lý do ở dạng NFC như form dọn."""
     start = today + timedelta(days=7)
     return {"loai": "phep-nam", "tuNgay": start.isoformat(), "denNgay": (start + timedelta(days=2)).isoformat(),
-            "lyDo": unicodedata.normalize("NFC", f"Về quê dự đám cưới em gái ({tag})")}
+            "soNgayLam": 3, "lyDo": unicodedata.normalize("NFC", f"Về quê dự đám cưới em gái ({tag})")}
 
 
-def bad_range(req: dict[str, str]) -> dict[str, str]:
+def bad_range(req: dict[str, Any]) -> dict[str, Any]:
     """Cùng đơn, đến ngày trước từ ngày: lõi phải trả 422 {"denNgay": "x-moc-range"}."""
     return {**req, "tuNgay": req["denNgay"], "denNgay": req["tuNgay"]}
 

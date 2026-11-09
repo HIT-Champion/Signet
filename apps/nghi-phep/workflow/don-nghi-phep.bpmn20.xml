@@ -18,19 +18,25 @@
 -->
 
 <!--
-  Đơn nghỉ phép (#301) — quy trình của ứng dụng apps/nghi-phep, khai ở mục workflow của app.yaml. moc app install
+  Đơn nghỉ phép (#301, #325) — quy trình của ứng dụng apps/nghi-phep, khai ở mục workflow của app.yaml. moc app install
   triển khai tệp này lên động cơ quy trình của lõi (Flowable sau svc-workflow); trang gọi API chung
   /api/workflow/nghi-phep/… bằng token của client app-nghi-phep. Ứng dụng không có mã chạy trên máy chủ: chỉ sự kiện
-  bắt đầu, kết thúc, một việc người làm và một cổng rẽ nhánh so dữ liệu form với hằng số — đúng danh sách phần tử lõi
-  nhận cho ứng dụng cài thêm.
+  bắt đầu, kết thúc, việc người làm, cổng rẽ nhánh so dữ liệu form với hằng số và một timer — đúng danh sách phần tử
+  lõi nhận cho ứng dụng cài thêm.
 
-  Nhóm ứng viên t:<tenantId>:d:<departmentId>:manager như bước duyệt cấp phòng của văn bản đi
-  (services/svc-workflow/processes/van-ban-di.bpmn20.xml): chỉ trưởng phòng của chính phòng người gửi thấy việc.
+  Luồng:
+    - trưởng phòng của chính phòng người gửi duyệt (nhóm t:<tenantId>:d:<departmentId>:manager, như bước duyệt cấp
+      phòng của văn bản đi, services/svc-workflow/processes/van-ban-di.bpmn20.xml);
+    - trưởng phòng đồng ý và nghỉ tới 3 ngày làm việc: xong; quá 3 ngày: thêm bước Hiệu trưởng duyệt
+      (nhóm t:<tenantId>:director);
+    - quá 2 ngày trưởng phòng chưa duyệt: timer ngắt bước đó, đơn chuyển lên Hiệu trưởng duyệt. Timer ngắt chứ không
+      tạo việc nhắc song song: việc nhắc còn mở thì quy trình chưa xong dù đơn đã có quyết định.
   Biến:
     tenantId, departmentId   đơn vị, phòng của người gửi đơn — lõi đặt từ token lúc khởi chạy
     initiator                người gửi (sub)
-    loai, tuNgay, denNgay, lyDo   form nghi-phep.don (forms/don.json)
-    quyetDinh, ghiChu        form nghi-phep.duyet (forms/duyet.json): dong-y | tu-choi
+    loai, tuNgay, denNgay, soNgayLam, lyDo   form nghi-phep.don (forms/don.json); soNgayLam: số ngày làm việc nghỉ,
+                             người gửi khai (từ ngày–đến ngày còn tính cả cuối tuần, ngày lễ)
+    quyetDinh, ghiChu        form nghi-phep.duyet (forms/duyet.json): dong-y | tu-choi — bước sau ghi đè bước trước
 -->
 <definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
              xmlns:flowable="http://flowable.org/bpmn"
@@ -48,13 +54,34 @@
 
     <userTask id="duyet" name="Trưởng phòng duyệt" flowable:formKey="nghi-phep.duyet"
               flowable:candidateGroups="t:${tenantId}:d:${departmentId}:manager"/>
+    <boundaryEvent id="quaHan" name="Quá 2 ngày chưa duyệt" attachedToRef="duyet" cancelActivity="true">
+      <timerEventDefinition id="hanDuyet">
+        <timeDuration xsi:type="tFormalExpression">P2D</timeDuration>
+      </timerEventDefinition>
+    </boundaryEvent>
+    <sequenceFlow id="f6" name="Chuyển Hiệu trưởng" sourceRef="quaHan" targetRef="duyetHieuTruong"/>
     <sequenceFlow id="f2" sourceRef="duyet" targetRef="ketQua"/>
 
     <exclusiveGateway id="ketQua" name="Trưởng phòng đồng ý?"/>
-    <sequenceFlow id="f3" name="Đồng ý" sourceRef="ketQua" targetRef="daDuyet">
-      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${quyetDinh == 'dong-y'}]]></conditionExpression>
+    <sequenceFlow id="f3" name="Đồng ý, tới 3 ngày" sourceRef="ketQua" targetRef="daDuyet">
+      <conditionExpression><![CDATA[${quyetDinh == 'dong-y' && soNgayLam <= 3}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f5" name="Đồng ý, quá 3 ngày" sourceRef="ketQua" targetRef="duyetHieuTruong">
+      <conditionExpression><![CDATA[${quyetDinh == 'dong-y' && soNgayLam > 3}]]></conditionExpression>
     </sequenceFlow>
     <sequenceFlow id="f4" name="Từ chối" sourceRef="ketQua" targetRef="biTuChoi">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${quyetDinh == 'tu-choi'}]]></conditionExpression>
+    </sequenceFlow>
+
+    <userTask id="duyetHieuTruong" name="Hiệu trưởng duyệt" flowable:formKey="nghi-phep.duyet"
+              flowable:candidateGroups="t:${tenantId}:director"/>
+    <sequenceFlow id="f7" sourceRef="duyetHieuTruong" targetRef="ketQuaHT"/>
+
+    <exclusiveGateway id="ketQuaHT" name="Hiệu trưởng đồng ý?"/>
+    <sequenceFlow id="f8" name="Đồng ý" sourceRef="ketQuaHT" targetRef="daDuyet">
+      <conditionExpression xsi:type="tFormalExpression"><![CDATA[${quyetDinh == 'dong-y'}]]></conditionExpression>
+    </sequenceFlow>
+    <sequenceFlow id="f9" name="Từ chối" sourceRef="ketQuaHT" targetRef="biTuChoi">
       <conditionExpression xsi:type="tFormalExpression"><![CDATA[${quyetDinh == 'tu-choi'}]]></conditionExpression>
     </sequenceFlow>
 
@@ -71,14 +98,23 @@
       <bpmndi:BPMNShape id="duyet_hinh" bpmnElement="duyet">
         <omgdc:Bounds x="130" y="80" width="130" height="80"/>
       </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="quaHan_hinh" bpmnElement="quaHan">
+        <omgdc:Bounds x="177" y="142" width="36" height="36"/>
+      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="ketQua_hinh" bpmnElement="ketQua" isMarkerVisible="true">
         <omgdc:Bounds x="320" y="95" width="50" height="50"/>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="daDuyet_hinh" bpmnElement="daDuyet">
-        <omgdc:Bounds x="440" y="32" width="36" height="36"/>
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="biTuChoi_hinh" bpmnElement="biTuChoi">
-        <omgdc:Bounds x="440" y="172" width="36" height="36"/>
+        <omgdc:Bounds x="760" y="12" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="daDuyet_hinh" bpmnElement="daDuyet">
+        <omgdc:Bounds x="760" y="102" width="36" height="36"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="duyetHieuTruong_hinh" bpmnElement="duyetHieuTruong">
+        <omgdc:Bounds x="430" y="200" width="130" height="80"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="ketQuaHT_hinh" bpmnElement="ketQuaHT" isMarkerVisible="true">
+        <omgdc:Bounds x="620" y="215" width="50" height="50"/>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="f1_duong" bpmnElement="f1">
         <omgdi:waypoint x="76" y="120"/>
@@ -89,14 +125,40 @@
         <omgdi:waypoint x="320" y="120"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f3_duong" bpmnElement="f3">
-        <omgdi:waypoint x="345" y="95"/>
-        <omgdi:waypoint x="345" y="50"/>
-        <omgdi:waypoint x="440" y="50"/>
+        <omgdi:waypoint x="370" y="120"/>
+        <omgdi:waypoint x="760" y="120"/>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="f4_duong" bpmnElement="f4">
+        <omgdi:waypoint x="345" y="95"/>
+        <omgdi:waypoint x="345" y="30"/>
+        <omgdi:waypoint x="760" y="30"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f5_duong" bpmnElement="f5">
         <omgdi:waypoint x="345" y="145"/>
-        <omgdi:waypoint x="345" y="190"/>
-        <omgdi:waypoint x="440" y="190"/>
+        <omgdi:waypoint x="345" y="240"/>
+        <omgdi:waypoint x="430" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f6_duong" bpmnElement="f6">
+        <omgdi:waypoint x="195" y="178"/>
+        <omgdi:waypoint x="195" y="310"/>
+        <omgdi:waypoint x="495" y="310"/>
+        <omgdi:waypoint x="495" y="280"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f7_duong" bpmnElement="f7">
+        <omgdi:waypoint x="560" y="240"/>
+        <omgdi:waypoint x="620" y="240"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f8_duong" bpmnElement="f8">
+        <omgdi:waypoint x="670" y="240"/>
+        <omgdi:waypoint x="778" y="240"/>
+        <omgdi:waypoint x="778" y="138"/>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="f9_duong" bpmnElement="f9">
+        <omgdi:waypoint x="645" y="265"/>
+        <omgdi:waypoint x="645" y="300"/>
+        <omgdi:waypoint x="880" y="300"/>
+        <omgdi:waypoint x="880" y="30"/>
+        <omgdi:waypoint x="796" y="30"/>
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>
