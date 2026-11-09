@@ -85,7 +85,7 @@ export function docTraLoi(status, body) {
   return { ok: false, status, message: key ? t(key) : t('error.rejected', { status }) }
 }
 
-/** Trạng thái một đơn của tôi: còn chạy là chờ duyệt; kết thúc thì theo quyết định của trưởng phòng. */
+/** Trạng thái một đơn của tôi: còn chạy là chờ duyệt; kết thúc thì theo quyết định cuối (trưởng phòng hay Hiệu trưởng). */
 export function trangThai(don) {
   if (!don?.endedAt) return { ma: 'cho', nhan: t('state.pending') }
   const q = don.data?.quyetDinh

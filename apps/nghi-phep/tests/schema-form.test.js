@@ -100,7 +100,8 @@ test('đơn xin nghỉ: ô theo thứ tự, kiểu ô suy từ schema, nhãn the
   const don = json(FORMS, 'don.json')
   const vi = fields(don, 'vi')
   assert.deepEqual(vi.map((f) => [f.name, f.widget, f.required]), [
-    ['loai', 'select', true], ['tuNgay', 'date', true], ['denNgay', 'date', true], ['lyDo', 'textarea', false],
+    ['loai', 'select', true], ['tuNgay', 'date', true], ['denNgay', 'date', true], ['soNgayLam', 'number', true],
+    ['lyDo', 'textarea', false],
   ])
   assert.equal(vi[0].id, 'sf-loai')
   assert.equal(fields(don, 'vi', 'don-')[0].id, 'don-loai')
@@ -142,7 +143,9 @@ test('dọn dữ liệu trước khi kiểm: NFC, ký tự ẩn, khoảng trắn
 
 test('dữ liệu người dùng gõ, sau khi dọn, qua được chính schema đó', () => {
   const don = json(FORMS, 'don.json')
-  const data = clean(fields(don), { loai: 'om', tuNgay: '2026-10-27', denNgay: '2026-10-28', lyDo: ' Sốt\u00ad ' })
+  const typed = { loai: 'om', tuNgay: '2026-10-27', denNgay: '2026-10-28', soNgayLam: ' 2 ', lyDo: ' Sốt\u00ad ' }
+  const data = clean(fields(don), typed)
+  assert.equal(data.soNgayLam, 2)
   assert.deepEqual(formErrors(don, data, TODAY), {})
 })
 
@@ -173,6 +176,7 @@ test('tóm tắt một đơn cho người duyệt: nhãn, tên lựa chọn, ng�
     { name: 'loai', label: 'Loại nghỉ', value: 'Nghỉ ốm' },
     { name: 'tuNgay', label: 'Từ ngày', value: '27/10/2026' },
     { name: 'denNgay', label: 'Đến ngày', value: '28/10/2026' },
+    { name: 'soNgayLam', label: 'Số ngày làm việc nghỉ', value: '—' },
     { name: 'lyDo', label: 'Lý do', value: '—' },
   ])
   assert.equal(summary(don, { loai: 'mot-loai-moi' }, 'en')[0].value, 'mot-loai-moi')

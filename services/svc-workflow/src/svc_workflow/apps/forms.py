@@ -40,7 +40,7 @@ from __future__ import annotations
 import json
 import math
 import re
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from datetime import date
 from re import _constants as sre
 from re import _parser as sre_parse
@@ -185,6 +185,31 @@ class AppForm:
     def variables(self, data: dict[str, Any]) -> dict[str, Any]:
         """Dữ liệu đã kiểm → biến ghi vào quy trình: chỉ trường đã khai, có mặt và khác null."""
         return {name: data[name] for name in self.fields if data.get(name) is not None}
+
+
+def _kind(prop: Any) -> str:
+    """Kiểu của một trường cho điều kiện rẽ nhánh (bpmn.check_condition): ``number`` khi chỉ nhận số (``type``
+    integer/number, hay ``enum`` toàn số), ``date`` khi ``format: date``, còn lại ``text``."""
+    if not isinstance(prop, dict):
+        return "text"
+    types = prop.get("type", [])
+    types = {t for t in (types if isinstance(types, list) else [types])} - {"null"}
+    enum = prop.get("enum")
+    if (types and types <= {"integer", "number"}) or (not types and isinstance(enum, list) and enum and all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) for v in enum)):
+        return "number"
+    return "date" if prop.get("format") == "date" else "text"
+
+
+def field_kinds(forms: Iterable[AppForm]) -> dict[str, str]:
+    """Trường → ``number`` | ``date`` | ``text`` của mọi form trong gói; trường khai khác kiểu ở hai form → ``mixed``
+    (điều kiện không so được, vì Flowable giữ một biến cho cả quy trình)."""
+    kinds: dict[str, str] = {}
+    for form in forms:
+        for name, prop in (form.schema.get("properties") or {}).items():
+            kind = _kind(prop)
+            kinds[name] = kind if kinds.get(name, kind) == kind else "mixed"
+    return kinds
 
 
 def _risky(items: Any, in_repeat: bool, repeats: list[tuple[int, int]], branches: list[int]) -> str | None:
