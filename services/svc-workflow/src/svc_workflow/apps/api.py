@@ -46,12 +46,12 @@ import os
 from collections.abc import Coroutine, Mapping
 from typing import Annotated, Any, Self
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, Response
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from ..config import Settings
-from ..flowable import FlowableClient, FlowableError, Task
+from ..flowable import FLOWABLE_ID, FlowableClient, FlowableError, Task
 from ..hasura import Actor, HasuraClient, HasuraError
 from ..notify import load_people
 from .auth import AppUser, AuthError, TokenVerifier
@@ -60,6 +60,7 @@ from .bundle import INDEX, deployment_prefix, form_resource
 from .forms import RESERVED, AppForm
 
 log = logging.getLogger("svc_workflow")
+CANCELLED = "huy-boi-nguoi-gui"   # deleteReason khi người gửi hủy đơn (#325); lịch sử Flowable giữ lý do
 CACHE_LIMIT = 500           # mục lục, form, định nghĩa → deployment: bất biến, chỉ cần trần bộ nhớ
 # Dữ liệu một form chỉ là vài trường đơn. Đọc quá thì dừng: không giữ cả thân (APISIX cho tới 64 MiB) trong bộ nhớ,
 # không đưa chuỗi cỡ đó vào pattern của form (apps/forms.py)
@@ -228,27 +229,51 @@ class AppWorkflow:
         return await self.flowable.start_definition(definition["id"],
                                                     rest_variables({**form.variables(data), **system}))
 
-    async def my_processes(self, user: AppUser, app: str) -> list[dict[str, Any]]:
+    @staticmethod
+    def _mine(user: AppUser, app: str, row: dict[str, Any]) -> bool:
+        variables = _variables(row)
+        return (variables.get("initiator") == user.user_id and variables.get("tenantId") == str(user.tenant_id)
+                and str(row.get("processDefinitionId", "")).startswith(f"{app}."))
+
+    async def my_processes(self, user: AppUser, app: str, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         dep, _ = await self.installed(app)
         index = await self.index(dep)
         rows: list[dict[str, Any]] = []
+        # mỗi quy trình lấy offset + limit đơn mới nhất rồi gộp, cắt: đúng trang dù ứng dụng có nhiều quy trình
         for key in sorted(((index or {}).get("processes") or {})):
-            rows += await self.flowable.historic_processes({"processDefinitionKey": key, "variables": [
-                {"name": "initiator", "value": user.user_id, "operation": "equals", "type": "string"},
-                {"name": "tenantId", "value": str(user.tenant_id), "operation": "equals", "type": "string"},
-            ]})
-        out = []
-        for row in rows:
-            variables = _variables(row)
-            if (variables.get("initiator") != user.user_id or variables.get("tenantId") != str(user.tenant_id)
-                    or not str(row.get("processDefinitionId", "")).startswith(f"{app}.")):
-                continue
-            out.append({
-                "id": row["id"], "processKey": row["processDefinitionId"].split(":", 1)[0],
-                "startedAt": row.get("startTime"), "endedAt": row.get("endTime"), "data": app_data(variables),
-            })
+            rows += await self.flowable.historic_processes({
+                "processDefinitionKey": key, "sort": "startTime", "order": "desc", "size": offset + limit,
+                "variables": [
+                    {"name": "initiator", "value": user.user_id, "operation": "equals", "type": "string"},
+                    {"name": "tenantId", "value": str(user.tenant_id), "operation": "equals", "type": "string"},
+                ]})
+        out = [{
+            "id": row["id"], "processKey": row["processDefinitionId"].split(":", 1)[0],
+            "startedAt": row.get("startTime"), "endedAt": row.get("endTime"),
+            # đơn xong bình thường không có deleteReason; có là bị hủy (người gửi, hay người vận hành trên Flowable)
+            "cancelled": bool(row.get("deleteReason")), "data": app_data(_variables(row)),
+        } for row in rows if self._mine(user, app, row)]
         out.sort(key=lambda p: p["startedAt"] or "", reverse=True)
-        return out
+        return out[offset:offset + limit]
+
+    async def cancel(self, user: AppUser, app: str, process_id: str) -> None:
+        """Người gửi hủy đơn còn chờ duyệt. Đơn không có, của người khác, ứng dụng hay đơn vị khác đều 404 như nhau:
+        không lộ đơn có tồn tại hay không."""
+        await self.installed(app)
+        rows = (await self.flowable.historic_processes({"processInstanceId": process_id})
+                if FLOWABLE_ID.fullmatch(process_id) else [])
+        row = next((r for r in rows if r.get("id") == process_id and self._mine(user, app, r)), None)
+        if row is None:
+            raise _fail(404, "process_not_found", "Đơn không còn hoặc không thuộc người này")
+        finished = _fail(409, "already_finished", "Đơn đã xong, không hủy được")
+        if row.get("endTime"):
+            raise finished
+        try:
+            await self.flowable.delete_process(process_id, CANCELLED)
+        except FlowableError as exc:
+            if exc.status == 404:                   # vừa duyệt xong giữa lúc đọc và lúc hủy
+                raise finished from exc
+            raise
 
     async def tasks(self, user: AppUser, app: str) -> list[dict[str, Any]]:
         await self.installed(app)
@@ -404,12 +429,31 @@ class AppWorkflow:
             return {"id": pid}
 
         @app.get("/api/workflow/{app}/processes", tags=tags, responses=COMMON,
-                 summary="Đơn người này đã gửi qua ứng dụng, mới nhất trước")
-        async def list_processes(app: str, user: User) -> list[dict[str, Any]]:
+                 summary="Đơn người này đã gửi qua ứng dụng, mới nhất trước, từng trang")
+        async def list_processes(app: str, user: User,
+                                 limit: Annotated[int, Query(ge=1, le=100, description="Số đơn mỗi trang, 1–100; "
+                                                             "trang đủ limit đơn thì có thể còn trang sau")] = 50,
+                                 offset: Annotated[int, Query(ge=0, le=10000, description="Bỏ qua bao nhiêu đơn mới "
+                                                              "nhất, 0–10000")] = 0) -> list[dict[str, Any]]:
             try:
-                return await self.my_processes(user, app)
+                return await self.my_processes(user, app, limit, offset)
             except FlowableError as exc:
                 raise unavailable(exc) from exc
+
+        @app.delete("/api/workflow/{app}/processes/{process_id}", status_code=204, tags=tags,
+                    responses={**COMMON,
+                               404: {"description": "Ứng dụng đã gỡ; đơn không còn hoặc không thuộc người này"},
+                               409: {"description": "Đơn đã duyệt xong hoặc đã hủy"}},
+                    summary="Người gửi hủy đơn còn chờ duyệt")
+        async def cancel_process(app: str, process_id: str, user: User, request: Request) -> Response:
+            try:
+                await self.cancel(user, app, process_id)
+            except FlowableError as exc:
+                raise unavailable(exc) from exc
+            log.info(json.dumps({"event": "app.workflow.cancelled", "app": app, "process_id": process_id,
+                                 "user_id": user.user_id, "tenant_id": str(user.tenant_id),
+                                 "request_id": rid(request)}))
+            return Response(status_code=204)
 
         @app.get("/api/workflow/{app}/tasks", tags=tags, responses=COMMON,
                  summary="Việc của ứng dụng giao cho người này hoặc nhóm của người này, cũ nhất trước")

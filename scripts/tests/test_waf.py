@@ -245,7 +245,7 @@ class RulesTest(unittest.TestCase):
         ids = re.findall(r'"id:(10\d\d\d),', self.directives)
         self.assertEqual(ids, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
                                "10060", "10061", "10070", "10080", "10081", "10090", "10091",
-                               "10092", "10093"])
+                               "10092", "10093", "10099"])
         removed = re.findall(r"SecRuleRemoveById (\d+)", self.directives)
         self.assertEqual(removed, ["920350"])
         for rule_id in ids + removed:
@@ -263,7 +263,7 @@ class RulesTest(unittest.TestCase):
         pattern = r'SecRule REQUEST_FILENAME "@(?:beginsWith|rx|streq) [^"]+"\s+"id:(\d+),\s*phase:1,pass,nolog,'
         scoped = re.findall(pattern, self.directives)
         self.assertEqual(scoped, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
-                                  "10070", "10080", "10081", "10090", "10093"])
+                                  "10070", "10080", "10081", "10090", "10093", "10099"])
         self.assertNotIn("ctl:ruleEngine=Off", self.directives)
         # tắt soi thân chỉ ở API lưu flow, thư viện của Node-RED (#366), đường neo hai đầu
         # đường có ".." không được gỡ: WAF so đường thô, APISIX chuyển đường đã chuẩn hóa (/tu-dong/library/../x)
@@ -420,6 +420,28 @@ class RulesTest(unittest.TestCase):
         # route rest chỉ nhận đúng các phương thức PostgREST cần
         routes = read(APISIX / "apisix.yaml")
         self.assertIn("methods: [GET, HEAD, POST, PATCH, DELETE]\n    upstream_id: rest\n", routes)
+
+    def test_app_requests_get_delete_only_on_the_cancel_path(self) -> None:
+        # Loại trừ 15 (#325): người gửi hủy đơn của ứng dụng bằng DELETE /api/workflow/<app>/processes/<id>. Như 10090:
+        # không gỡ luật nào, chỉ thêm DELETE, chỉ trên đường đó đã giải mã (không vòng sang việc, form, route khác)
+        rule = self.exclusion("10099")
+        self.assertNotIn("ctl:", rule)
+        self.assertIn("t:urlDecodeUni,", rule)
+        self.assertEqual(re.findall(r"setvar:'([^']+)'", rule), ["tx.allowed_methods=GET HEAD POST OPTIONS DELETE"])
+        path = re.search(r'"@rx (\S+)"', self.directives[self.directives.index('"id:10099,') - 120:]).group(1)
+        for uri, hit in (("/api/workflow/nghi-phep/processes/7d2c1e0a-0000-4000-8000-000000000001", True),
+                         ("/api/workflow/lich-giang/processes/12345", True),
+                         ("/api/workflow/nghi-phep/processes/", False), ("/api/workflow/nghi-phep/processes", False),
+                         ("/api/workflow/nghi-phep/tasks/t-1", False), ("/api/workflow/nghi-phep/forms/x", False),
+                         ("/api/workflow/nghi-phep/processes/a/b", False),
+                         ("/api/workflow/nghi-phep/processes/..", False),
+                         ("/api/workflow/nghi-phep/processes/nghi-phep.don", False),
+                         ("/api/workflow/../rest/v1/processes/x", False), ("/x/api/workflow/a/processes/b", False),
+                         ("/api/workflow/Nghi/processes/b", False)):
+            self.assertEqual(bool(re.search(path, uri)), hit, uri)
+        self.assertLess(self.directives.index('"id:10099,'), self.directives.index("Include @owasp_crs"))
+        # route svc-workflow nhận thêm DELETE, không thêm PUT, PATCH
+        self.assertIn('uris: ["/api/workflow/*"]\n    methods: [GET, POST, DELETE]\n', read(APISIX / "apisix.yaml"))
 
     def test_rest_api_refuses_patch_delete_without_filter(self) -> None:
         # #588: PATCH, DELETE không bộ lọc là câu lệnh không WHERE, sửa, xóa mọi dòng của đơn vị. 10091 đánh dấu có bộ

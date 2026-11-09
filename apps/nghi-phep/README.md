@@ -53,7 +53,8 @@ Qua cổng, token phải có `azp` = `app-nghi-phep` (token của client khác: 
 |---|---|
 | `GET /api/workflow/nghi-phep/forms/{formKey}` | Lấy JSON Schema của form |
 | `POST /api/workflow/nghi-phep/processes/nghi-phep.don` `{"data": {...}}` | Gửi đơn → `201 {"id"}` |
-| `GET /api/workflow/nghi-phep/processes` | Đơn của tôi |
+| `GET /api/workflow/nghi-phep/processes?limit=50&offset=0` | Đơn của tôi, từng trang; `cancelled` khi đơn đã hủy |
+| `DELETE /api/workflow/nghi-phep/processes/{id}` | Hủy đơn còn chờ duyệt → `204`; `404`, `409` khi không hủy được (#325) |
 | `GET /api/workflow/nghi-phep/tasks` | Việc cần duyệt của tôi |
 | `POST /api/workflow/nghi-phep/tasks/{taskId}` `{"data": {...}}` | Duyệt → `204` |
 

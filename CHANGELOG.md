@@ -45,6 +45,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   vẽ (#603).
 - Trang văn bản có mục "Sơ đồ quy trình": sơ đồ BPMN của văn bản vẽ bằng SVG, bước đã qua, đang chờ, timer quá hạn
   đã bắn, kèm danh sách bước dạng chữ (#603).
+- API quy trình của ứng dụng: người gửi hủy đơn còn chờ duyệt (`DELETE /api/workflow/<ứng dụng>/processes/<id>`, WAF
+  luật 10099); "Đơn của tôi" chia trang bằng `limit`, `offset` và có `cancelled` (#325).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
