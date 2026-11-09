@@ -505,16 +505,17 @@ global_rules:
                 SecRule ARGS_GET:select "@rx ^(?:[a-z0-9_.,:]|\(\))+$"
                 "t:none,ctl:ruleRemoveTargetById=942100;ARGS:select"
               # Loại trừ 15 — ô Cơ quan ban hành khi vào sổ văn bản đến (#260): receiveIncoming gửi d.issuer_name,
-              # kiểm trùng khi rời ô gửi lại chữ đó ở biến i (tiep-nhan.vue). Người dùng dán đường dẫn http://<IP>/…
-              # (931100) hay gõ câu "File …?", "HTTPS là gì?" (931120); tên chỉ được lưu, so khớp (Hasura tham số
-              # hóa), hiện ra — không tải URL, không include. Gỡ đúng hai luật RFI đó trên đúng hai khóa: luật RFI khác,
-              # SQLi, XSS, duyệt thư mục, Log4Shell, chèn lệnh, PHP vẫn soi; khóa gần giống (d.issuer, i2) soi đủ
+              # kiểm trùng khi rời ô gửi lại chữ đó ở biến issuer_name (tiep-nhan.vue). Người dùng dán đường dẫn
+              # http://<IP>/… (931100) hay gõ câu "File …?", "HTTPS là gì?" (931120); tên chỉ được lưu, so khớp
+              # (Hasura tham số hóa), hiện ra — không tải URL, không include. Gỡ đúng hai luật RFI đó trên đúng hai
+              # khóa: luật RFI khác, SQLi, XSS, duyệt thư mục, Log4Shell, chèn lệnh, PHP vẫn soi; khóa gần giống
+              # (d.issuer, issuer) soi đủ
               - >-
                 SecRule REQUEST_FILENAME "@streq /v1/graphql" "id:10094,phase:1,pass,nolog,
                 ctl:ruleRemoveTargetById=931100;ARGS:json.variables.d.issuer_name,
-                ctl:ruleRemoveTargetById=931100;ARGS:json.variables.i,
+                ctl:ruleRemoveTargetById=931100;ARGS:json.variables.issuer_name,
                 ctl:ruleRemoveTargetById=931120;ARGS:json.variables.d.issuer_name,
-                ctl:ruleRemoveTargetById=931120;ARGS:json.variables.i"
+                ctl:ruleRemoveTargetById=931120;ARGS:json.variables.issuer_name"
               # Loại trừ 16 — ô Nơi nhận khi soạn, sửa văn bản đi (#260, soan.vue): mỗi dòng là một phần tử của
               # o.recipients hay set.recipients, Coraza đặt tên khóa theo vị trí (…recipients.0, .1, …) mà ctl không
               # nhận regex nên kê từng khóa. CSDL không giới hạn số dòng (text[]): phủ 50 dòng đầu, dòng thứ 51 trở đi

@@ -421,7 +421,7 @@ def check_waf(clerk: Session, director: Session, staff: Session, tag: str) -> No
             status != 403 or fail(f"WAF chặn nhầm ô Tìm kiếm ({label}): HTTP 403")
     ok(f"chữ thật từng bị chặn nhầm qua WAF ở nội dung dự thảo và ô Tìm kiếm: {', '.join(samples)}")
     # #260 (loại trừ 15, 16): câu tự viết từng bị 931100, 931120 chặn ở Cơ quan ban hành (receiveIncoming $d, kiểm
-    # trùng $i) và Nơi nhận (soạn $o, sửa $set; dòng đầu, dòng thứ 50) — lượt dò "sau sửa 5" của README
+    # trùng $issuer_name) và Nơi nhận (soạn $o, sửa $set; dòng đầu, dòng thứ 50) — lượt dò "sau sửa 5" của README
 
     def via(key: str, text: str) -> int:
         """text ở khóa biến json.variables.<key> (số là vị trí trong mảng); không token: qua WAF thì cổng trả 401."""
@@ -440,13 +440,14 @@ def check_waf(clerk: Session, director: Session, staff: Session, tag: str) -> No
                "https://signet.htechcs.com/van-ban/12 đã ký chưa?", "Http://10.0.0.5/van-ban/12 đã duyệt chưa?",
                "Ftp://10.0.0.5/van-ban/12",
                "File này cần trình ký trước ngày 30/10, đồng chí xem giúp?"]
-    shorts = ["d.issuer_name", "i", "o.recipients.0", "o.recipients.49", "set.recipients.0", "set.recipients.49"]
+    shorts = ["d.issuer_name", "issuer_name", "o.recipients.0", "o.recipients.49", "set.recipients.0",
+              "set.recipients.49"]
     blocked = [f"{key}: {text}" for key in shorts for text in written if via(key, text) == 403]
     not blocked or fail(f"WAF chặn nhầm Cơ quan ban hành, Nơi nhận (#260): {blocked[:3]}")
     ok(f"Cơ quan ban hành, Nơi nhận qua WAF với {len(written)} câu từng bị 931100, 931120 chặn (#260)")
     # Tải tấn công trên chính các khóa đó và khóa gần giống — kể cả dòng thứ 51 của Nơi nhận — vẫn 403; câu URL ở
     # khóa gần giống cũng vẫn 403 (loại trừ không lan ra khóa khác)
-    near = ["d.issuer", "x.issuer_name", "d.issuer_name.x", "i2", "o.recipient.0", "o.recipients.0.x",
+    near = ["d.issuer", "x.issuer_name", "d.issuer_name.x", "issuer", "o.recipient.0", "o.recipients.0.x",
             "set.recipients.50"]
     tries = [(key, text) for key in shorts + near
              for text in (sqli, "<script>alert(1)</script>", "../../../etc/passwd", "/etc/passwd",

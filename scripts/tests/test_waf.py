@@ -379,13 +379,13 @@ class RulesTest(unittest.TestCase):
         self.assertIn("'mutation ($d: jsonb!) { receiveIncoming(data: $d) { document_id } }', { d: payload.value }",
                       receive)
         self.assertIn("issuer_name: oneLine(form.issuer_name)", receive)
-        self.assertIn("issuer_name: {_ilike: $i}", receive)
-        self.assertIn("{ s: symbol, i: issuer.replace(", receive)
+        self.assertIn("issuer_name: {_ilike: $issuer_name}", receive)
+        self.assertIn("{ s: symbol, issuer_name: issuer.replace(", receive)
         compose = read(office / "pages/van-ban-di/soan.vue")
         for evidence in ("recipients: recipientList.value", "{ o: { ...fields", "_set: $set", "set: fields"):
             self.assertIn(evidence, compose)
         cover = 50
-        for rule_id, keys in (("10094", ["d.issuer_name", "i"]),
+        for rule_id, keys in (("10094", ["d.issuer_name", "issuer_name"]),
                               ("10095", [f"{v}.recipients.{n}" for v in ("o", "set") for n in range(cover)])):
             self.assertIn(f'SecRule REQUEST_FILENAME "@streq /v1/graphql" "id:{rule_id},phase:1,pass,nolog,',
                           self.directives)
@@ -542,9 +542,10 @@ class SmokeTest(unittest.TestCase):
         block = smoke[smoke.index("def check_waf("):smoke.index("\ndef main(")]
         shorts = re.search(r"shorts = \[([^\]]+)\]", block).group(1)
         near = re.search(r"near = \[([^\]]+)\]", block).group(1)
-        for key in ("d.issuer_name", "i", "o.recipients.0", "o.recipients.49", "set.recipients.0", "set.recipients.49"):
+        for key in ("d.issuer_name", "issuer_name", "o.recipients.0", "o.recipients.49", "set.recipients.0",
+                    "set.recipients.49"):
             self.assertIn(f'"{key}"', shorts)
-        for key in ("d.issuer", "i2", "o.recipients.0.x", "set.recipients.50"):
+        for key in ("d.issuer", "issuer", "o.recipients.0.x", "set.recipients.50"):
             self.assertIn(f'"{key}"', near)
         for attack in ("sqli", "<script>", "../../../etc/passwd", '"/etc/passwd"', "${jndi:"):
             self.assertIn(attack, block[block.index("tries = "):])
