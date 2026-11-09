@@ -245,7 +245,7 @@ class RulesTest(unittest.TestCase):
         ids = re.findall(r'"id:(10\d\d\d),', self.directives)
         self.assertEqual(ids, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
                                "10060", "10061", "10070", "10080", "10081", "10090", "10091",
-                               "10092", "10093"])
+                               "10092", "10093", "10094", "10095"])
         removed = re.findall(r"SecRuleRemoveById (\d+)", self.directives)
         self.assertEqual(removed, ["920350"])
         for rule_id in ids + removed:
@@ -263,7 +263,7 @@ class RulesTest(unittest.TestCase):
         pattern = r'SecRule REQUEST_FILENAME "@(?:beginsWith|rx|streq) [^"]+"\s+"id:(\d+),\s*phase:1,pass,nolog,'
         scoped = re.findall(pattern, self.directives)
         self.assertEqual(scoped, ["10010", "10011", "10020", "10030", "10031", "10032", "10033", "10040", "10050",
-                                  "10070", "10080", "10081", "10090", "10093"])
+                                  "10070", "10080", "10081", "10090", "10093", "10094", "10095"])
         self.assertNotIn("ctl:ruleEngine=Off", self.directives)
         # tắt soi thân chỉ ở API lưu flow, thư viện của Node-RED (#366), đường neo hai đầu
         # đường có ".." không được gỡ: WAF so đường thô, APISIX chuyển đường đã chuẩn hóa (/tu-dong/library/../x)
@@ -275,7 +275,7 @@ class RulesTest(unittest.TestCase):
         self.assertNotIn("ctl:ruleRemoveById", self.directives)
         for target in re.findall(r"ctl:ruleRemoveTarget(?:ById|ByTag)=[^;]+;([^,\"\n]+)", self.directives):
             self.assertRegex(target,
-                             r"^(?:ARGS:[a-z_.-]+|FILES|MULTIPART_PART_HEADERS:[a-z]+"
+                             r"^(?:ARGS:[a-z0-9_.-]+|FILES|MULTIPART_PART_HEADERS:[a-z]+"
                              r"|REQUEST_COOKIES:(?:[A-Z_]+|connect\.sid)|REQUEST_BASENAME)$")
 
     def exclusion(self, rule_id: str) -> str:
@@ -370,6 +370,34 @@ class RulesTest(unittest.TestCase):
         self.assertIn("/api/search?${qs}", read(office / "composables/useApi.ts"))
         self.assertIn("query: { q: q.value.trim()", read(office / "pages/tim-kiem.vue"))
 
+    def test_short_fields_only_lose_two_url_rules_on_the_keys_the_pages_send(self) -> None:
+        # #260, loại trừ 15, 16: Cơ quan ban hành, Nơi nhận chỉ mất 931100 (URL có IP) và 931120 (câu "File …?"), trên
+        # đúng khóa giao diện gửi. Nơi nhận là mảng: Coraza đặt khóa theo vị trí, ctl không nhận regex — kê đủ 50 vị trí
+        # đầu cho cả soạn ($o) lẫn sửa ($set), README ghi đúng số đó. Khóa nào khác (d.issuer, o.recipients.50) soi đủ
+        office = ROOT / "apps" / "office" / "app"
+        receive = read(office / "pages/van-ban-den/tiep-nhan.vue")
+        self.assertIn("'mutation ($d: jsonb!) { receiveIncoming(data: $d) { document_id } }', { d: payload.value }",
+                      receive)
+        self.assertIn("issuer_name: oneLine(form.issuer_name)", receive)
+        self.assertIn("issuer_name: {_ilike: $i}", receive)
+        self.assertIn("{ s: symbol, i: issuer.replace(", receive)
+        compose = read(office / "pages/van-ban-di/soan.vue")
+        for evidence in ("recipients: recipientList.value", "{ o: { ...fields", "_set: $set", "set: fields"):
+            self.assertIn(evidence, compose)
+        cover = 50
+        for rule_id, keys in (("10094", ["d.issuer_name", "i"]),
+                              ("10095", [f"{v}.recipients.{n}" for v in ("o", "set") for n in range(cover)])):
+            self.assertIn(f'SecRule REQUEST_FILENAME "@streq /v1/graphql" "id:{rule_id},phase:1,pass,nolog,',
+                          self.directives)
+            rule = self.exclusion(rule_id)
+            removed = re.findall(r"ctl:ruleRemoveTargetById=(\d+);ARGS:json\.variables\.([a-z0-9_.]+)[,\n]",
+                                 rule + "\n")
+            self.assertEqual(sorted(removed), sorted((i, k) for i in ("931100", "931120") for k in keys))
+            self.assertEqual(rule.count("ctl:"), len(removed))
+        self.assertIn(f"phủ {cover} dòng đầu", read(APISIX / "README.md"))
+        order = [self.directives.index(d) for d in ('"id:10093,', '"id:10094,', '"id:10095,', "Include @owasp_crs")]
+        self.assertEqual(order, sorted(order))
+
     def test_upload_name_exclusion_only_on_upload_routes(self) -> None:
         rule = self.exclusion("10040")
         path = re.search(r'"@rx (\S+)"', self.directives[self.directives.index('"id:10040,') - 120:]).group(1)
@@ -451,7 +479,8 @@ class RulesTest(unittest.TestCase):
     def test_rest_api_aggregates_skip_libinjection_only_for_plain_select(self) -> None:
         # #589: select=<nhóm>,count(), <cột>.sum() của trang báo cáo bị 942100 (libinjection, "n,f()") chặn. 10093 gỡ
         # đúng 942100 trên ARGS:select, chỉ GET /rest/v1/<bảng>, đúng một select chỉ gồm tên, bí danh, hàm gộp
-        rule = self.directives[self.directives.index('"id:10093,'):self.directives.index("Include @owasp_crs")]
+        start = self.directives.index('"id:10093,')
+        rule = self.directives[start:self.directives.index('ARGS:select"\n', start) + len('ARGS:select"\n')]
         chain = (r'"id:10093,phase:1,pass,nolog,t:none,t:urlDecodeUni,\s+chain"\n'
                  r'\s+- SecRule REQUEST_METHOD "@streq GET" "t:none,chain"\n'
                  r'\s+- SecRule &ARGS:select "@eq 1" "t:none,chain"\n'
@@ -505,6 +534,21 @@ class SmokeTest(unittest.TestCase):
             self.assertIn(f"({rule_id})", block)
         self.assertIn("update_office_documents_by_pk", block)
         self.assertIn('"/api/search?" + urllib.parse.urlencode({"q": text})', block)
+
+    def test_smoke_checks_short_fields_both_ways(self) -> None:
+        # #260: câu từng bị chặn qua ở mọi khóa đã gỡ, kể cả vị trí cuối được phủ; tải tấn công ở đó và ở khóa gần
+        # giống (kể cả vị trí ngay sau phần phủ) vẫn 403
+        smoke = read(ROOT / "scripts" / "smoke.py")
+        block = smoke[smoke.index("def check_waf("):smoke.index("\ndef main(")]
+        shorts = re.search(r"shorts = \[([^\]]+)\]", block).group(1)
+        near = re.search(r"near = \[([^\]]+)\]", block).group(1)
+        for key in ("d.issuer_name", "i", "o.recipients.0", "o.recipients.49", "set.recipients.0", "set.recipients.49"):
+            self.assertIn(f'"{key}"', shorts)
+        for key in ("d.issuer", "i2", "o.recipients.0.x", "set.recipients.50"):
+            self.assertIn(f'"{key}"', near)
+        for attack in ("sqli", "<script>", "../../../etc/passwd", '"/etc/passwd"', "${jndi:"):
+            self.assertIn(attack, block[block.index("tries = "):])
+        self.assertIn("File đính kèm ở đâu?", block[block.index("written = "):])
 
 
 if __name__ == "__main__":

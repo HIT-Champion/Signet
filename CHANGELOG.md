@@ -63,6 +63,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Đổi, bù lịch giảng gọi cấp duyệt thứ hai là lãnh đạo đơn vị như Văn phòng điện tử, thay cho lãnh đạo khoa (#537).
 
 ### Đã sửa lỗi
+- WAF không còn chặn đường dẫn `http://<IP>`, câu "File …?" ở Cơ quan ban hành, Nơi nhận (luật 10094, 10095, #260).
 - Tải lên không còn chờ lúc ClamAV nạp lại chữ ký: clamd nạp song song, RAM lên khoảng 1,9 GiB trong khoảng 10 giây
   (#288).
 - Nâng cấp máy có dữ liệu thật không còn tự lùi vì smoke cần tài khoản mẫu: bỏ smoke khi tắt client `moc-cli`, chọn
