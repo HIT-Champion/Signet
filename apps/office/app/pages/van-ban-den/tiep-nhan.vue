@@ -409,10 +409,12 @@ async function checkDuplicate() {
   const { symbol, issuer_name: issuer, issued_on: day } = payload.value
   if (!symbol || !issuer || !day) return
   const data = await gql<{ office_documents: { symbol: string; issuer_name: string; issued_on: string }[] }>(`
-    query ($s: String!, $i: String!, $d: date!) {
+    query ($s: String!, $issuer_name: String!, $d: date!) {
       office_documents(where: {direction: {_eq: "in"}, status: {_neq: "cancelled"}, symbol: {_eq: $s},
-                               issuer_name: {_ilike: $i}, issued_on: {_eq: $d}}, limit: 1) { symbol issuer_name issued_on }
-    }`, { s: symbol, i: issuer.replace(/[\\%_]/g, '\\$&'), d: day })
+                               issuer_name: {_ilike: $issuer_name}, issued_on: {_eq: $d}}, limit: 1) {
+        symbol issuer_name issued_on
+      }
+    }`, { s: symbol, issuer_name: issuer.replace(/[\\%_]/g, '\\$&'), d: day })
   duplicate.value = data.office_documents[0] ?? null
 }
 
