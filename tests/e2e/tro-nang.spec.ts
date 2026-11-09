@@ -84,6 +84,21 @@ async function scanBoard(page: Page): Promise<string[]> {
   return scan(page, '/bang-tin/', page.locator('#tin li').first())
 }
 
+// /sinh (#303) và /nghi-phep cũng cắm bằng manifest, CI cài trước make seed như Bảng tin. Mở qua SSO rồi chờ phần dựng
+// từ dữ liệu: dòng của bảng mẫu sinh.yeu_cau (make seed) cùng form thêm dòng dựng từ mô tả PostgREST; form đơn lấy từ
+// lõi
+async function scanApp(page: Page, path: string, marker: string, ready: string): Promise<string[]> {
+  const installed = (await (await page.request.get(path)).text()).includes(marker)
+  if (!installed) {
+    expect(process.env.CI, `CI phải cài ${path} trước make e2e (ci.yml, bước make app-install)`).toBeFalsy()
+    test.info().annotations.push({ type: `bỏ qua ${path}`,
+      description: `chưa cài: make app-install APP=apps${path.slice(0, -1)}/app.yaml` })
+    return []
+  }
+  await page.goto(path)
+  return scan(page, path, page.locator(ready).first())
+}
+
 test.afterAll(() => {
   const stale = ALLOW.filter((a) => scanned.has(a.page) && !used.has(a))
     .map((a) => `${a.page}: ${a.rule} (#${a.issue}) không còn lỗi, bỏ khỏi ALLOW`)
@@ -115,6 +130,8 @@ test('trợ năng: các trang của giám khảo (chuyên viên)', async ({ brow
   left.push(...await scanAll(judge, ['/van-ban-den', '/van-ban-di', '/van-ban-di/soan', '/ho-so', '/cam-bien',
     '/tim-kiem', '/hoi-dap', '/ung-dung', '/gop-y', '/ca-nhan/']))
   left.push(...await scanBoard(judge))
+  left.push(...await scanApp(judge, '/sinh/', 'id="form-moi"', '#danh-sach li'))
+  left.push(...await scanApp(judge, '/nghi-phep/', 'id="form-don"', '#form-don form'))
   expect(left).toEqual([])
 })
 
