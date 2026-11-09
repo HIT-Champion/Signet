@@ -407,6 +407,13 @@ jobs:
         if: matrix.phan == 'e2e'
         run: make app-install APP=apps/bang-tin/app.yaml
 
+      # #303: quét trợ năng cả /sinh (form dựng từ mô tả PostgREST, bảng mẫu của make seed) và /nghi-phep (form từ lõi)
+      - name: Cài ứng dụng sinh từ bảng và Đơn nghỉ phép cho phần quét trợ năng (make app-install)
+        if: matrix.phan == 'e2e'
+        run: |
+          make app-install APP=apps/sinh/app.yaml
+          make app-install APP=apps/nghi-phep/app.yaml
+
       - name: Nạp dữ liệu mẫu (make seed)
         run: make seed
 
