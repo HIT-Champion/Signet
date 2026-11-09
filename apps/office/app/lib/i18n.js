@@ -120,6 +120,7 @@ export const MESSAGES = Object.freeze({
     'form.type': 'Sai kiểu dữ liệu',
     'form.additionalProperties': 'Trường không có trong mẫu',
     'form.invalid': 'Giá trị chưa hợp lệ',
+    'form.json': 'Chưa đúng cú pháp JSON',
     // schema dùng điều bộ kiểm không hiểu: báo lúc nạp (trang hiện qua error.loadForms)
     'schema.notObject': 'Schema {at}: phải là đối tượng',
     'schema.defs': 'Schema {at}: $defs phải là đối tượng',
@@ -228,6 +229,7 @@ export const MESSAGES = Object.freeze({
     'form.type': 'Wrong data type',
     'form.additionalProperties': 'Field not in the form',
     'form.invalid': 'Invalid value',
+    'form.json': 'Not valid JSON',
     'schema.notObject': 'Schema {at}: must be an object',
     'schema.defs': 'Schema {at}: $defs must be an object',
     'schema.keyword': 'Schema {at}: keyword {key} is not supported',

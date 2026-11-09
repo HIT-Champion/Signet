@@ -308,6 +308,8 @@ export function formErrors(schema, data, today = todayVN()) {
       if (found.has(a) || found.has(b) || typeof data[a] !== 'string' || typeof data[b] !== 'string') continue
       if (data[b] < data[a]) found.set(b, 'x-moc-range')
     }
+    // chỉ có trong dữ liệu clean() dọn từ ô json, không bao giờ từ JSON gửi tới
+    for (const [name, value] of Object.entries(data)) if (value instanceof Unparsed) found.set(name, 'x-moc-json')
   }
   const errors = {}
   for (const [name, code] of found) {
@@ -316,7 +318,41 @@ export function formErrors(schema, data, today = todayVN()) {
   return errors
 }
 
-const WIDGETS = new Set(['text', 'textarea', 'date', 'number', 'select', 'radio', 'checkbox', 'checkboxes'])
+// datetime, json, readonly không tự suy từ kiểu, chỉ theo x-moc-ui.widget (apps/sinh đặt theo kiểu cột, #303)
+const WIDGETS = new Set(['text', 'textarea', 'date', 'number', 'select', 'radio', 'checkbox', 'checkboxes',
+  'datetime', 'json', 'readonly'])
+
+// Ô datetime (datetime-local) gõ giờ của máy, 'YYYY-MM-DDTHH:MM'. Gửi kèm độ lệch múi giờ của máy: cột timestamptz lưu
+// đúng thời điểm, cột timestamp (không múi giờ) bỏ qua độ lệch nên lưu đúng giờ đã gõ
+const pad = (n) => String(n).padStart(2, '0')
+/** Giá trị đọc về (có hay không có múi giờ) thành 'YYYY-MM-DDTHH:MM' theo giờ của máy; không đọc được thì ''. */
+export function localTime(v) {
+  if (typeof v !== 'string') return ''
+  const naive = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(v)
+  if (naive) return `${naive[1]}T${naive[2]}`
+  // Date chỉ chắc đọc được 3 chữ số phần giây; PostgREST trả tới 6
+  const d = new Date(v.replace(/(\.\d{3})\d+/, '$1'))
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+function withOffset(local) {
+  const d = new Date(local)
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(local) || Number.isNaN(d.getTime())) return local
+  const m = -d.getTimezoneOffset()
+  return `${local}:00${m < 0 ? '-' : '+'}${pad(Math.floor(Math.abs(m) / 60))}:${pad(Math.abs(m) % 60)}`
+}
+
+// Ô json gõ chưa thành JSON: giữ nguyên chữ (form dựng lại vẫn còn), formErrors báo x-moc-json
+class Unparsed {
+  constructor(text) { this.text = text }
+}
+function parseJson(text) {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return new Unparsed(text)
+  }
+}
 
 /** Chữ trong schema theo ngôn ngữ: chuỗi giữ nguyên, {vi, en} lấy đúng tiếng, thiếu thì lấy tiếng kia. */
 export function say(text, lang) {
@@ -376,12 +412,20 @@ export const oneLine = (s) => s.normalize('NFC').replace(/[\t\n\v\f\r\p{Zl}\p{Zp
 export const multiLine = (s) => s.normalize('NFC').replace(/\r\n?|[\p{Zl}\p{Zp}]/gu, '\n')
   .replace(/[\t\v\f]+/g, ' ').replace(/[^\n\P{Cc}]|\p{Cf}/gu, '').trim()
 
-/** Dữ liệu gửi đi từ giá trị các ô: chuỗi đã dọn; ô để trống thì bỏ (thiếu ô bắt buộc thành lỗi required). */
+/**
+ * Dữ liệu gửi đi từ giá trị các ô: chuỗi đã dọn; ô để trống thì bỏ (thiếu ô bắt buộc thành lỗi required). Ô readonly
+ * không bao giờ gửi; ô json gửi giá trị JSON đã đọc; ô datetime gửi kèm độ lệch múi giờ.
+ */
 export function clean(list, values) {
   const data = {}
   for (const f of list) {
+    if (f.widget === 'readonly') continue
     let value = values[f.name]
-    if (typeof value === 'string' && f.widget === 'number') {
+    if (typeof value === 'string' && f.widget === 'json') {
+      value = value.trim() === '' ? '' : parseJson(value)
+    } else if (typeof value === 'string' && f.widget === 'datetime') {
+      value = withOffset(value.trim())
+    } else if (typeof value === 'string' && f.widget === 'number') {
       const n = value.trim() === '' ? NaN : Number(value)
       value = value.trim() === '' ? '' : Number.isFinite(n) ? n : value
     } else if (typeof value === 'string' && f.widget !== 'select' && f.widget !== 'radio') {
@@ -425,6 +469,7 @@ export function message(f, code, lang = 'vi', list = [], schema = {}) {
       return word(lang, 'form.range', { other: other?.label ?? pair?.[0] ?? '' })
     }
     case 'x-moc-nfc': return word(lang, 'form.nfc')
+    case 'x-moc-json': return word(lang, 'form.json')
     case 'not': return word(lang, 'form.not')
     case 'enum': return word(lang, 'form.enum')
     case 'const': return word(lang, 'form.const')
@@ -438,6 +483,11 @@ export function message(f, code, lang = 'vi', list = [], schema = {}) {
 
 function shown(f, value, lang) {
   if (value === undefined || value === null || value === '') return word(lang, 'form.empty')
+  if (f.widget === 'json') return JSON.stringify(value)
+  if (f.widget === 'datetime' && localTime(value)) {
+    const v = localTime(value)
+    return `${v.slice(8, 10)}/${v.slice(5, 7)}/${v.slice(0, 4)} ${v.slice(11)}`
+  }
   if (Array.isArray(value)) {
     return value.length ? value.map((v) => shown(f, v, lang)).join(', ') : word(lang, 'form.empty')
   }
@@ -445,7 +495,7 @@ function shown(f, value, lang) {
   if (option) return option.label
   if (typeof value === 'boolean') return value ? word(lang, 'form.yes') : word(lang, 'form.no')
   if (f.widget === 'date' && typeof value === 'string' && isDate(value)) return value.split('-').reverse().join('/')
-  return String(value)
+  return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 
 /** Dữ liệu một đơn để đọc (vd người duyệt xem đơn): nhãn ô và giá trị đã đổi ra chữ, theo thứ tự của form. */
@@ -503,7 +553,7 @@ export function mountForm(container, schema, options = {}) {
     const wrap = make(group ? 'fieldset' : 'div', { className: `sf-field sf-${f.widget}` })
     const caption = make(group ? 'legend' : 'label', { className: 'sf-label', textContent: f.label })
     if (!group) caption.htmlFor = f.id
-    const mark = f.note || (f.required ? '' : word(lang, 'form.optional'))
+    const mark = f.note || (f.required || f.widget === 'readonly' ? '' : word(lang, 'form.optional'))
     if (mark && f.widget !== 'checkbox') {
       caption.append(' ', make('span', { className: 'sf-note', textContent: `(${mark})` }))
     }
@@ -551,6 +601,21 @@ export function mountForm(container, schema, options = {}) {
           const i = f.options.findIndex((o) => same(o.value, v))
           input.value = i < 0 ? '' : String(i)
         }
+      } else if (f.widget === 'readonly') {
+        // giá trị chỉ để xem (vd cột mảng không phải enum ở apps/sinh): ô chỉ đọc, không gửi đi
+        input = make('input', { type: 'text', readOnly: true })
+        get = () => undefined
+        set = (v) => { input.value = v === undefined || v === null ? '' : shown(f, v, lang) }
+      } else if (f.widget === 'json') {
+        input = make('textarea', { rows: f.ui.rows ?? 6, spellcheck: false })
+        get = () => input.value
+        set = (v) => {
+          input.value = v instanceof Unparsed ? v.text : v === undefined || v === null ? '' : JSON.stringify(v, null, 2)
+        }
+      } else if (f.widget === 'datetime') {
+        input = make('input', { type: 'datetime-local' })
+        get = () => input.value
+        set = (v) => { input.value = localTime(v) }
       } else {
         input = make(f.widget === 'textarea' ? 'textarea' : 'input')
         if (f.widget === 'textarea') input.rows = f.ui.rows ?? 4

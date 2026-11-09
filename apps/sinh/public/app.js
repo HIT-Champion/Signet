@@ -82,7 +82,7 @@ function baoLoi(text) {
 const bangHash = () => decodeURIComponent(window.location.hash.replace(/^#\/?/, ''))
 
 function veMenu() {
-  const list = apps(view.spec)
+  const list = apps(view.spec, locale())
   el('khong-co-bang').hidden = list.length > 0
   el('menu').replaceChildren(...list.map((a) => {
     const link = make('a', { className: 'tab', href: `#/${encodeURIComponent(a.table)}`, textContent: a.title })
@@ -94,7 +94,7 @@ function veMenu() {
 
 /** Dựng phần đầu và form thêm mới của bảng đang mở. draft: chữ đang gõ dở, giữ khi vẽ lại. */
 function veBang(draft) {
-  const a = apps(view.spec).find((x) => x.table === view.bang)
+  const a = apps(view.spec, locale()).find((x) => x.table === view.bang)
   el('tieu-de-bang').textContent = a.title
   el('mo-ta-bang').textContent = a.help
   el('mo-ta-bang').hidden = !a.help
@@ -411,6 +411,8 @@ function switchLocale() {
   localize(document)
   el('nguoi').textContent = view.nguoi()
   thongBao()
+  // tên bảng theo ngôn ngữ (dòng "en: …" của COMMENT ON TABLE); chưa nạp mô tả thì chưa có menu
+  if (view.spec) veMenu()
   if (!view.bang) return
   veBang(view.formMoi?.values())
   veDong()
