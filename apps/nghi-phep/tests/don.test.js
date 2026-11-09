@@ -22,8 +22,8 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 import {
-  API, FORM_DON, FORM_DUYET, LOI, QUY_TRINH, docThan, docTraLoi, doiChieu, duong, ngayGio, sapXepDon, sapXepViec,
-  nguoiGui, soNgay, tenNguoi, trangThai, yeuCau,
+  API, FORM_DON, FORM_DUYET, LOI, MA_LOI, QUY_TRINH, TRANG, conTrang, docThan, docTraLoi, doiChieu, duong, ghepDon,
+  huyDuoc, ngayGio, sapXepDon, sapXepViec, nguoiGui, soNgay, tenNguoi, trangThai, yeuCau,
 } from '../public/don.js'
 import { t } from '../public/i18n.js'
 
@@ -43,7 +43,13 @@ test('lời gọi API chung: đường, token, thân {"data": …}', () => {
   assert.equal(get.body, undefined)
   assert.equal(get.headers['Content-Type'], undefined)
   assert.equal(`${API}${duong.form(FORM_DUYET)}`, '/api/workflow/nghi-phep/forms/nghi-phep.duyet')
-  assert.equal(duong.donCuaToi(), '/processes')
+  // Đơn của tôi theo trang, hủy đơn (#325, hợp đồng K1, K2)
+  assert.equal(duong.donCuaToi(), '/processes?limit=50&offset=0')
+  assert.equal(duong.donCuaToi(100), '/processes?limit=50&offset=100')
+  const [huy, del] = yeuCau('tok', 'DELETE', duong.huyDon('7d2c1e0a-0000-4000-8000-000000000001'))
+  assert.equal(huy, `${API}/processes/7d2c1e0a-0000-4000-8000-000000000001`)
+  assert.deepEqual([del.method, del.body, del.headers['Content-Type']], ['DELETE', undefined, undefined])
+  assert.equal(duong.huyDon('a/../b?c'), '/processes/a%2F..%2Fb%3Fc')
   // mã việc lạ không thoát ra khỏi đường
   assert.equal(duong.xongViec('a/../b?c'), '/tasks/a%2F..%2Fb%3Fc')
 })
@@ -78,6 +84,52 @@ test('trạng thái đơn theo lúc kết thúc và quyết định của trư�
   assert.equal(trangThai({ endedAt: '2026-10-26T03:00:00Z', data: { quyetDinh: 'tu-choi' } }).nhan, 'Bị từ chối')
   assert.equal(trangThai({ endedAt: '2026-10-26T03:00:00Z', data: null }).ma, 'xong')
   assert.equal(trangThai(undefined).ma, 'cho')
+  // đã hủy (#325): lõi đặt cả endedAt lẫn cancelled
+  assert.deepEqual(trangThai({ endedAt: '2026-11-09T03:15:00Z', cancelled: true, data: {} }),
+    { ma: 'huy', nhan: 'Đã hủy' })
+  assert.equal(trangThai({ endedAt: '2026-11-09T03:15:00Z', cancelled: false, data: { quyetDinh: 'dong-y' } }).ma,
+    'dong-y')
+})
+
+// ba mục của k1-mau.json (hợp đồng K2 của phiên Vượng): đang chờ, đã hủy, đã duyệt
+const MAU = [
+  { id: 'p1', startedAt: '2026-11-10T01:20:00.000+07:00', endedAt: null, cancelled: false, data: { soNgayLam: 2 } },
+  { id: 'p2', startedAt: '2026-11-09T09:00:00.000+07:00', endedAt: '2026-11-09T10:15:00.000+07:00', cancelled: true,
+    data: { soNgayLam: 1 } },
+  { id: 'p3', startedAt: '2026-11-05T08:00:00.000+07:00', endedAt: '2026-11-05T14:00:00.000+07:00', cancelled: false,
+    data: { quyetDinh: 'dong-y' } },
+]
+
+test('hủy đơn (#325): chỉ đơn đang chờ; 404, 409 của lõi có câu riêng', () => {
+  assert.deepEqual(MAU.map(huyDuoc), [true, false, false])
+  assert.equal(huyDuoc({ endedAt: null }), true, 'lõi cũ chưa có cancelled')
+  assert.equal(huyDuoc(undefined), true)
+  const gone = docTraLoi(404, { detail: { code: 'process_not_found', message: 'Đơn không còn' } })
+  assert.deepEqual(gone, { ok: false, status: 404, message: t('error.cancelGone') })
+  const done = docTraLoi(409, { detail: { code: 'already_finished', message: 'Đơn đã xong' } })
+  assert.deepEqual(done, { ok: false, status: 409, message: t('error.alreadyFinished') })
+  assert.match(done.message, /không hủy được/)
+  // mã lạ, detail không phải đối tượng (lỗi kiểm tham số của FastAPI là mảng), tên trùng thuộc tính của Object: câu
+  // theo mã HTTP như cũ
+  for (const detail of [{ code: 'task_not_found' }, [{ loc: ['query', 'limit'] }], 'x', { code: 'constructor' }]) {
+    assert.equal(docTraLoi(404, { detail }).message, t(LOI[404]), JSON.stringify(detail))
+  }
+  for (const key of Object.values(MA_LOI)) assert.notEqual(t(key), key)
+})
+
+test('Đơn của tôi theo trang (#325): còn trang khi đủ TRANG mục; ghép trang không nhân đôi, bản mới thắng', () => {
+  assert.equal(TRANG, 50)
+  assert.equal(conTrang(Array.from({ length: TRANG }, (_, i) => ({ id: `d${i}` }))), true)
+  assert.equal(conTrang(MAU), false)
+  assert.equal(conTrang(null), false)
+  // đơn mới gửi chen vào đầu: trang sau lặp lại p3; p1 vừa được duyệt thì lấy bản mới
+  const moi = [{ ...MAU[0], endedAt: '2026-11-10T02:00:00.000+07:00', data: { quyetDinh: 'tu-choi' } },
+    { id: 'p0', startedAt: '2026-11-10T03:00:00.000+07:00', endedAt: null, data: {} }]
+  const ghep = ghepDon(MAU, moi)
+  assert.deepEqual(ghep.map((d) => d.id), ['p0', 'p1', 'p2', 'p3'])
+  assert.equal(trangThai(ghep[1]).ma, 'tu-choi')
+  assert.deepEqual(ghepDon(MAU, [MAU[2]]).map((d) => d.id), ['p1', 'p2', 'p3'])
+  assert.deepEqual(MAU.map((d) => d.id), ['p1', 'p2', 'p3'], 'không sửa mảng gốc')
 })
 
 test('số ngày nghỉ tính cả hai đầu; ngày sai, ngược thì không có', () => {
@@ -153,6 +205,15 @@ test('trang không có script nội tuyến, không innerHTML; form chỉ dựng
   assert.doesNotMatch(app, /innerHTML|insertAdjacentHTML|document\.write/)
   assert.equal(app.match(/mountForm\(/g).length, 1, 'chỉ veForm() gọi mountForm')
   assert.equal(app.match(/summary\(/g).length, 1, 'chỉ tomTat() gọi summary')
+  // hủy đơn hỏi lại bằng <dialog> modal (#325): Esc, "Không hủy" là thôi; nút mặc định là "Không hủy"
+  assert.match(html,
+    /<dialog id="hoi-huy" aria-labelledby="hoi-huy-tieu-de" aria-describedby="hoi-huy-chu">\s*<form method="dialog">/)
+  assert.match(html, /<button type="submit" value="co" class="btn nguy" data-i18n="cancel\.yes">/)
+  assert.match(html, /<button type="submit" value="khong" class="btn ghost" data-i18n="cancel\.no" autofocus>/)
+  assert.match(html, /<button id="xem-them-don" type="button"[^>]* hidden>/)
+  assert.match(app, /hop\.showModal\(\)/)
+  assert.match(app, /returnValue === 'co'/)
+  assert.match(app, /setAttribute\('aria-label', t\('mine\.cancelLabel'/)
   const auth = read(APP, 'public/auth.js')
   assert.match(auth, /const CALLBACK = '\/nghi-phep\/dang-nhap'/)
   assert.match(auth, /response_mode: 'fragment'/)
@@ -178,7 +239,9 @@ test('các cặp chữ/nền của style.css đạt WCAG AA (4,5:1)', () => {
   const pairs = [['stone-900', 'stone-50'], ['stone-600', 'stone-50'], ['stone-600', 'butter'], ['brand-800', 'butter'],
     ['red-700', 'red-50'], ['green-800', 'green-50'], ['amber-800', 'amber-50'], ['stone-900', 'stone-100']]
   for (const [fg, bg] of pairs) assert.ok(contrast(v[fg], v[bg]) >= 4.5, `${fg} trên ${bg}`)
-  for (const bg of ['brand-700', 'brand-800']) assert.ok(contrast('#ffffff', v[bg]) >= 4.5, `chữ trắng trên ${bg}`)
+  for (const bg of ['brand-700', 'brand-800', 'red-700']) {
+    assert.ok(contrast('#ffffff', v[bg]) >= 4.5, `chữ trắng trên ${bg}`)
+  }
   assert.ok(contrast(v['stone-600'], '#ffffff') >= 4.5)
   assert.ok(contrast(v.focus, v['stone-50']) >= 3, 'viền tiêu điểm')
 })
