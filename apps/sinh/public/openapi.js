@@ -23,12 +23,46 @@ export const STANDARD = new Set(['tenant_id', 'created_by', 'created_at'])
 // schema-form.js báo lỗi lúc nạp với định dạng khác hai cái này; PostgREST ghi tên kiểu PostgreSQL vào format
 const FORMATS = new Set(['date', 'uuid'])
 const TYPES = new Set(['string', 'integer', 'number', 'boolean'])
+// json, jsonb: PostgREST không ghi type; giá trị là JSON bất kỳ
+const ANY_JSON = ['object', 'array', 'string', 'number', 'boolean']
+// ô theo kiểu cột (#303): schema-form.js chỉ vẽ các ô này khi x-moc-ui.widget ghi rõ
+const WIDGET = {
+  text: 'textarea',
+  'timestamp with time zone': 'datetime',
+  'timestamp without time zone': 'datetime',
+  json: 'json',
+  jsonb: 'json',
+}
 
-/** Chú thích (COMMENT) của bảng hay cột, bỏ phần "Note: … <pk/> <fk …/>" PostgREST nối vào. Dòng đầu, các dòng sau. */
+/**
+ * Chú thích (COMMENT) của bảng hay cột, bỏ phần "Note: … <pk/> <fk …/>" PostgREST nối vào. Dòng đầu là nhãn tiếng
+ * Việt, một dòng "en: …" là nhãn tiếng Anh (rỗng nếu không có), các dòng còn lại là gợi ý.
+ */
 export function note(description) {
   const text = String(description ?? '').replace(/(?:^|\n\n)Note:\n[\s\S]*$/, '').replace(/<(?:pk|fk)\b[^>]*\/>/g, '')
   const [first = '', ...rest] = text.trim().split('\n')
-  return { label: first.trim(), help: rest.join('\n').trim() }
+  const en = rest.find((line) => /^en:/.test(line.trim()))
+  return {
+    label: first.trim(),
+    en: en === undefined ? '' : en.trim().slice(3).trim(),
+    help: rest.filter((line) => line !== en).join('\n').trim(),
+  }
+}
+
+// nhãn hai thứ tiếng cho schema-form.js ({vi, en}); không có dòng en thì chuỗi như cũ
+const bilingual = ({ label, en }) => (en ? { vi: label, en } : label)
+
+// Giá trị enum của phần tử mảng. PostgREST chỉ ghi items.type cho cột mảng, không ghi enum (pg_enum tra theo kiểu
+// mảng): lấy từ cột thường có cùng kiểu enum ở bảng bất kỳ. Không thấy thì null, cột thành ô chỉ đọc
+function arrayEnum(spec, p) {
+  if (Array.isArray(p.items?.enum) && p.items.enum.length) return [...p.items.enum]
+  const type = typeof p.format === 'string' && p.format.endsWith('[]') ? p.format.slice(0, -2) : ''
+  for (const def of Object.values(spec.definitions)) {
+    for (const q of Object.values(def?.properties ?? {})) {
+      if (type && q?.format === type && Array.isArray(q.enum) && q.enum.length) return [...q.enum]
+    }
+  }
+  return null
 }
 
 const isKey = (prop) => /<pk\/>/.test(String(prop?.description ?? ''))
@@ -40,22 +74,28 @@ function tableNote(spec, table) {
   return spec.definitions[table]?.description || [get?.summary, get?.description].filter(Boolean).join('\n')
 }
 
-/** Các ứng dụng: bảng có COMMENT ON TABLE, xếp theo tên. Bảng không chú thích là bảng phụ, không lên menu. */
-export function apps(spec) {
+/**
+ * Các ứng dụng: bảng có COMMENT ON TABLE, xếp theo tên. Bảng không chú thích là bảng phụ, không lên menu. Tên theo
+ * lang: tiếng Anh là dòng "en: …" của chú thích, không có thì tên tiếng Việt.
+ */
+export function apps(spec, lang = 'vi') {
   return Object.keys(spec?.definitions ?? {})
     .map((table) => ({ table, ...note(tableNote(spec, table)) }))
     .filter((a) => a.label)
-    .map(({ table, label, help }) => ({ table, title: label, help }))
-    .sort((a, b) => a.title.localeCompare(b.title, 'vi'))
+    .map(({ table, label, en, help }) => ({ table, title: (lang === 'en' && en) || label, help }))
+    .sort((a, b) => a.title.localeCompare(b.title, lang))
 }
 
 /**
  * Schema cho schema-form.js từ definitions.<bảng>: { schema, key } (key: tên cột khóa chính để sửa bằng PATCH, null
  * nếu không có). Không có bảng thì null.
- *  - Bỏ cột chuẩn, khóa chính một cột, cột json/mảng (form không có ô cho chúng).
+ *  - Bỏ cột chuẩn, khóa chính một cột, cột kiểu lạ.
+ *  - Ô theo kiểu cột: text nhiều dòng, timestamp/timestamptz chọn ngày giờ, json/jsonb nhiều dòng kiểm JSON, mảng
+ *    enum nhiều ô đánh dấu, mảng khác chỉ đọc (không bắt buộc, không gửi).
  *  - Khóa chính nhiều cột: các cột đó là dữ liệu người dùng nhập nên vẫn có ô; key null, tức là không sửa được.
  *  - Bắt buộc: NOT NULL mà không có giá trị mặc định. Có mặc định thì để trống, CSDL tự điền.
  *  - Được để trống (gửi null): cột không bắt buộc, không có mặc định.
+ *  - Nhãn, tên form hai thứ tiếng khi chú thích có dòng "en: …".
  */
 export function formSchema(spec, table) {
   const def = spec?.definitions?.[table]
@@ -68,25 +108,35 @@ export function formSchema(spec, table) {
   const properties = {}
   const required = []
   for (const [name, p] of Object.entries(props)) {
-    if (STANDARD.has(name) || name === key || !TYPES.has(p?.type)) continue
+    if (STANDARD.has(name) || name === key) continue
+    const json = p?.format === 'json' || p?.format === 'jsonb'
+    const array = p?.type === 'array'
+    if (!json && !array && !TYPES.has(p?.type)) continue
+    const choices = array ? arrayEnum(spec, p) : null
+    const readonly = array && !choices
     const hasDefault = Object.hasOwn(p, 'default')
     // shortcut: ô chọn không bắt buộc không có null trong enum (sẽ thành một lựa chọn "null"), nên sửa không xóa về
     // trống được; cần thì thêm x-moc-ui.options cho null
     const nullable = !listed.has(name) && !hasDefault && !Array.isArray(p.enum)
-    const out = { type: nullable ? [p.type, 'null'] : p.type }
+    const type = json ? ANY_JSON : p.type
+    const out = { type: nullable ? [type, 'null'].flat() : type }
+    if (choices) out.items = { type: 'string', enum: choices }
     if (Array.isArray(p.enum) && p.enum.length) out.enum = [...p.enum]
     if (FORMATS.has(p.format)) out.format = p.format
     if (Number.isInteger(p.maxLength) && p.maxLength >= 0) out.maxLength = p.maxLength
-    const { label, help } = note(p.description)
+    const text = note(p.description)
     const ui = {}
-    if (label) ui.label = label
-    if (help) ui.help = help
+    const widget = readonly ? 'readonly' : out.enum ? undefined : WIDGET[p.format]
+    if (widget) ui.widget = widget
+    if (text.label) ui.label = bilingual(text)
+    if (text.help) ui.help = text.help
     if (Object.keys(ui).length) out['x-moc-ui'] = ui
     properties[name] = out
-    if (listed.has(name) && !hasDefault) required.push(name)
+    if (listed.has(name) && !hasDefault && !readonly) required.push(name)
   }
-  const { label } = note(def.description)
-  const schema = { type: 'object', title: label || table, properties, 'x-moc-order': Object.keys(properties) }
+  const title = note(def.description)
+  const schema = { type: 'object', title: title.label || table, properties, 'x-moc-order': Object.keys(properties) }
+  if (title.en) schema['x-moc-title'] = bilingual(title)
   if (required.length) schema.required = required
   return { schema, key }
 }

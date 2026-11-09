@@ -45,6 +45,9 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   vẽ (#603).
 - Trang văn bản có mục "Sơ đồ quy trình": sơ đồ BPMN của văn bản vẽ bằng SVG, bước đã qua, đang chờ, timer quá hạn
   đã bắn, kèm danh sách bước dạng chữ (#603).
+- `/sinh` dựng ô theo kiểu cột: `text` nhiều dòng, `timestamp` chọn ngày giờ, `json` có kiểm cú pháp, mảng enum nhiều
+  ô đánh dấu, mảng khác chỉ đọc (#303).
+- `/sinh` có nhãn hai thứ tiếng: dòng `en: …` trong `COMMENT ON COLUMN`, `COMMENT ON TABLE` là nhãn tiếng Anh (#303).
 - Đơn nghỉ phép: nút Hủy đơn ở "Đơn của tôi" cho đơn đang chờ duyệt, hỏi lại trước khi hủy; đơn đã hủy ghi "Đã hủy"
   (#325).
 - "Đơn của tôi" tải 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn" tải tiếp (#325).
