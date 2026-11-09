@@ -696,8 +696,8 @@ Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser,
 - Mọi vai trò người dùng có cùng quyền đọc, ghi trong đơn vị (khung cấp `select`, `insert`, `update`, `delete` cho
   cả năm vai trò). Muốn hẹp hơn (vd chỉ lãnh đạo sửa) thì người vận hành thêm trong Studio một policy dạng
   `RESTRICTIVE`: policy permissive thêm sau không thu hẹp được, vì `moc_mo` đã mở cả đơn vị.
-- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; chưa có ô cho cột json, jsonb,
-  mảng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
+- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; cột mảng không phải enum chỉ
+  đọc; gợi ý dưới ô một thứ tiếng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
   ([`apps/sinh/README.md`](../apps/sinh/README.md) mục "Chưa làm").
 - Báo cáo (8.6): một cột nhóm, một phép tính; chưa lọc theo khoảng ngày hay giá trị trong khai báo, chưa xuất tệp; chỉ
   trên bảng `sinh`, không trên dữ liệu Văn phòng điện tử.

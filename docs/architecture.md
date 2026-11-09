@@ -356,9 +356,9 @@ F4.7 (#121) — tự chẩn đoán mức trưởng thành H-P-D-I cho lãnh đ�
 | Khe cắm trong kế hoạch | Hiện trạng | Đang lấp bằng | Nguồn |
 |---|---|---|---|
 | [H] Quản trị tri thức (wiki) | Tùy chọn (profile `wiki`, tắt mặc định) | DokuWiki ở `/wiki/`: mỗi đơn vị một không gian riêng, đăng nhập Keycloak (#367); trợ lý hỏi đáp trên kho văn bản của Văn phòng điện tử (F4.2). Chưa có không gian chung cả trường, trang wiki không vào tìm kiếm của Văn phòng | `docs/van-hanh.md` mục Wiki nội bộ; `ROADMAP.md` giai đoạn 1, 4 |
-| [H] Chat nội bộ | **Chưa có** | Chuông thông báo (Centrifugo, F2.5), email, webhook tới Mattermost, Slack, ntfy, SMS, Zalo — một chiều, tắt mặc định | `ROADMAP.md` giai đoạn 1; `muc-hoan-thien.md` §3, cụm ⑦ |
+| [H] Chat nội bộ | **Chưa có** | Chuông thông báo (Centrifugo, F2.5), email, webhook tới Mattermost, Slack, ntfy, SMS, Zalo — một chiều, tắt mặc định. Chat Matrix đăng nhập Keycloak (#368) để sau khi nộp | `ROADMAP.md` giai đoạn 1; `muc-hoan-thien.md` §3, cụm ⑦ |
 | [H] Cổng nội bộ | Một phần | Các ứng dụng chung một phiên SSO, cùng tên miền sau APISIX; trang Ứng dụng (`/ung-dung`) của Văn phòng mở các ứng dụng khác, các ứng dụng kia có liên kết về Văn phòng; chưa có trang cổng riêng | `ROADMAP.md` giai đoạn 1 |
-| [P] Biểu mẫu low-code | Một phần | Form của ứng dụng cắm bằng manifest khai bằng JSON Schema, trang tự dựng form (Đơn nghỉ phép, #312); form của Văn phòng viết trong mã theo JSON Schema dùng chung; khuôn văn bản đi viết trong `svc_files/render.py`; trang Dựng form (`/ung-dung/dung-form`, #403) cho quản trị đơn vị khai trường, xem trước, tải tệp JSON Schema cho ứng dụng cắm | `ROADMAP.md` giai đoạn 2 |
+| [P] Biểu mẫu low-code | Một phần | Tạo bảng trong Studio là có form: trang `/sinh` dựng ô theo kiểu cột, nhãn hai thứ tiếng lấy từ chú thích của bảng, cột (F1.11, #303); form của ứng dụng cắm bằng manifest khai bằng JSON Schema, trang tự dựng form (Đơn nghỉ phép, #312); form của Văn phòng viết trong mã theo JSON Schema dùng chung, dựng từ schema để sau khi nộp cùng việc tách Văn phòng khỏi lõi (#324); khuôn văn bản đi viết trong `svc_files/render.py`; trang Dựng form (`/ung-dung/dung-form`, #403) cho quản trị đơn vị khai trường, xem trước, tải tệp JSON Schema cho ứng dụng cắm | `ROADMAP.md` giai đoạn 2 |
 | [P] Tự động hóa, kịch bản serverless (⑤) | Một phần (profile `tu-dong`, tắt mặc định) | Node-RED ở `/tu-dong/` cho người vận hành nền tảng: đăng nhập Keycloak, chỉ vai trò `operator`, flow tới lõi qua APISIX bằng robot của đơn vị, hai flow mẫu (#366); chưa có webhook, bước BPMN gọi flow; vòng nền của lõi vẫn viết cứng trong `svc-files`, `svc-workflow` | `muc-hoan-thien.md` §3; `van-hanh.md` mục Tự động hóa bằng Node-RED |
 | [P] Trục streaming sự kiện (⑥) | Một phần | Luồng `core.app_events` (đến, vào sổ, phát hành; không văn bản hạn chế) qua Hasura Event Triggers tới ứng dụng cài bằng `moc app install`; chưa phải broker: không phát lại, không bảo đảm thứ tự. Bảng sự kiện, hộp thư đi trong PostgreSQL (QĐ-008); Centrifugo chỉ đẩy tới trình duyệt | `muc-hoan-thien.md` §3, [`them-ung-dung.md`](them-ung-dung.md) mục 1 |
 | [D] Thu thập, làm sạch, đồng bộ sang kho phân tích | **Chưa có** | Chặn dữ liệu bẩn ngay ở điểm nhập (Poka-yoke ba lớp); dashboard đọc thẳng view trên CSDL nghiệp vụ | `ROADMAP.md` giai đoạn 3 |
@@ -1045,8 +1045,9 @@ Câu nào của QĐ cũ đã lệch với hiện trạng thì ghi ở bảng dư
 
 ### QĐ-013: WAF Coraza dạng proxy-wasm trong APISIX
 
-> **Trạng thái:** gộp ở #130; smoke và e2e chạy qua WAF trên mọi pull request. F3.15 mức Dùng được cho tới khi chữ
-> nghiệp vụ ở các ô nhập liệu không còn cần người quản trị thêm loại trừ ([`muc-hoan-thien.md`](muc-hoan-thien.md)).
+> **Trạng thái:** gộp ở #130; smoke và e2e chạy qua WAF trên mọi pull request. F3.15 lên mức Hoàn thiện ở #260, khi chữ
+> nghiệp vụ ở Cơ quan ban hành, Nơi nhận không còn cần người quản trị thêm loại trừ
+> ([`muc-hoan-thien.md`](muc-hoan-thien.md)).
 > Số đo dưới đây đo trên máy thử lúc làm.
 
 - **Bối cảnh:** nguyên lý (iv) và F3.15 — chặn tải tấn công trong yêu cầu ngay ở biên; cụm ② "API Gateway zero-trust"

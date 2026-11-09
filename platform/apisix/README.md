@@ -380,8 +380,8 @@ trong bộ nhớ: mỗi worker tới ~230 MB sau khi soi tệp 24 MB.
 - Các ô chữ ngắn khác (Số hiệu, tên đơn vị, tên người…) vẫn soi đủ, không loại trừ vì chữ thật ở đó không có dạng
   này. Giá trị chỉ là một đường dẫn `http(s)://<IP>…` (931100), mở đầu bằng "File", "http", "ftp" và kết thúc
   bằng `?` (931120), hay có `${…}`, `file (` (932130, 933135, 933160) → 403. Ô Tìm kiếm: `${…}` → 403.
-  Người dùng thấy: lưu không được, thường kèm "Có lỗi xảy ra: Unexpected token '<' … is not valid JSON" (giao diện đọc
-  trang 403 của cổng như JSON); trong công cụ nhà phát triển, yêu cầu `/v1/graphql` trả `403` kèm `X-Request-Id`. Cách
+  Người dùng thấy: lưu không được; Văn phòng điện tử báo "Cổng an ninh chặn nội dung này vì có chữ giống mẫu tấn
+  công (mã …)" với mã là `X-Request-Id` (#134); trong công cụ nhà phát triển, yêu cầu `/v1/graphql` trả `403`. Cách
   đi tiếp: thêm chữ trước đường dẫn ("Xem tại http://…"), bỏ dấu `?` cuối; người quản trị tra `X-Request-Id` (mục "Đọc
   nhật ký chặn") rồi thêm loại trừ nếu đó là chữ thật hay gặp.
 - Cổng tốn thêm ~0,4–0,8 GB RAM (số đo trên).

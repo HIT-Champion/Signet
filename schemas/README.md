@@ -98,6 +98,10 @@ Gợi ý hiển thị, bên kiểm bỏ qua; chữ là chuỗi hoặc `{vi, en}`
 - `x-moc-ui` (từng trường): `widget` — `text`, `textarea`, `date`, `number`, `select`, `radio`, `checkbox`,
   `checkboxes`, không ghi thì suy từ kiểu; `label`, `help`, `note`, `rows`; `options` — nhãn cho từng giá trị của
   `enum`; `errors` — câu báo riêng theo mã; `hidden`.
+- Ba kiểu ô không bao giờ tự suy từ kiểu, chỉ dùng khi ghi rõ trong `x-moc-ui` (trang `/sinh` đặt theo kiểu cột của
+  bảng, #303): `datetime` — ô ngày giờ (`datetime-local`), gửi kèm độ lệch múi giờ của máy; `json` — ô nhiều dòng,
+  gõ chưa đúng cú pháp JSON thì báo mã `x-moc-json` và không gửi; `readonly` — chỉ hiện giá trị, không gửi. Trang
+  Dựng form không có ba kiểu này.
 
 Thêm một từ khóa kiểm riêng: **`x-moc-range`** ở gốc, vd `[["tuNgay", "denNgay"]]` — hai trường `format: date`,
 trường sau không được trước trường trước. Mã `x-moc-range` gắn vào trường sau, chỉ xét khi cả hai trường đã hợp lệ,
