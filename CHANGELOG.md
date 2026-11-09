@@ -48,6 +48,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - `/sinh` dựng ô theo kiểu cột: `text` nhiều dòng, `timestamp` chọn ngày giờ, `json` có kiểm cú pháp, mảng enum nhiều
   ô đánh dấu, mảng khác chỉ đọc (#303).
 - `/sinh` có nhãn hai thứ tiếng: dòng `en: …` trong `COMMENT ON COLUMN`, `COMMENT ON TABLE` là nhãn tiếng Anh (#303).
+- Phát hành đẩy image của đội lên GHCR (`ghcr.io/hit-champion/signet/<tên>:X.Y.Z`) kèm SBOM và provenance, song song
+  với gói nguồn; `make up` vẫn dựng từ mã nguồn (#344).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
