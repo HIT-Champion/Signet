@@ -447,14 +447,16 @@ trước dùng `app/lib/schema-form.js`, bản chép từng byte của `apps/ngh
 
 Giới hạn:
 
-- Chỉ quy trình duyệt: không timer, không nhắc hạn (hạn chỉ hiện ở `dueAt`), không bước tự động, không gửi thư hay gọi
-  API ra ngoài, không quy trình con. Điều kiện chỉ so chuỗi bằng, khác.
+- Chỉ quy trình duyệt: timer chỉ là `timeDuration` hằng gắn vào việc người làm (quá hạn thì chuyển bước hay thêm việc,
+  không gửi thông báo); không bước tự động, không gửi thư hay gọi API ra ngoài, không quy trình con (#325, để sau khi
+  nộp). Điều kiện chỉ so một trường bắt buộc của form với hằng: chuỗi bằng, khác; số, ngày so lớn nhỏ.
 - Form không có tệp đính kèm, không trường nhiều giá trị.
 - Đơn vị tách bằng biến `tenantId` và nhóm ứng viên `t:<đơn vị>:…` như quy trình Văn phòng điện tử, không dùng tenant
   của Flowable.
-- "Đơn của tôi" đọc lịch sử theo các `processKey` trong bản cài mới nhất; mỗi truy vấn tối đa 500 dòng, chưa phân trang.
+- "Đơn của tôi" đọc lịch sử theo các `processKey` trong bản cài mới nhất, từng trang (`limit` tới 100, `offset` tới
+  10 000); chưa lọc theo trạng thái hay ngày.
 - Gỡ không xóa gì khỏi Flowable; chưa có lệnh dọn lịch sử quy trình của ứng dụng đã gỡ.
-- Không hủy được đơn đã gửi.
+- Chỉ người gửi hủy được đơn, và chỉ khi đơn còn chờ duyệt; không rút lại đơn đã xong, không ủy quyền.
 
 ## 2. Ứng dụng nhận gì từ lõi
 
@@ -611,8 +613,8 @@ cùng đơn vị Trường CNTT & TT: chuyên viên `giangvienktpm` và trưởn
 10. `git status` trước và sau giống hệt.
 
 Thẻ việc cần duyệt ghi "Người gửi: …" (Đổi, bù lịch giảng: "Người đề nghị: …") lấy từ `initiatorName` của API chung
-(#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: một bước
-duyệt, không ủy quyền, không hủy đơn đã gửi.
+(#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: tối đa hai
+bước duyệt (trưởng phòng, rồi Hiệu trưởng khi quá 3 ngày làm việc), không ủy quyền, không hủy đơn đã gửi.
 
 ## 8. Sinh từ bảng: Studio, PostgREST và trang `/sinh`
 
