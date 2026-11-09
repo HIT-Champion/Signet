@@ -581,7 +581,7 @@ manifest, kiểm BPMN và mở API chung là phần lõi của #301 trong tài l
 |---|---|
 | Manifest | [`apps/nghi-phep/app.yaml`](../apps/nghi-phep/app.yaml): `/nghi-phep`, cổng 8080, 64 MiB; `database` chỉ vì manifest bắt buộc (schema trống `nghi_phep`, không migration); `workflow`: một quy trình, hai form |
 | Quy trình | [`workflow/don-nghi-phep.bpmn20.xml`](../apps/nghi-phep/workflow/don-nghi-phep.bpmn20.xml), id `nghi-phep.don`: gửi đơn → "Trưởng phòng duyệt" (nhóm `t:${tenantId}:d:${departmentId}:manager`, như bước duyệt cấp phòng của văn bản đi) → cổng rẽ theo `quyetDinh` và `soNgayLam` (đồng ý, quá 3 ngày làm việc → "Hiệu trưởng duyệt", nhóm `t:${tenantId}:director`) → "Đã duyệt" / "Bị từ chối"; timer `P2D` trên bước trưởng phòng chuyển đơn lên Hiệu trưởng (#325). Chỉ sự kiện, việc người làm, cổng rẽ, timer; có sơ đồ BPMN DI |
-| Form | `forms/don.json` (loại nghỉ, từ ngày, đến ngày, lý do) và `forms/duyet.json` (quyết định, ghi chú): JSON Schema, kiểm ở trình duyệt bằng `public/schema-form.js` và ở lõi khi nhận |
+| Form | `forms/don.json` (loại nghỉ, từ ngày, đến ngày, số ngày làm việc nghỉ, lý do) và `forms/duyet.json` (quyết định, ghi chú): JSON Schema, kiểm ở trình duyệt bằng `public/schema-form.js` và ở lõi khi nhận |
 | Image | Python thư viện chuẩn trên `python:3.13.16-slim` ghim digest (như Bảng tin), không root (10001), chỉ trang tĩnh; bản dựng cho trình duyệt của `oidc-client-ts` lấy từ npm lúc dựng |
 | Trang | Đăng nhập Authorization Code + PKCE (client `app-nghi-phep`, `response_mode=fragment`). Ba phần: Gửi đơn; Đơn của tôi (trạng thái, nội dung, quyết định; 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn"; đơn đang chờ có nút "Hủy đơn", hỏi lại trước khi hủy, #325); Việc cần duyệt (chỉ hiện khi có việc, tự làm mới mỗi 30 giây). Lỗi `422` của lõi hiện dưới đúng ô |
 
@@ -700,8 +700,9 @@ Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser,
 - Mọi vai trò người dùng có cùng quyền đọc, ghi trong đơn vị (khung cấp `select`, `insert`, `update`, `delete` cho
   cả năm vai trò). Muốn hẹp hơn (vd chỉ lãnh đạo sửa) thì người vận hành thêm trong Studio một policy dạng
   `RESTRICTIVE`: policy permissive thêm sau không thu hẹp được, vì `moc_mo` đã mở cả đơn vị.
-- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; cột mảng không phải enum chỉ
-  đọc; gợi ý dưới ô một thứ tiếng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
+- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; cột mảng chỉ đọc, trừ mảng
+  enum có cột thường cùng kiểu enum trong schema `sinh`; gợi ý dưới ô một thứ tiếng; ô chọn để trống thì không gửi,
+  nên lúc sửa không xóa về trống được
   ([`apps/sinh/README.md`](../apps/sinh/README.md) mục "Chưa làm").
 - Báo cáo (8.6): một cột nhóm, một phép tính; chưa lọc theo khoảng ngày hay giá trị trong khai báo, chưa xuất tệp; chỉ
   trên bảng `sinh`, không trên dữ liệu Văn phòng điện tử.
