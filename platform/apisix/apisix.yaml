@@ -722,6 +722,13 @@ global_rules:
                 ctl:ruleRemoveTargetById=931120;ARGS:json.variables.set.recipients.47,
                 ctl:ruleRemoveTargetById=931120;ARGS:json.variables.set.recipients.48,
                 ctl:ruleRemoveTargetById=931120;ARGS:json.variables.set.recipients.49"
+              # Loại trừ 17 — người gửi hủy đơn của ứng dụng (#325): DELETE /api/workflow/<ứng dụng>/processes/<id>,
+              # mà 911100 của CRS chỉ cho GET HEAD POST OPTIONS. Thêm đúng DELETE, chỉ trên đường đó sau khi giải mã
+              # (tên như manifest, id một đoạn không "/", "."); mọi luật khác vẫn soi đủ
+              - >-
+                SecRule REQUEST_FILENAME "@rx ^/api/workflow/[a-z][a-z0-9-]*/processes/[A-Za-z0-9_-]+$"
+                "id:10099,phase:1,pass,nolog,t:none,t:urlDecodeUni,
+                setvar:'tx.allowed_methods=GET HEAD POST OPTIONS DELETE'"
               - Include @owasp_crs/*.conf
               # Loại trừ 4 — Host là địa chỉ IP: Signet được mở bằng IP trong mạng nội bộ; dưới APISIX coraza-proxy-wasm
               # thêm Host lần nữa nên luật cộng điểm hai lần (6 ≥ 5) và chặn mọi yêu cầu vào bằng IP
@@ -800,11 +807,12 @@ routes:
     plugin_config_id: can-token
 
   # Quy trình của ứng dụng cắm bằng manifest (#301, docs/them-ung-dung.md 1.5): bắt đầu quy trình, hộp việc, hoàn
-  # thành việc trên Flowable của lõi. Cùng kiểm token, giới hạn tốc độ (WAF ở global rule) như /api/files; svc-workflow
-  # kiểm lại token và chỉ nhận token của đúng client app-<tên> (azp)
+  # thành việc trên Flowable của lõi, hủy đơn (DELETE, #325; WAF chỉ cho DELETE ở đường hủy đơn, luật 10099). Cùng
+  # kiểm token, giới hạn tốc độ (WAF ở global rule) như /api/files; svc-workflow kiểm lại token và chỉ nhận token của
+  # đúng client app-<tên> (azp)
   - id: svc-workflow
     uris: ["/api/workflow/*"]
-    methods: [GET, POST]
+    methods: [GET, POST, DELETE]
     upstream_id: svc-workflow
     plugin_config_id: can-token
 

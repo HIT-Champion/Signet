@@ -7,7 +7,7 @@ Hasura Actions của Văn phòng điện tử: API nội bộ, chỉ Hasura gọ
 bằng GraphQL. Riêng /api/workflow/{app}/… (quy trình của ứng dụng cắm bằng manifest) đi qua cổng, cần token của client
 app-<tên> (docs/api/README.md).
 
-OpenAPI 3.1.0, 10 thao tác:
+OpenAPI 3.1.0, 11 thao tác:
 
 | Thao tác | Tóm tắt |
 |---|---|
@@ -15,7 +15,8 @@ OpenAPI 3.1.0, 10 thao tác:
 | `POST /actions/{name}` | Chạy một Hasura Action: receiveIncoming, registerIncoming, submitOutgoing, myTasks, completeTask, otSensorMap, documentProcess |
 | `GET /api/workflow/{app}/forms/{form_key}` | JSON Schema của một form, đúng tệp manifest khai |
 | `POST /api/workflow/{app}/processes/{process_key}` | Bắt đầu quy trình với dữ liệu form bắt đầu |
-| `GET /api/workflow/{app}/processes` | Đơn người này đã gửi qua ứng dụng, mới nhất trước |
+| `GET /api/workflow/{app}/processes` | Đơn người này đã gửi qua ứng dụng, mới nhất trước, từng trang |
+| `DELETE /api/workflow/{app}/processes/{process_id}` | Người gửi hủy đơn còn chờ duyệt |
 | `GET /api/workflow/{app}/tasks` | Việc của ứng dụng giao cho người này hoặc nhóm của người này, cũ nhất trước |
 | `POST /api/workflow/{app}/tasks/{task_id}` | Hoàn thành một việc với dữ liệu form của việc |
 | `POST /actions/channels/{name}` | Kênh thông báo của chính người gọi (SMS, Zalo): myChannels, setMyChannel |
@@ -132,13 +133,15 @@ Trả về:
 
 ## `GET /api/workflow/{app}/processes`
 
-Đơn người này đã gửi qua ứng dụng, mới nhất trước
+Đơn người này đã gửi qua ứng dụng, mới nhất trước, từng trang
 
 Tham số:
 
 | Tên | Ở | Bắt buộc | Kiểu | Mô tả |
 |---|---|:-:|---|---|
 | `app` | đường dẫn | ✓ | `string` |  |
+| `limit` | query |  | `integer` | Số đơn mỗi trang, 1–100; trang đủ limit đơn thì có thể còn trang sau. Mặc định `50`. |
+| `offset` | query |  | `integer` | Bỏ qua bao nhiêu đơn mới nhất, 0–10000. Mặc định `0`. |
 
 Trả về:
 
@@ -149,6 +152,29 @@ Trả về:
 | 403 | Token không phải của client app-<tên>, hoặc tài khoản chưa gán đơn vị |  |
 | 404 | Ứng dụng chưa cài hoặc đã gỡ |  |
 | 503 | Chưa gọi được Flowable hoặc Keycloak, thử lại sau |  |
+| 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
+
+## `DELETE /api/workflow/{app}/processes/{process_id}`
+
+Người gửi hủy đơn còn chờ duyệt
+
+Tham số:
+
+| Tên | Ở | Bắt buộc | Kiểu | Mô tả |
+|---|---|:-:|---|---|
+| `app` | đường dẫn | ✓ | `string` |  |
+| `process_id` | đường dẫn | ✓ | `string` |  |
+
+Trả về:
+
+| Mã | Nghĩa | Nội dung |
+|---|---|---|
+| 204 | Thành công |  |
+| 401 | Thiếu hoặc sai token |  |
+| 403 | Token không phải của client app-<tên>, hoặc tài khoản chưa gán đơn vị |  |
+| 404 | Ứng dụng đã gỡ; đơn không còn hoặc không thuộc người này |  |
+| 503 | Chưa gọi được Flowable hoặc Keycloak, thử lại sau |  |
+| 409 | Đơn đã duyệt xong hoặc đã hủy |  |
 | 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
 
 ## `GET /api/workflow/{app}/tasks`

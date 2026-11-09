@@ -54,6 +54,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   so lớn nhỏ trên trường số, trường ngày của form; lõi kiểm kiểu trường lúc cài (#325).
 - Đơn nghỉ phép có trường "Số ngày làm việc nghỉ": quá 3 ngày thì thêm bước Hiệu trưởng duyệt, trưởng phòng để quá 2
   ngày thì đơn chuyển lên Hiệu trưởng (#325).
+- API quy trình của ứng dụng: người gửi hủy đơn còn chờ duyệt (`DELETE /api/workflow/<ứng dụng>/processes/<id>`, WAF
+  luật 10099); "Đơn của tôi" chia trang bằng `limit`, `offset` và có `cancelled` (#325).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
