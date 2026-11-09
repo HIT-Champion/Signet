@@ -28,11 +28,14 @@ export const API = '/api/workflow/nghi-phep'
 export const QUY_TRINH = 'nghi-phep.don'
 export const FORM_DON = 'nghi-phep.don'
 export const FORM_DUYET = 'nghi-phep.duyet'
+/** Số đơn mỗi lần tải "Đơn của tôi" (#325, lõi nhận limit 1–100). Trả về đủ TRANG mục thì có thể còn trang sau. */
+export const TRANG = 50
 
 export const duong = {
   form: (formKey) => `/forms/${encodeURIComponent(formKey)}`,
   guiDon: () => `/processes/${encodeURIComponent(QUY_TRINH)}`,
-  donCuaToi: () => '/processes',
+  donCuaToi: (offset = 0) => `/processes?limit=${TRANG}&offset=${offset}`,
+  huyDon: (id) => `/processes/${encodeURIComponent(id)}`,
   viec: () => '/tasks',
   xongViec: (taskId) => `/tasks/${encodeURIComponent(taskId)}`,
 }
@@ -69,6 +72,12 @@ export const LOI = Object.freeze({
   500: 'error.unavailable',
 })
 
+/** Mã lỗi của lõi ({"detail": {"code"}}) có câu riêng thay câu theo mã HTTP: hủy đơn (#325). */
+export const MA_LOI = Object.freeze({
+  process_not_found: 'error.cancelGone',
+  already_finished: 'error.alreadyFinished',
+})
+
 const isMap = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 /**
@@ -81,12 +90,16 @@ export function docTraLoi(status, body) {
   if (status === 422 && isMap(body?.errors)) {
     return { ok: false, status, errors: body.errors, message: t('error.invalid') }
   }
-  const key = LOI[status] || (status >= 500 ? LOI[500] : '')
+  const code = isMap(body?.detail) ? body.detail.code : undefined
+  const key = (typeof code === 'string' && Object.hasOwn(MA_LOI, code) ? MA_LOI[code] : '')
+    || LOI[status] || (status >= 500 ? LOI[500] : '')
   return { ok: false, status, message: key ? t(key) : t('error.rejected', { status }) }
 }
 
-/** Trạng thái một đơn của tôi: còn chạy là chờ duyệt; kết thúc thì theo quyết định cuối (trưởng phòng hay Hiệu trưởng). */
+/** Trạng thái một đơn của tôi: đã hủy; còn chạy là chờ duyệt; xong thì theo quyết định cuối (trưởng phòng hay Hiệu
+ *  trưởng). */
 export function trangThai(don) {
+  if (don?.cancelled === true) return { ma: 'huy', nhan: t('state.cancelled') }
   if (!don?.endedAt) return { ma: 'cho', nhan: t('state.pending') }
   const q = don.data?.quyetDinh
   if (q === 'dong-y') return { ma: 'dong-y', nhan: t('state.approved') }
@@ -128,6 +141,25 @@ const at = (iso) => {
 
 /** Đơn của tôi: mới gửi lên đầu. */
 export const sapXepDon = (list) => [...list].sort((a, b) => at(b.startedAt) - at(a.startedAt))
+
+/** Hủy được khi đơn còn chờ duyệt, chưa hủy (#325; lõi kiểm lại: đã xong → 409). */
+export const huyDuoc = (don) => !don?.endedAt && don?.cancelled !== true
+
+/** Lõi nhận offset tối đa 10000 (#325, quá thì 422): sau 200 trang thì thôi "Xem thêm". */
+export const OFFSET_TOI_DA = 10000
+
+/** Còn trang sau khi trang vừa tải (bắt đầu ở offset tu) đủ TRANG mục và trang sau còn trong mức lõi nhận. */
+export const conTrang = (trang, tu = 0) => Array.isArray(trang) && trang.length === TRANG && tu + TRANG <= OFFSET_TOI_DA
+
+/**
+ * Ghép một trang vừa tải vào các đơn đang có: cùng id thì lấy bản mới. Đơn mới gửi chen vào đầu nên trang sau có thể
+ * lặp lại mục đã có, không nhân đôi. Mới gửi lên đầu.
+ */
+export function ghepDon(cu, trang) {
+  const theoId = new Map(cu.map((d) => [d.id, d]))
+  for (const d of trang) theoId.set(d.id, d)
+  return sapXepDon([...theoId.values()])
+}
 
 /** Việc cần duyệt: đơn đến trước duyệt trước. */
 export const sapXepViec = (list) => [...list].sort((a, b) => at(a.createdAt) - at(b.createdAt))

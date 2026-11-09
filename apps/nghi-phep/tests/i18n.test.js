@@ -30,7 +30,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { LOI, docTraLoi, trangThai } from '../public/don.js'
+import { LOI, MA_LOI, docTraLoi, trangThai } from '../public/don.js'
 import {
   MESSAGES, STORAGE_KEY, locale, localize, pickLocale, saveLocale, savedLocale, setLocale, t,
 } from '../public/i18n.js'
@@ -128,8 +128,8 @@ test('chữ tĩnh của index.html nằm trong bảng dịch, trùng bản tiế
 
 test('khóa dùng trong mã và trong trang có trong bảng; khóa nào của bảng cũng được dùng', () => {
   const keys = Object.keys(MESSAGES.vi)
-  // câu báo theo mã trả lời: docTraLoi() gọi t(LOI[status]), app.js gọi t(LOI.mang)
-  const used = new Set(Object.values(LOI))
+  // câu báo theo mã trả lời: docTraLoi() gọi t(LOI[status]) hay t(MA_LOI[mã lỗi của lõi]), app.js gọi t(LOI.mang)
+  const used = new Set([...Object.values(LOI), ...Object.values(MA_LOI)])
   for (const key of used) assert.ok(Object.hasOwn(MESSAGES.vi, key), `LOI: ${key}`)
   const prefixes = []
   for (const { file, text } of scripts) {
