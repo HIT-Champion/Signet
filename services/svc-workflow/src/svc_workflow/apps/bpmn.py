@@ -23,12 +23,22 @@ khác. Flowable còn tính biểu thức ở tên việc, mô tả (documentatio
 những gì một quy trình duyệt cần, mọi thứ khác bị từ chối kèm dòng và phần tử:
 
 - phần tử: definitions, process, startEvent, endEvent, userTask, exclusiveGateway, parallelGateway, sequenceFlow,
-  conditionExpression, documentation, và phần sơ đồ (bpmndi, dc, di) — không extensionElements, listener, timer,
-  message, script, service, call activity, sub process…;
+  conditionExpression, documentation, timer gắn vào việc (boundaryEvent, timerEventDefinition, timeDuration — #325),
+  và phần sơ đồ (bpmndi, dc, di) — không extensionElements, listener, message, script, service, call activity, sub
+  process…;
 - thuộc tính: chỉ các thuộc tính liệt kê cho từng phần tử, giá trị theo mẫu hẹp; ``${`` và ``#{`` không được có ở bất
   cứ đâu ngoài ba chỗ dưới đây;
 - conditionExpression: ``${bien == 'chuoi'}``, ``!=``, nối bằng ``&&`` hoặc ``||`` — biến là trường của form, không
-  gọi hàm, không thuộc tính, không ngoặc;
+  gọi hàm, không thuộc tính, không ngoặc. Trường số (``integer``, ``number``) so với một số viết sẵn bằng ``==`` ``!=``
+  ``<`` ``>`` ``<=`` ``>=``; trường ngày (``format: date``) so với ``'YYYY-MM-DD'`` bằng các phép đó (so chuỗi ISO là so
+  ngày). Trường số không so với chuỗi: Flowable đổi chuỗi sang số lúc chạy, sai thì quy trình dừng ở cổng;
+- boundaryEvent: gắn vào một userTask của cùng process (``attachedToRef``), ``cancelActivity`` true (quá hạn thì rời
+  việc đó, đi nhánh của timer) hoặc false (việc vẫn còn, thêm một nhánh); trong đó đúng một timerEventDefinition có
+  đúng một ``timeDuration`` là khoảng ISO 8601 viết sẵn từ PT1M tới P365D — không ``timeDate``, ``timeCycle`` (lặp mãi),
+  không biểu thức. Không luồng nào vào timer; luồng ra không điều kiện, chỉ tới userTask hoặc endEvent, không quay về
+  chính việc timer gắn. Timer không ngắt để lại một nhánh song song: quy trình chỉ xong khi cả nhánh đó xong; nó chỉ
+  được tới endEvent hay userTask không gắn timer — tới việc có timer không ngắt là mỗi lần bắn thêm một nhánh, số
+  việc nhân đôi không cần ai bấm;
 - userTask: ``flowable:formKey`` bắt buộc, có tiền tố ``<tên app>.``, có trong manifest; ``flowable:candidateGroups``
   chỉ ``t:${tenantId}:<vai trò>`` hoặc ``t:${tenantId}:d:${departmentId}:<vai trò>`` (vai trò của realm);
   ``flowable:assignee`` chỉ ``${initiator}``; ``flowable:dueDate`` chỉ một khoảng ISO 8601 viết sẵn (P3D, PT24H);
@@ -40,7 +50,9 @@ DOCTYPE, ENTITY bị chặn trước khi phân tích (thực thể ngoài đọc
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import date
 from typing import Any
 from xml.parsers import expat
 
@@ -65,7 +77,11 @@ ELEMENT_ID = re.compile(r"[A-Za-z_][A-Za-z0-9_.-]{0,63}", re.ASCII)
 NUMBER = re.compile(r"-?[0-9]{1,7}(\.[0-9]{1,6})?", re.ASCII)
 DURATION = re.compile(r"P(?=[0-9T])([0-9]{1,4}D)?(T(?=[0-9])([0-9]{1,4}H)?([0-9]{1,4}M)?)?", re.ASCII)
 VARIABLE = re.compile(r"[a-z][A-Za-z0-9]{0,63}", re.ASCII)
-COMPARE = re.compile(r"\s*([a-z][A-Za-z0-9]{0,63})\s*(==|!=)\s*'([^'\\$#{}]{0,100})'\s*", re.ASCII)
+# biến, phép so, rồi hằng chuỗi trong nháy đơn (nhóm 3) hoặc số (nhóm 4)
+COMPARE = re.compile(r"\s*([a-z][A-Za-z0-9]{0,63})\s*(==|!=|<=|>=|<|>)\s*(?:'([^'\\$#{}]{0,100})'|"
+                     r"(-?[0-9]{1,7}(?:\.[0-9]{1,6})?))\s*", re.ASCII)
+ISO_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", re.ASCII)
+TIMER_MINUTES = (1, 365 * 24 * 60)       # PT1M … P365D
 JOIN = re.compile(r"\s*(&&|\|\|)\s*", re.ASCII)
 EXPRESSION = ("${", "#{")
 FREE_TEXT = re.compile(r"[^\x00-\x08\x0b\x0c\x0e-\x1f]{0,2000}")
@@ -178,8 +194,30 @@ def _expression_free(value: str) -> bool:
     return not any(mark in value for mark in EXPRESSION)
 
 
-def check_condition(text: str, fields: set[str]) -> tuple[set[str], str | None]:
-    """``${a == 'x' && b != 'y'}`` → (biến dùng, None) hoặc (…, lý do sai)."""
+def _comparison_problem(name: str, op: str, text: str | None, kind: str) -> str | None:
+    """Một phép so ``name op hằng`` hợp với kiểu trường không. ``text``: hằng chuỗi, None khi hằng là số. ``kind``:
+    ``number``, ``date``, ``text`` hoặc ``mixed`` (các form khai trường này khác kiểu)."""
+    if kind == "mixed":
+        return f"trường {name} khai khác kiểu ở các form — không so được trong điều kiện"
+    if text is None:
+        return None if kind == "number" else f"chỉ trường số (integer, number) mới so với số; {name} không phải"
+    if kind == "number":
+        return f"trường số {name} so với số viết liền (vd {name} > 3), không đặt trong nháy"
+    if kind == "date":
+        try:
+            ok = bool(ISO_DATE.fullmatch(text)) and date.fromisoformat(text).isoformat() == text
+        except ValueError:
+            ok = False
+        return None if ok else f"trường ngày {name} so với ngày có thật dạng 'YYYY-MM-DD'"
+    if op not in ("==", "!="):
+        return f"so lớn nhỏ ({op}) chỉ trên trường số (integer, number) hoặc ngày (format: date); {name} không phải"
+    return None
+
+
+def check_condition(text: str, fields: set[str] | Mapping[str, str],
+                    kinds: Mapping[str, str] | None = None) -> tuple[set[str], str | None]:
+    """``${a == 'x' && n > 3 || d >= '2026-01-01'}`` → (biến dùng, None) hoặc (…, lý do sai). ``kinds``: trường →
+    ``number`` | ``date`` | ``text`` | ``mixed`` (``field_kinds`` của forms.py); không có thì coi mọi trường là chữ."""
     body = text.strip()
     if not (body.startswith("${") and body.endswith("}")) or body.count("${") != 1:
         return set(), "điều kiện phải có dạng ${bien == 'chuoi'}"
@@ -187,9 +225,14 @@ def check_condition(text: str, fields: set[str]) -> tuple[set[str], str | None]:
     while True:
         m = COMPARE.match(inner, pos)
         if not m:
-            return used, ("điều kiện chỉ nhận so sánh bien == 'chuoi' hoặc bien != 'chuoi', nối bằng && hoặc || "
-                          "(không gọi hàm, không thuộc tính, không ngoặc)")
+            return used, ("điều kiện chỉ nhận so sánh bien == 'chuoi', bien != 'chuoi', hoặc trường số, ngày với "
+                          "== != < > <= >=, nối bằng && hoặc || (không gọi hàm, không thuộc tính, không ngoặc)")
         used.add(m.group(1))
+        if m.group(1) in fields:
+            problem = _comparison_problem(m.group(1), m.group(2), m.group(3),
+                                          (kinds or {}).get(m.group(1), "text"))
+            if problem:
+                return used, problem
         pos = m.end()
         if pos == len(inner):
             break
@@ -259,6 +302,15 @@ class _Checker:
     def _due(self, v: str) -> str | None:
         return None if DURATION.fullmatch(v) else "dueDate chỉ nhận một khoảng ISO 8601 viết sẵn, vd P3D, PT24H"
 
+    @staticmethod
+    def timer_problem(v: str) -> str | None:
+        m = DURATION.fullmatch(v)
+        minutes = sum(int(g[:-1]) * unit for g, unit in ((m.group(1), 1440), (m.group(3), 60), (m.group(4), 1))
+                      if g) if m else 0
+        if not TIMER_MINUTES[0] <= minutes <= TIMER_MINUTES[1]:
+            return "timeDuration chỉ nhận một khoảng ISO 8601 viết sẵn từ PT1M tới P365D, vd P2D, PT4H"
+        return None
+
     def _fixed(self, *values: str) -> Check:
         return lambda v: None if v in values else f"chỉ nhận {' hoặc '.join(values)}"
 
@@ -281,6 +333,9 @@ class _Checker:
             (BPMN, "userTask"): {**named, f"{FLOWABLE} formKey": self._form_key,
                                  f"{FLOWABLE} candidateGroups": self._groups, f"{FLOWABLE} assignee": self._assignee,
                                  f"{FLOWABLE} dueDate": self._due},
+            (BPMN, "boundaryEvent"): {**named, "attachedToRef": self._ref, "cancelActivity": self._bool},
+            (BPMN, "timerEventDefinition"): {"id": self._id},
+            (BPMN, "timeDuration"): {"id": self._id, f"{XSI} type": self._fixed("tFormalExpression")},
             (BPMN, "exclusiveGateway"): {**named, "default": self._ref},
             (BPMN, "parallelGateway"): named,
             (BPMN, "sequenceFlow"): {**named, "sourceRef": self._ref, "targetRef": self._ref},
@@ -300,17 +355,20 @@ class _Checker:
     CHILDREN: dict[tuple[str, str], set[tuple[str, str]]] = {
         (BPMN, "definitions"): {(BPMN, "process"), (BPMN, "documentation"), (BPMNDI, "BPMNDiagram")},
         (BPMN, "process"): {(BPMN, t) for t in ("documentation", "startEvent", "endEvent", "userTask",
-                                                 "exclusiveGateway", "parallelGateway", "sequenceFlow")},
+                                                 "exclusiveGateway", "parallelGateway", "sequenceFlow",
+                                                 "boundaryEvent")},
         (BPMN, "sequenceFlow"): {(BPMN, "documentation"), (BPMN, "conditionExpression")},
+        (BPMN, "boundaryEvent"): {(BPMN, "documentation"), (BPMN, "timerEventDefinition")},
+        (BPMN, "timerEventDefinition"): {(BPMN, "timeDuration")},
         (BPMNDI, "BPMNDiagram"): {(BPMNDI, "BPMNPlane")},
         (BPMNDI, "BPMNPlane"): {(BPMNDI, "BPMNShape"), (BPMNDI, "BPMNEdge")},
         (BPMNDI, "BPMNShape"): {(DC, "Bounds"), (BPMNDI, "BPMNLabel")},
         (BPMNDI, "BPMNEdge"): {(DI, "waypoint"), (BPMNDI, "BPMNLabel")},
         (BPMNDI, "BPMNLabel"): {(DC, "Bounds")},
     }
-    FLOW_NODES = ("startEvent", "endEvent", "userTask", "exclusiveGateway", "parallelGateway")
-    WITH_DOCS = {(BPMN, t) for t in FLOW_NODES}
-    TEXT_ALLOWED = {(BPMN, "documentation"), (BPMN, "conditionExpression")}
+    FLOW_NODES = ("startEvent", "endEvent", "userTask", "exclusiveGateway", "parallelGateway", "boundaryEvent")
+    WITH_DOCS = {(BPMN, t) for t in FLOW_NODES if t != "boundaryEvent"}     # timer: CHILDREN ở trên
+    TEXT_ALLOWED = {(BPMN, "documentation"), (BPMN, "conditionExpression"), (BPMN, "timeDuration")}
 
     def walk(self, node: Node, parent: Node | None = None) -> None:
         attrs = self.allowed(node)
@@ -338,6 +396,8 @@ class _Checker:
             self.err(node, "không được có nội dung chữ")
         if (node.ns, node.tag) == (BPMN, "documentation") and (problem := self._text(node.text.strip())):
             self.err(node, problem)
+        if (node.ns, node.tag) == (BPMN, "timeDuration") and (problem := self.timer_problem(node.text.strip())):
+            self.err(node, problem)
         children = self.CHILDREN.get((node.ns, node.tag), set())
         if (node.ns, node.tag) in self.WITH_DOCS:
             children = {(BPMN, "documentation")}
@@ -348,10 +408,12 @@ class _Checker:
             self.walk(child, node)
 
 
-def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str]) -> tuple[Process | None, list[str]]:
+def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str],
+          kinds: Mapping[str, str] | None = None) -> tuple[Process | None, list[str]]:
     """Một tệp BPMN của ứng dụng → (process, []) hoặc (None, lỗi tiếng Việt kèm dòng, phần tử).
 
-    forms: formKey khai trong manifest; fields: tên trường của mọi form (biến điều kiện được dùng)."""
+    forms: formKey khai trong manifest; fields: tên trường của mọi form (biến điều kiện được dùng); kinds: kiểu của
+    từng trường (``forms.field_kinds``) để biết so lớn nhỏ được không."""
     if not NAME.fullmatch(app):
         return None, [f"tên ứng dụng {app!r} không hợp lệ"]
     try:
@@ -390,15 +452,40 @@ def check(app: str, where: str, raw: bytes, forms: set[str], fields: set[str]) -
     flows = [n for n in proc.children if (n.ns, n.tag) == (BPMN, "sequenceFlow")]
     flow_ids = {f.attrs.get("id") for f in flows}
     used: set[str] = set()
+    timers = {n.attrs.get("id"): n for n in nodes if n.tag == "boundaryEvent"}
+    with_timer = {t.attrs.get("attachedToRef") for t in timers.values()}
+    kind_of = {n.attrs.get("id"): n.tag for n in nodes}
     for flow in flows:
         for ref in ("sourceRef", "targetRef"):
             if flow.attrs.get(ref) not in node_ids:
                 c.err(flow, f"{ref} {flow.attrs.get(ref)!r} không trỏ tới bước nào của process")
-        for cond in (ch for ch in flow.children if (ch.ns, ch.tag) == (BPMN, "conditionExpression")):
-            found, problem = check_condition(cond.text, fields)
+        conds = [ch for ch in flow.children if (ch.ns, ch.tag) == (BPMN, "conditionExpression")]
+        for cond in conds:
+            found, problem = check_condition(cond.text, fields, kinds)
             used |= found
             if problem:
                 c.err(cond, problem)
+        if flow.attrs.get("targetRef") in timers:
+            c.err(flow, "không luồng nào được vào timer (boundaryEvent) — timer chỉ chạy khi việc nó gắn còn mở")
+        if flow.attrs.get("sourceRef") in timers:
+            if conds:
+                c.err(flow, "luồng ra từ timer không có điều kiện — điều kiện sai thì nhánh của timer kẹt lại")
+            timer, target = timers[flow.attrs["sourceRef"]], flow.attrs.get("targetRef")
+            if kind_of.get(target) not in (None, "userTask", "endEvent"):
+                c.err(flow, "luồng ra từ timer chỉ tới userTask hoặc endEvent")
+            elif target == timer.attrs.get("attachedToRef"):
+                c.err(flow, "luồng ra từ timer không quay về chính việc timer gắn — timer bắn lại mãi")
+            elif timer.attrs.get("cancelActivity") == "false" and target in with_timer:
+                c.err(flow, "timer không ngắt chỉ tới endEvent hay userTask không gắn timer — tới việc có timer thì "
+                            "mỗi lần bắn thêm một nhánh, số việc nhân lên không cần ai bấm")
+    for timer in timers.values():
+        if kind_of.get(timer.attrs.get("attachedToRef")) != "userTask":
+            c.err(timer, f"attachedToRef {timer.attrs.get('attachedToRef')!r} phải là id một userTask của process")
+        defs = [ch for ch in timer.children if (ch.ns, ch.tag) == (BPMN, "timerEventDefinition")]
+        if len(defs) != 1 or len([d for d in defs[0].children if (d.ns, d.tag) == (BPMN, "timeDuration")]) != 1:
+            c.err(timer, "cần đúng một <timerEventDefinition> chứa đúng một <timeDuration>")
+        if not any(f.attrs.get("sourceRef") == timer.attrs.get("id") for f in flows):
+            c.err(timer, "cần một sequenceFlow đi ra — quá hạn thì quy trình đi tiếp đường đó")
     for gw in (n for n in nodes if n.tag == "exclusiveGateway" and "default" in n.attrs):
         if gw.attrs["default"] not in flow_ids:
             c.err(gw, f"default {gw.attrs['default']!r} không phải sequenceFlow của process")

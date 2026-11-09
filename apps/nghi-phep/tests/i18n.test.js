@@ -217,7 +217,7 @@ test('tiếng Anh: trạng thái đơn, câu báo theo mã trả lời, số ng�
   const xong = (quyetDinh) => trangThai({ endedAt: '2026-10-26T03:00:00Z', data: { quyetDinh } }).nhan
   try {
     setLocale('en')
-    assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Awaiting department head' })
+    assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Awaiting approval' })
     assert.deepEqual([xong('dong-y'), xong('tu-choi'), xong(undefined)], ['Approved', 'Declined', 'Closed'])
     assert.equal(docTraLoi(401, null).message, 'Your session has expired. Reload the page to sign in again.')
     assert.equal(docTraLoi(503, null).message, 'The Signet workflow service is not responding. Try again in a few '
@@ -257,12 +257,14 @@ test('form dựng từ schema bằng tiếng Anh: nhãn, lựa chọn, gợi ý,
       for (const code of codes) assert.doesNotMatch(message(f, code, 'en', list, schema), VIET, `${f.name} ${code}`)
     }
   }
-  assert.deepEqual(fields(don, 'en').map((f) => f.label), ['Leave type', 'From', 'To', 'Reason'])
+  assert.deepEqual(fields(don, 'en').map((f) => f.label), ['Leave type', 'From', 'To', 'Working days off', 'Reason'])
   assert.deepEqual(fields(duyet, 'en')[0].options.map((o) => o.label), ['Approve', 'Decline'])
-  assert.deepEqual(summary(don, { loai: 'viec-rieng', tuNgay: '2026-10-27', denNgay: '2026-10-28' }, 'en'), [
+  const leave = { loai: 'viec-rieng', tuNgay: '2026-10-27', denNgay: '2026-10-28', soNgayLam: 2 }
+  assert.deepEqual(summary(don, leave, 'en'), [
     { name: 'loai', label: 'Leave type', value: 'Personal leave' },
     { name: 'tuNgay', label: 'From', value: '27/10/2026' },
     { name: 'denNgay', label: 'To', value: '28/10/2026' },
+    { name: 'soNgayLam', label: 'Working days off', value: '2' },
     { name: 'lyDo', label: 'Reason', value: '—' },
   ])
   assert.deepEqual(summary(duyet, { quyetDinh: 'dong-y', ghiChu: 'OK' }, 'en').map((r) => [r.label, r.value]),
@@ -315,7 +317,7 @@ test('form vẽ ra bằng tiếng Anh: nhãn, lựa chọn, lời báo khi gửi
   const root = box.children[0]
   assert.equal(root.attrs['aria-label'], 'Leave request')
   assert.deepEqual(nodes(box).filter((n) => n.className === 'sf-label').map(text),
-    ['Leave type', 'From', 'To', 'Reason (optional)'])
+    ['Leave type', 'From', 'To', 'Working days off', 'Reason (optional)'])
   assert.deepEqual(byId('don-loai').children.map(text),
     ['— Choose —', 'Annual leave', 'Sick leave', 'Personal leave', 'Unpaid leave'])
   assert.equal(text(byId('don-denNgay-help')), 'Inclusive. For a single day, pick the start date again.')
