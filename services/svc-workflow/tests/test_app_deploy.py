@@ -115,6 +115,19 @@ def test_condition_variable_must_be_a_required_field():
                       "buộc (required) của form — thiếu biến thì Flowable dừng ở cổng"]
 
 
+def test_number_and_date_conditions_use_the_field_types_of_the_forms():
+    """Kiểu trường lấy từ form trong gói: so số trên trường integer qua, so chuỗi trên trường đó bị từ chối."""
+    strict = copy.deepcopy(DON)
+    strict["required"] = [*DON["required"], "soNgay"]
+    ok = BPMN.replace("${quyetDinh == 'dong-y'}", "${quyetDinh == 'dong-y' && soNgay > 3 && tuNgay >= '2026-01-01'}")
+    bundle = check_bundle(APP, bundle_zip(ok, don=strict))
+    assert bundle.processes[f"{APP}.don"].condition_variables == {"quyetDinh", "soNgay", "tuNgay"}
+    errors = bundle_errors(bundle_zip(BPMN.replace("${quyetDinh == 'dong-y'}", "${soNgay == '3'}"), don=strict))
+    assert any("trường số soNgay so với số viết liền" in e for e in errors), errors
+    errors = bundle_errors(bundle_zip(BPMN.replace("${quyetDinh == 'dong-y'}", "${quyetDinh > 'a'}"), don=strict))
+    assert any("so lớn nhỏ (>) chỉ trên trường số" in e for e in errors), errors
+
+
 def test_two_files_with_the_same_process_id_are_refused():
     data = bundle_zip(extra_processes={"processes/ban-sao.bpmn20.xml": BPMN.encode()})
     assert any("process id nghi-phep.don trùng" in e for e in bundle_errors(data))

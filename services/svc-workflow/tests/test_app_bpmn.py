@@ -25,11 +25,13 @@ import pytest
 
 from app_fakes import APP, BPMN, DON, DUYET
 from svc_workflow.apps.bpmn import check, check_condition
+from svc_workflow.apps.forms import AppForm, check_form, field_kinds
 
 ROOT = Path(__file__).resolve().parents[3]
 WHERE = "processes/don.bpmn20.xml"
 FORMS = {f"{APP}.don", f"{APP}.duyet"}
 FIELDS = set(DON["properties"]) | set(DUYET["properties"])
+KINDS = field_kinds([AppForm(DON), AppForm(DUYET)])
 USER_TASK = ('<userTask id="duyet" name="Duyệt đơn nghỉ" flowable:formKey="nghi-phep.duyet"\n'
              '              flowable:candidateGroups="t:${tenantId}:d:${departmentId}:manager,t:${tenantId}:director"\n'
              '              flowable:dueDate="P2D">')
@@ -38,7 +40,7 @@ END = '<endEvent id="tuChoi" name="Bị từ chối"/>'
 
 
 def errors_of(text: str) -> list[str]:
-    proc, errors = check(APP, WHERE, text.encode(), FORMS, FIELDS)
+    proc, errors = check(APP, WHERE, text.encode(), FORMS, FIELDS, KINDS)
     assert (proc is None) == bool(errors)
     return errors
 
@@ -74,10 +76,10 @@ def test_sample_process_passes():
     (after_end('<callActivity id="s" calledElement="van-ban-den"/>'), "<callActivity> không được phép"),
     (after_end('<subProcess id="s"/>'), "<subProcess> không được phép"),
     (after_end('<boundaryEvent id="b" attachedToRef="duyet"><timerEventDefinition/></boundaryEvent>'),
-     "<boundaryEvent> không được phép"),
+     "cần đúng một <timerEventDefinition> chứa đúng một <timeDuration>"),
     (swap('flowable:initiator="initiator"/>',
           'flowable:initiator="initiator"><timerEventDefinition><timeCycle>R/PT1S</timeCycle>'
-          '</timerEventDefinition></startEvent>'), "<timerEventDefinition> không được phép trong <startEvent>"),
+          '</timerEventDefinition></startEvent>'), "<timerEventDefinition> không được nằm trong <startEvent>"),
     (swap(USER_TASK, USER_TASK + '<extensionElements><flowable:taskListener event="create" '
                                  'class="org.example.Evil"/></extensionElements>'),
      "<extensionElements> không được phép"),
@@ -245,6 +247,132 @@ def test_condition_grammar(text, used, ok):
         assert found == used
 
 
+@pytest.mark.parametrize("text, needle", [
+    ("${soNgay > 3}", None),
+    ("${soNgay >= 3 && soNgay <= 30 || soNgay == 1}", None),
+    ("${soNgay != -2.5}", None),
+    ("${tuNgay < '2026-12-31' && denNgay >= '2027-01-01'}", None),
+    ("${tuNgay == '2026-02-28'}", None),
+    ("${quyetDinh == 'dong-y' && soNgay > 3}", None),
+    # so lớn nhỏ trên trường chữ, số trên trường không phải số, chuỗi trên trường số
+    ("${quyetDinh > 'dong-y'}", "so lớn nhỏ (>) chỉ trên trường số"),
+    ("${lyDo < 'b'}", "so lớn nhỏ (<) chỉ trên trường số"),
+    ("${khanCap > 0}", "chỉ trường số (integer, number) mới so với số"),
+    ("${quyetDinh == 1}", "chỉ trường số (integer, number) mới so với số"),
+    ("${soNgay > '3'}", "so với số viết liền"),
+    ("${soNgay == 'abc'}", "so với số viết liền"),
+    # ngày: phải có thật, đúng dạng
+    ("${tuNgay > '2026-02-30'}", "ngày có thật dạng 'YYYY-MM-DD'"),
+    ("${tuNgay > '30/12/2026'}", "ngày có thật dạng 'YYYY-MM-DD'"),
+    ("${tuNgay > 20261230}", "chỉ trường số (integer, number) mới so với số"),
+    # ngữ pháp vẫn hẹp: không phép toán, không gọi hàm, không so hai biến, không gt/lt của JUEL
+    ("${soNgay + 1 > 3}", "điều kiện chỉ nhận so sánh"),
+    ("${soNgay > denNgay}", "điều kiện chỉ nhận so sánh"),
+    ("${soNgay gt 3}", "điều kiện chỉ nhận so sánh"),
+    ("${soNgay > 3.}", "giữa hai so sánh chỉ được"),
+    ("${soNgay > 1e9}", "giữa hai so sánh chỉ được"),
+    ("${soNgay > 12345678}", "giữa hai so sánh chỉ được"),
+    ("${soNgay >> 3}", "điều kiện chỉ nhận so sánh"),
+    ("${soNgay => 3}", "điều kiện chỉ nhận so sánh"),
+])
+def test_condition_compares_numbers_and_dates_by_field_type(text, needle):
+    _found, problem = check_condition(text, FIELDS, KINDS)
+    if needle is None:
+        assert problem is None, problem
+    else:
+        assert problem is not None and needle in problem, problem
+
+
+def test_field_declared_with_two_types_cannot_be_compared():
+    kinds = field_kinds([AppForm(DON), AppForm({**DUYET, "properties": {**DUYET["properties"],
+                                                                       "soNgay": {"type": "string"}}})])
+    assert kinds["soNgay"] == "mixed"
+    _found, problem = check_condition("${soNgay > 3}", FIELDS, kinds)
+    assert problem and "khai khác kiểu" in problem
+
+
+TIMER = ('<boundaryEvent id="quaHan" name="Quá 2 ngày" attachedToRef="duyet" cancelActivity="{cancel}">\n'
+         '      <timerEventDefinition id="hen"><timeDuration xsi:type="tFormalExpression">{time}</timeDuration>'
+         '</timerEventDefinition>\n    </boundaryEvent>\n'
+         '    <sequenceFlow id="fHan" sourceRef="quaHan" targetRef="{target}"/>')
+
+
+def with_timer(time: str = "P2D", cancel: str = "true", target: str = "xemLai", extra: str = "") -> str:
+    return after_end(TIMER.format(time=time, cancel=cancel, target=target) + extra)
+
+
+@pytest.mark.parametrize("time", ["P2D", "PT1M", "PT4H", "P1DT12H", "P365D", "PT9999M", "P364DT23H59M"])
+@pytest.mark.parametrize("cancel", ["true", "false"])
+def test_timer_on_a_user_task_passes(time, cancel):
+    assert errors_of(with_timer(time, cancel)) == []
+    assert errors_of(with_timer(time, cancel, target="tuChoi")) == []
+
+
+@pytest.mark.parametrize("xml, needle", [
+    # chỉ một khoảng viết sẵn, trong PT1M–P365D
+    (with_timer("${hanXuLy}"), "timeDuration chỉ nhận một khoảng ISO 8601"),
+    (with_timer("#{1}"), "timeDuration chỉ nhận"),
+    (with_timer("PT0M"), "timeDuration chỉ nhận"),
+    (with_timer("PT30S"), "timeDuration chỉ nhận"),
+    (with_timer("P366D"), "timeDuration chỉ nhận"),
+    (with_timer("P365DT1M"), "timeDuration chỉ nhận"),
+    (with_timer("PT99999M"), "timeDuration chỉ nhận"),
+    (with_timer("P1W"), "timeDuration chỉ nhận"),
+    (with_timer("2026-12-31T00:00:00"), "timeDuration chỉ nhận"),
+    (with_timer("R/PT1M"), "timeDuration chỉ nhận"),
+    (with_timer().replace('<timeDuration xsi:type="tFormalExpression">P2D</timeDuration>',
+                          "<timeCycle>R/PT1M</timeCycle>"), "<timeCycle> không được phép"),
+    (with_timer().replace('<timeDuration xsi:type="tFormalExpression">P2D</timeDuration>',
+                          "<timeDate>2026-12-31T00:00:00</timeDate>"), "<timeDate> không được phép"),
+    (with_timer().replace("</timeDuration>", "</timeDuration><timeDuration>P3D</timeDuration>"),
+     "cần đúng một <timerEventDefinition> chứa đúng một <timeDuration>"),
+    (with_timer().replace('<timerEventDefinition id="hen">',
+                          '<timerEventDefinition id="hen2"><timeDuration>P1D</timeDuration></timerEventDefinition>'
+                          '<timerEventDefinition id="hen">'), "cần đúng một <timerEventDefinition>"),
+    (with_timer().replace('xsi:type="tFormalExpression">P2D', 'xsi:type="tFormalExpression" language="juel">P2D'),
+     "không được có thuộc tính language"),
+    # gắn vào đâu, đi đâu
+    (with_timer().replace('attachedToRef="duyet"', 'attachedToRef="ketQua"'), "phải là id một userTask"),
+    (with_timer().replace('attachedToRef="duyet"', 'attachedToRef="khongCo"'), "phải là id một userTask"),
+    (with_timer().replace(' attachedToRef="duyet"', ""), "phải là id một userTask"),
+    (with_timer(target="ketQua"), "luồng ra từ timer chỉ tới userTask hoặc endEvent"),
+    # vòng: quay về chính việc gắn (bắn lại mãi; không ngắt thì nhân đôi mỗi lần), hai timer không ngắt gọi nhau
+    (with_timer("PT1M", "false", target="duyet"), "không quay về chính việc timer gắn"),
+    (with_timer("PT1M", "true", target="duyet"), "không quay về chính việc timer gắn"),
+    (with_timer("PT1M", "false", extra=TIMER.format(time="PT1M", cancel="false", target="duyet").replace(
+        'attachedToRef="duyet"', 'attachedToRef="xemLai"').replace('"quaHan"', '"quaHan2"').replace(
+        '"hen"', '"hen2"').replace('"fHan"', '"fHan2"')), "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
+    (with_timer("PT1M", "false", extra=TIMER.format(time="P1D", cancel="true", target="tuChoi").replace(
+        'attachedToRef="duyet"', 'attachedToRef="xemLai"').replace('"quaHan"', '"quaHan2"').replace(
+        '"hen"', '"hen2"').replace('"fHan"', '"fHan2"')), "timer không ngắt chỉ tới endEvent hay userTask không gắn"),
+    (with_timer(extra='\n    <sequenceFlow id="fVao" sourceRef="gui" targetRef="quaHan"/>'),
+     "không luồng nào được vào timer"),
+    (with_timer().replace('targetRef="xemLai"/>',
+                          'targetRef="xemLai"><conditionExpression xsi:type="tFormalExpression">'
+                          "${quyetDinh == 'dong-y'}</conditionExpression></sequenceFlow>"),
+     "luồng ra từ timer không có điều kiện"),
+    (with_timer().replace('<sequenceFlow id="fHan" sourceRef="quaHan" targetRef="xemLai"/>', ""),
+     "cần một sequenceFlow đi ra"),
+    # thuộc tính lạ, mã trong timer
+    (with_timer().replace('cancelActivity="true"', 'cancelActivity="${x}"'), "chỉ nhận true hoặc false"),
+    (with_timer().replace('<boundaryEvent id="quaHan"', '<boundaryEvent flowable:class="org.example.Evil" '
+                                                         'id="quaHan"'), "không được có thuộc tính flowable:class"),
+    (with_timer().replace('<timerEventDefinition id="hen">',
+                          '<extensionElements><flowable:executionListener event="start" class="x"/>'
+                          '</extensionElements><timerEventDefinition id="hen">'),
+     "<extensionElements> không được phép"),
+    (with_timer().replace('<timerEventDefinition id="hen">',
+                          '<timerEventDefinition id="hen" flowable:businessCalendarName="${x}">'),
+     "không được có thuộc tính flowable:businessCalendarName"),
+    (with_timer().replace(' name="Quá 2 ngày"', ' name="${execution}"'), "không được chứa biểu thức"),
+    (with_timer().replace("<timerEventDefinition", "<messageEventDefinition/><timerEventDefinition"),
+     "<messageEventDefinition> không được phép"),
+], ids=lambda v: v if len(v) < 80 else "")
+def test_poisoned_timer_is_rejected(xml, needle):
+    errors = errors_of(xml)
+    assert any(needle in e for e in errors), errors
+
+
 def test_diagram_prefixes_do_not_matter_only_namespaces():
     """Trình vẽ BPMN (Flowable Modeler, bpmn.io) đặt tiền tố omgdc/omgdi; danh sách trắng xét namespace."""
     xml = (BPMN.replace("xmlns:dc=", "xmlns:omgdc=").replace("xmlns:di=", "xmlns:omgdi=")
@@ -254,14 +382,26 @@ def test_diagram_prefixes_do_not_matter_only_namespaces():
 
 
 APP_BPMN = sorted((ROOT / "apps" / APP / "workflow").glob("*.bpmn20.xml"))
+APP_FORMS = {f"{APP}.{p.stem}": p for p in sorted((ROOT / "apps" / APP / "forms").glob("*.json"))
+             if not p.name.endswith(".cases.json")}
+
+
+def app_errors_of(text: str) -> list[str]:
+    """Như errors_of, với form thật của ứng dụng mẫu (trường, kiểu trường như lúc cài)."""
+    forms = [check_form(str(p), p.read_bytes())[0] for p in APP_FORMS.values()]
+    assert all(forms)
+    fields = {f for form in forms for f in form.fields}
+    proc, errors = check(APP, WHERE, text.encode(), set(APP_FORMS), fields, field_kinds(forms))
+    assert (proc is None) == bool(errors)
+    return errors
 
 
 @pytest.mark.skipif(not APP_BPMN, reason="chưa có apps/nghi-phep/workflow/*.bpmn20.xml (ứng dụng mẫu)")
 def test_sample_app_bpmn_passes_and_a_script_task_in_it_is_named():
     for path in APP_BPMN:
         text = path.read_text(encoding="utf-8")
-        assert errors_of(text) == [], path
+        assert app_errors_of(text) == [], path
         flow = text.index("<sequenceFlow")
         poison = text[:flow] + '<scriptTask id="chayMa" scriptFormat="groovy"><script>"id".execute()</script>' \
                                "</scriptTask>\n    " + text[flow:]
-        assert any("<scriptTask> không được phép" in e for e in errors_of(poison))
+        assert any("<scriptTask> không được phép" in e for e in app_errors_of(poison))

@@ -16,9 +16,10 @@
 
 """Quy trình của Đơn nghỉ phép (workflow/don-nghi-phep.bpmn20.xml) đọc bằng xml.etree, không cần Flowable: chỉ phần tử
 lõi nhận cho ứng dụng cài thêm, không mã chạy trên máy chủ; nhóm duyệt đúng dạng nhóm trưởng phòng mà quy trình văn
-bản đi của lõi dùng (cùng tên biến); mọi nút đi được từ lúc gửi đơn tới một kết thúc; cổng rẽ phủ đúng các quyết định
-của form duyệt; sơ đồ vẽ đủ mọi nút. Lõi vẫn tự kiểm lúc cài — test này giữ tệp của ứng dụng không trượt khỏi danh sách
-đó. Chạy: python3 -m unittest discover -s apps/nghi-phep/tests (make test)."""
+bản đi của lõi dùng (cùng tên biến), bước Hiệu trưởng là nhóm director của đơn vị; mọi nút đi được từ lúc gửi đơn tới
+một kết thúc; mỗi cổng rẽ phủ đúng các quyết định của form duyệt, cổng của trưởng phòng chia đôi theo số ngày làm việc;
+timer quá hạn chuyển đơn lên Hiệu trưởng; sơ đồ vẽ đủ mọi nút. Lõi vẫn tự kiểm lúc cài — test này giữ tệp của ứng
+dụng không trượt khỏi danh sách đó. Chạy: python3 -m unittest discover -s apps/nghi-phep/tests (make test)."""
 
 from __future__ import annotations
 
@@ -36,11 +37,13 @@ NS = {"b": "http://www.omg.org/spec/BPMN/20100524/MODEL", "di": "http://www.omg.
 MODEL = "{" + NS["b"] + "}"
 FLOWABLE = "{http://flowable.org/bpmn}"
 # Phần tử ứng dụng được dùng trong <process> (danh sách trắng của #301): không scriptTask, serviceTask, listener…
-ALLOWED = {"startEvent", "userTask", "exclusiveGateway", "endEvent", "sequenceFlow", "conditionExpression"}
+ALLOWED = {"startEvent", "userTask", "exclusiveGateway", "endEvent", "sequenceFlow", "conditionExpression",
+           "boundaryEvent", "timerEventDefinition", "timeDuration"}
 # Thuộc tính flowable: được dùng; class, expression, delegateExpression… gọi mã trên máy chủ
 FLOWABLE_ATTRS = {"formKey", "initiator", "candidateGroups"}
-CONDITION = re.compile(r"\$\{(\w+) == '([a-z0-9-]+)'\}")
+CONDITION = re.compile(r"\$\{quyetDinh == '([a-z0-9-]+)'(?: && soNgayLam (<=|>) 3)?\}")
 GROUP = "t:${tenantId}:d:${departmentId}:manager"
+PRINCIPAL = "t:${tenantId}:director"
 
 
 def tag(el: ET.Element) -> str:
@@ -73,43 +76,64 @@ class Bpmn(unittest.TestCase):
         self.assertEqual(self.process.get("isExecutable"), "true")
         start = self.process.findall("b:startEvent", NS)
         task = self.process.findall("b:userTask", NS)
-        self.assertEqual((len(start), len(task)), (1, 1))
+        self.assertEqual((len(start), len(task)), (1, 2))
         self.assertEqual(start[0].get(FLOWABLE + "formKey"), "nghi-phep.don")
         self.assertEqual(start[0].get(FLOWABLE + "initiator"), "initiator")
-        self.assertEqual(task[0].get(FLOWABLE + "formKey"), "nghi-phep.duyet")
-        self.assertEqual(task[0].get("name"), "Trưởng phòng duyệt")
+        self.assertEqual([t.get(FLOWABLE + "formKey") for t in task], ["nghi-phep.duyet"] * 2)
+        self.assertEqual([t.get("name") for t in task], ["Trưởng phòng duyệt", "Hiệu trưởng duyệt"])
         manifest = (APP / "app.yaml").read_text(encoding="utf-8")
         self.assertIn("processes: [workflow/don-nghi-phep.bpmn20.xml]", manifest)
         for key in ("nghi-phep.don", "nghi-phep.duyet"):
             self.assertRegex(manifest, rf"\n    {re.escape(key)}: forms/\w+\.json\n")
 
     def test_reviewers_are_the_managers_of_the_requesters_department(self) -> None:
-        task = self.process.find("b:userTask", NS)
+        task, principal = self.process.findall("b:userTask", NS)
         self.assertEqual(task.get(FLOWABLE + "candidateGroups"), GROUP)
+        self.assertEqual(principal.get(FLOWABLE + "candidateGroups"), PRINCIPAL)
         self.assertIsNone(task.get(FLOWABLE + "assignee"))
+        self.assertIsNone(principal.get(FLOWABLE + "assignee"))
         # cùng tên biến, cùng dạng nhóm với bước duyệt cấp phòng của văn bản đi (lõi đặt tenantId, departmentId)
         office = ET.parse(OFFICE).getroot()
         groups = {t.get(FLOWABLE + "candidateGroups") for t in office.iter(MODEL + "userTask")}
         self.assertIn(GROUP, groups)
 
-    def test_gateway_covers_every_decision_of_the_review_form(self) -> None:
-        duyet = json.loads((APP / "forms" / "duyet.json").read_text(encoding="utf-8"))
-        gateway = self.process.find("b:exclusiveGateway", NS)
-        out = [f for f in self.process.findall("b:sequenceFlow", NS) if f.get("sourceRef") == gateway.get("id")]
+    def outcomes(self, gateway: ET.Element) -> dict[tuple[str, str | None], str]:
+        """(quyết định, phép so số ngày hoặc None) → tên bước đích, cho mọi luồng ra của một cổng."""
+        names = {el.get("id"): el.get("name") for el in self.process}
         seen = {}
-        for flow in out:
+        for flow in (f for f in self.process.findall("b:sequenceFlow", NS) if f.get("sourceRef") == gateway.get("id")):
             cond = flow.find("b:conditionExpression", NS)
             m = CONDITION.fullmatch((cond.text or "").strip())
-            self.assertIsNotNone(m, f"điều kiện của {flow.get('id')} phải là ${{biến == 'hằng'}}")
-            self.assertEqual(m.group(1), "quyetDinh")
-            seen[m.group(2)] = self.process.find(f"b:endEvent[@id='{flow.get('targetRef')}']", NS).get("name")
-        self.assertEqual(sorted(seen), sorted(duyet["properties"]["quyetDinh"]["enum"]))
-        self.assertEqual(seen, {"dong-y": "Đã duyệt", "tu-choi": "Bị từ chối"})
+            self.assertIsNotNone(m, f"điều kiện của {flow.get('id')} phải là ${{quyetDinh == 'hằng'}} [&& soNgayLam …]")
+            seen[(m.group(1), m.group(2))] = names[flow.get("targetRef")]
+        return seen
+
+    def test_gateways_cover_every_decision_of_the_review_form(self) -> None:
+        duyet = json.loads((APP / "forms" / "duyet.json").read_text(encoding="utf-8"))
+        don = json.loads((APP / "forms" / "don.json").read_text(encoding="utf-8"))
+        manager, principal = self.process.findall("b:exclusiveGateway", NS)
+        self.assertEqual(self.outcomes(manager), {("dong-y", "<="): "Đã duyệt", ("dong-y", ">"): "Hiệu trưởng duyệt",
+                                                  ("tu-choi", None): "Bị từ chối"})
+        self.assertEqual(self.outcomes(principal), {("dong-y", None): "Đã duyệt", ("tu-choi", None): "Bị từ chối"})
+        self.assertEqual(sorted(duyet["properties"]["quyetDinh"]["enum"]), ["dong-y", "tu-choi"])
         self.assertIn("quyetDinh", duyet["required"])
+        # số ngày so bằng số: trường số nguyên bắt buộc, Flowable không phải đổi chuỗi sang số lúc chạy
+        self.assertEqual(don["properties"]["soNgayLam"]["type"], "integer")
+        self.assertIn("soNgayLam", don["required"])
+
+    def test_overdue_review_moves_to_the_principal(self) -> None:
+        (timer,) = self.process.findall("b:boundaryEvent", NS)
+        self.assertEqual(timer.get("attachedToRef"), "duyet")
+        self.assertEqual(timer.get("cancelActivity"), "true")
+        self.assertEqual(timer.findtext("b:timerEventDefinition/b:timeDuration", namespaces=NS).strip(), "P2D")
+        (out,) = [f for f in self.process.findall("b:sequenceFlow", NS) if f.get("sourceRef") == timer.get("id")]
+        self.assertEqual(out.get("targetRef"), "duyetHieuTruong")
 
     def test_every_node_is_on_a_path_from_start_to_an_end(self) -> None:
         nodes = {el.get("id"): tag(el) for el in self.process if tag(el) != "sequenceFlow"}
         edges = [(f.get("sourceRef"), f.get("targetRef")) for f in self.process.findall("b:sequenceFlow", NS)]
+        # timer chạy khi việc nó gắn đang mở: coi như một cạnh từ việc đó
+        edges += [(b.get("attachedToRef"), b.get("id")) for b in self.process.findall("b:boundaryEvent", NS)]
         for a, b in edges:
             self.assertIn(a, nodes)
             self.assertIn(b, nodes)

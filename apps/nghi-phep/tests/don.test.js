@@ -70,7 +70,7 @@ test('trả lời: 2xx là xong, 422 giữ lỗi từng trường, mã khác th�
 })
 
 test('trạng thái đơn theo lúc kết thúc và quyết định của trưởng phòng', () => {
-  assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Chờ trưởng phòng duyệt' })
+  assert.deepEqual(trangThai({ endedAt: null, data: {} }), { ma: 'cho', nhan: 'Đang chờ duyệt' })
   // quyết định chưa chốt (quy trình còn chạy) thì vẫn là chờ
   assert.equal(trangThai({ endedAt: null, data: { quyetDinh: 'dong-y' } }).ma, 'cho')
   assert.deepEqual(trangThai({ endedAt: '2026-10-26T03:00:00Z', data: { quyetDinh: 'dong-y' } }),
@@ -133,11 +133,11 @@ test('formKey, process id khớp app.yaml, BPMN và tệp form; trường trang 
   assert.match(bpmn, new RegExp(`<userTask [^>]*flowable:formKey="${FORM_DUYET}"`))
   const don = JSON.parse(read(APP, forms[FORM_DON]))
   const duyet = JSON.parse(read(APP, forms[FORM_DUYET]))
-  for (const name of ['tuNgay', 'denNgay']) assert.ok(don.properties[name], `forms/don.json thiếu ${name}`)
+  for (const name of ['tuNgay', 'denNgay', 'soNgayLam']) assert.ok(don.properties[name], `forms/don.json thiếu ${name}`)
   assert.deepEqual(duyet.properties.quyetDinh.enum, ['dong-y', 'tu-choi'])
-  // nhánh của cổng rẽ đúng các giá trị quyết định của form
-  const conditions = [...bpmn.matchAll(/\$\{quyetDinh == '([a-z-]+)'\}/g)].map((m) => m[1])
-  assert.deepEqual(conditions.sort(), [...duyet.properties.quyetDinh.enum].sort())
+  // nhánh của các cổng rẽ đúng các giá trị quyết định của form (cổng của trưởng phòng còn chia theo số ngày)
+  const conditions = [...bpmn.matchAll(/\$\{quyetDinh == '([a-z-]+)'(?: && soNgayLam [<>]=? 3)?\}/g)].map((m) => m[1])
+  assert.deepEqual([...new Set(conditions)].sort(), [...duyet.properties.quyetDinh.enum].sort())
 })
 
 test('trang không có script nội tuyến, không innerHTML; form chỉ dựng qua một hàm; đăng nhập đúng client', () => {

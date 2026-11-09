@@ -4,12 +4,12 @@
   "title": "Đơn xin nghỉ",
   "description": "Form bắt đầu quy trình nghỉ phép (formKey nghi-phep.don). Ca thử dùng chung: don.cases.json.",
   "x-moc-title": {"vi": "Đơn xin nghỉ", "en": "Leave request"},
-  "x-moc-order": ["loai", "tuNgay", "denNgay", "lyDo"],
+  "x-moc-order": ["loai", "tuNgay", "denNgay", "soNgayLam", "lyDo"],
   "x-moc-range": [["tuNgay", "denNgay"]],
   "x-moc-nfc": true,
   "type": "object",
   "additionalProperties": false,
-  "required": ["loai", "tuNgay", "denNgay"],
+  "required": ["loai", "tuNgay", "denNgay", "soNgayLam"],
   "properties": {
     "loai": {
       "title": "Loại nghỉ",
@@ -44,6 +44,18 @@
         "help": {"vi": "Tính cả ngày này. Nghỉ một ngày thì chọn trùng ngày bắt đầu.",
                  "en": "Inclusive. For a single day, pick the start date again."},
         "errors": {"pattern": {"vi": "Năm phải từ 2000 đến 2099", "en": "The year must be between 2000 and 2099"}}
+      }
+    },
+    "soNgayLam": {
+      "title": "Số ngày làm việc nghỉ",
+      "description": "Quy trình rẽ nhánh theo trường này: quá 3 ngày thì thêm bước Hiệu trưởng duyệt.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 30,
+      "x-moc-ui": {
+        "label": {"vi": "Số ngày làm việc nghỉ", "en": "Working days off"},
+        "help": {"vi": "Không tính thứ Bảy, Chủ nhật, ngày lễ. Quá 3 ngày thì Hiệu trưởng duyệt thêm.",
+                 "en": "Leave out weekends and public holidays. Over 3 days also needs the principal's approval."}
       }
     },
     "lyDo": {
