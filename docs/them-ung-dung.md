@@ -583,7 +583,7 @@ manifest, kiểm BPMN và mở API chung là phần lõi của #301 trong tài l
 | Quy trình | [`workflow/don-nghi-phep.bpmn20.xml`](../apps/nghi-phep/workflow/don-nghi-phep.bpmn20.xml), id `nghi-phep.don`: gửi đơn → "Trưởng phòng duyệt" (nhóm `t:${tenantId}:d:${departmentId}:manager`, như bước duyệt cấp phòng của văn bản đi) → cổng rẽ theo `quyetDinh` và `soNgayLam` (đồng ý, quá 3 ngày làm việc → "Hiệu trưởng duyệt", nhóm `t:${tenantId}:director`) → "Đã duyệt" / "Bị từ chối"; timer `P2D` trên bước trưởng phòng chuyển đơn lên Hiệu trưởng (#325). Chỉ sự kiện, việc người làm, cổng rẽ, timer; có sơ đồ BPMN DI |
 | Form | `forms/don.json` (loại nghỉ, từ ngày, đến ngày, lý do) và `forms/duyet.json` (quyết định, ghi chú): JSON Schema, kiểm ở trình duyệt bằng `public/schema-form.js` và ở lõi khi nhận |
 | Image | Python thư viện chuẩn trên `python:3.13.16-slim` ghim digest (như Bảng tin), không root (10001), chỉ trang tĩnh; bản dựng cho trình duyệt của `oidc-client-ts` lấy từ npm lúc dựng |
-| Trang | Đăng nhập Authorization Code + PKCE (client `app-nghi-phep`, `response_mode=fragment`). Ba phần: Gửi đơn; Đơn của tôi (trạng thái, nội dung, quyết định); Việc cần duyệt (chỉ hiện khi có việc, tự làm mới mỗi 30 giây). Lỗi `422` của lõi hiện dưới đúng ô |
+| Trang | Đăng nhập Authorization Code + PKCE (client `app-nghi-phep`, `response_mode=fragment`). Ba phần: Gửi đơn; Đơn của tôi (trạng thái, nội dung, quyết định; 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn"; đơn đang chờ có nút "Hủy đơn", hỏi lại trước khi hủy, #325); Việc cần duyệt (chỉ hiện khi có việc, tự làm mới mỗi 30 giây). Lỗi `422` của lõi hiện dưới đúng ô |
 
 Trang gọi `/api/workflow/nghi-phep/…` bằng token của người dùng: lấy form, gửi đơn, xem đơn của mình, xem và làm việc
 duyệt của mình. Ai thấy việc nào, dữ liệu có hợp form không, đơn lưu ở đâu là việc của lõi; trang không quyết định
@@ -614,7 +614,8 @@ cùng đơn vị Trường CNTT & TT: chuyên viên `giangvienktpm` và trưởn
 
 Thẻ việc cần duyệt ghi "Người gửi: …" (Đổi, bù lịch giảng: "Người đề nghị: …") lấy từ `initiatorName` của API chung
 (#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: tối đa hai
-bước duyệt (trưởng phòng, rồi Hiệu trưởng khi quá 3 ngày làm việc), không ủy quyền, không hủy đơn đã gửi.
+bước duyệt (trưởng phòng, rồi Hiệu trưởng khi quá 3 ngày làm việc), không ủy quyền; chỉ hủy được đơn còn chờ
+duyệt.
 
 ## 8. Sinh từ bảng: Studio, PostgREST và trang `/sinh`
 
