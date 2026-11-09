@@ -580,7 +580,7 @@
         "tags": [
           "Quy trình của ứng dụng"
         ],
-        "summary": "Đơn người này đã gửi qua ứng dụng, mới nhất trước",
+        "summary": "Đơn người này đã gửi qua ứng dụng, mới nhất trước, từng trang",
         "operationId": "list_processes_api_workflow__app__processes_get",
         "security": [
           {
@@ -596,6 +596,34 @@
               "type": "string",
               "title": "App"
             }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Số đơn mỗi trang, 1–100; trang đủ limit đơn thì có thể còn trang sau",
+              "default": 50,
+              "title": "Limit"
+            },
+            "description": "Số đơn mỗi trang, 1–100; trang đủ limit đơn thì có thể còn trang sau"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 0,
+              "description": "Bỏ qua bao nhiêu đơn mới nhất, 0–10000",
+              "default": 0,
+              "title": "Offset"
+            },
+            "description": "Bỏ qua bao nhiêu đơn mới nhất, 0–10000"
           }
         ],
         "responses": {
@@ -625,6 +653,70 @@
           },
           "503": {
             "description": "Chưa gọi được Flowable hoặc Keycloak, thử lại sau"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/workflow/{app}/processes/{process_id}": {
+      "delete": {
+        "tags": [
+          "Quy trình của ứng dụng"
+        ],
+        "summary": "Người gửi hủy đơn còn chờ duyệt",
+        "operationId": "cancel_process_api_workflow__app__processes__process_id__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "App"
+            }
+          },
+          {
+            "name": "process_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Process Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "Thiếu hoặc sai token"
+          },
+          "403": {
+            "description": "Token không phải của client app-<tên>, hoặc tài khoản chưa gán đơn vị"
+          },
+          "404": {
+            "description": "Ứng dụng đã gỡ; đơn không còn hoặc không thuộc người này"
+          },
+          "503": {
+            "description": "Chưa gọi được Flowable hoặc Keycloak, thử lại sau"
+          },
+          "409": {
+            "description": "Đơn đã duyệt xong hoặc đã hủy"
           },
           "422": {
             "description": "Validation Error",

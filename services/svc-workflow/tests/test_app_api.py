@@ -21,6 +21,8 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import json
+import logging
 import time
 import uuid
 from dataclasses import dataclass
@@ -35,7 +37,7 @@ from fastapi.testclient import TestClient
 from app_fakes import APP, BPMN, DON, DUYET, AppFlowable, bundle_zip, form_bytes
 from conftest import DEPT_DT, DEPT_KTPM, OTHER, TENANT, FakeHasura
 from svc_workflow.apps import deploy
-from svc_workflow.apps.api import MAX_BODY, AppWorkflow, rest_variables
+from svc_workflow.apps.api import CANCELLED, MAX_BODY, AppWorkflow, rest_variables
 from svc_workflow.apps.auth import HASURA_CLAIMS, AppUser, AuthError, TokenVerifier, default_role
 from svc_workflow.apps.bundle import check_bundle
 from svc_workflow.config import Settings
@@ -145,7 +147,8 @@ def start(client: TestClient, data: dict[str, Any] | None = None, headers: dict[
 ])
 def test_only_a_valid_token_of_the_apps_own_client_gets_in(client, headers, status, code):
     for method, path in (("GET", "/processes"), ("GET", "/tasks"), ("GET", f"/forms/{APP}.don"),
-                         ("POST", f"/processes/{APP}.don"), ("POST", "/tasks/t-1")):
+                         ("POST", f"/processes/{APP}.don"), ("POST", "/tasks/t-1"),
+                         ("DELETE", f"/processes/{pending}")):
         r = client.request(method, API + path, headers=headers, json={"data": REQ})
         assert r.status_code == status and r.json()["detail"]["code"] == code, (method, path, r.text)
     if status == 401:
@@ -307,7 +310,8 @@ def test_flowable_down_is_503(client, fl):
     fl.down = True
     for r in (client.post(f"{API}/processes/{APP}.don", json={"data": REQ}, headers=STAFF),
               client.get(f"{API}/processes", headers=STAFF), client.get(f"{API}/tasks", headers=MANAGER),
-              client.get(f"{API}/forms/{APP}.don", headers=STAFF)):
+              client.get(f"{API}/forms/{APP}.don", headers=STAFF),
+              client.delete(f"{API}/processes/proc-1", headers=STAFF)):
         assert r.status_code == 503 and r.json()["detail"]["code"] == "workflow_unavailable"
 
 
@@ -327,7 +331,7 @@ def test_my_processes_hold_the_request_then_the_decision(client, fl):
     r = client.get(f"{API}/processes", headers=STAFF)
     assert r.status_code == 200
     assert r.json() == [{"id": pid, "processKey": f"{APP}.don", "startedAt": fl.instances[pid]["startTime"],
-                         "endedAt": None, "data": REQ}]
+                         "endedAt": None, "cancelled": False, "data": REQ}]
     fl.add_task("t-1", pid, groups=[f"t:{TENANT}:d:{DEPT_DT}:manager"])
     assert client.post(f"{API}/tasks/t-1", json={"data": {"quyetDinh": "dong-y", "ghiChu": "Được"}},
                        headers=MANAGER).status_code == 204
@@ -475,6 +479,76 @@ def test_task_of_an_older_version_is_checked_with_that_versions_form(client, fl,
     assert r.status_code == 422 and r.json() == {"errors": {"quyetDinh": "enum"}}
 
 
+# --- phân trang, hủy đơn (#325) ----------------------------------------------------------------------------
+
+
+def test_my_processes_come_in_pages_newest_first(client, fl):
+    pids = [start(client) for _ in range(5)]
+    start(client, headers=MANAGER)
+    pages = [[p["id"] for p in client.get(f"{API}/processes", params={"limit": 2, "offset": offset},
+                                          headers=STAFF).json()] for offset in (0, 2, 4, 6)]
+    assert pages == [pids[:2:-1], pids[2:0:-1], pids[:1], []]
+    assert [p["id"] for p in client.get(f"{API}/processes", headers=STAFF).json()] == pids[::-1]
+    query = [q for q in fl.queries if "processDefinitionKey" in q][1]
+    assert (query["sort"], query["order"], query["size"]) == ("startTime", "desc", 4)
+
+
+@pytest.mark.parametrize("params", [{"limit": 0}, {"limit": 101}, {"offset": -1}, {"offset": 10001},
+                                    {"limit": "x"}])
+def test_page_out_of_range_is_422(client, params):
+    assert client.get(f"{API}/processes", params=params, headers=STAFF).status_code == 422
+
+
+def test_sender_cancels_a_pending_request(client, fl, pending, caplog):
+    with caplog.at_level(logging.INFO, logger="svc_workflow"):
+        r = client.delete(f"{API}/processes/{pending}", headers={**STAFF, "X-Request-Id": "rid-huy-1"})
+    assert r.status_code == 204 and r.content == b""
+    assert fl.instances[pending]["deleteReason"] == CANCELLED
+    assert client.get(f"{API}/tasks", headers=MANAGER).json() == []
+    mine = client.get(f"{API}/processes", headers=STAFF).json()
+    assert (mine[0]["cancelled"], mine[0]["endedAt"] is not None, mine[0]["data"]) == (True, True, REQ)
+    events = [json.loads(m) for m in caplog.messages if "app.workflow.cancelled" in m]
+    assert events == [{"event": "app.workflow.cancelled", "app": APP, "process_id": pending, "user_id": "u-staff",
+                       "tenant_id": str(TENANT), "request_id": events[0]["request_id"]}]
+    r = client.delete(f"{API}/processes/{pending}", headers=STAFF)       # hủy lần hai: đơn đã xong
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "already_finished"
+
+
+@pytest.mark.parametrize("who", [MANAGER, OTHER_MANAGER, DIRECTOR, OTHER_TENANT])
+def test_only_the_sender_can_cancel(client, fl, pending, who):
+    r = client.delete(f"{API}/processes/{pending}", headers=who)
+    assert r.status_code == 404 and r.json()["detail"] == {
+        "code": "process_not_found", "message": "Đơn không còn hoặc không thuộc người này"}
+    assert "deleteReason" not in fl.instances[pending]
+
+
+@pytest.mark.parametrize("pid", ["khong-co", f"{APP}.don", "a:b", "x" * 65])
+def test_unknown_process_is_404_like_someone_elses(client, fl, pid):
+    r = client.delete(f"{API}/processes/{pid}", headers=STAFF)
+    assert r.status_code == 404 and r.json()["detail"]["code"] == "process_not_found"
+
+
+def test_office_process_is_not_cancelled_through_the_app_api(client, fl):
+    fl.instances["p-office"] = {"id": "p-office", "processDefinitionId": "van-ban-den:1:x", "endTime": None,
+                                "startTime": "x", "variables": {"tenantId": str(TENANT), "initiator": "u-staff"}}
+    assert client.delete(f"{API}/processes/p-office", headers=STAFF).status_code == 404
+    assert "deleteReason" not in fl.instances["p-office"]
+
+
+def test_finished_request_cannot_be_cancelled(client, fl, pending):
+    fl.instances[pending]["endTime"] = "2026-10-26T11:00:00.000+07:00"
+    r = client.delete(f"{API}/processes/{pending}", headers=STAFF)
+    assert r.status_code == 409 and r.json()["detail"] == {
+        "code": "already_finished", "message": "Đơn đã xong, không hủy được"}
+
+
+def test_request_approved_while_cancelling_is_409(client, fl, pending):
+    fl.finish_before_delete = True
+    r = client.delete(f"{API}/processes/{pending}", headers=STAFF)
+    assert r.status_code == 409 and r.json()["detail"]["code"] == "already_finished"
+    assert "deleteReason" not in fl.instances[pending]
+
+
 # --- gỡ, cài lại ---------------------------------------------------------------------------------------------
 
 
@@ -503,8 +577,10 @@ def test_rest_variables_keep_types():
         {"name": "c", "type": "double", "value": 1.5}, {"name": "d", "type": "string", "value": "x"}]
 
 
-def test_openapi_lists_the_five_routes(client):
+def test_openapi_lists_the_six_routes(client):
     paths = client.get("/openapi.json").json()["paths"]
     assert sorted(paths) == [f"/api/workflow/{{app}}/{p}" for p in (
-        "forms/{form_key}", "processes", "processes/{process_key}", "tasks", "tasks/{task_id}")]
+        "forms/{form_key}", "processes", "processes/{process_id}", "processes/{process_key}", "tasks",
+        "tasks/{task_id}")]
+    assert list(paths[f"{API.replace(APP, '{app}')}/processes/{{process_id}}"]) == ["delete"]
     assert form_bytes(DON)                               # mẫu dùng chung còn đọc được

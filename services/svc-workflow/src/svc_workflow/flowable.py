@@ -204,7 +204,8 @@ class FlowableClient:
         return data["id"]
 
     async def delete_process(self, process_id: str, reason: str) -> None:
-        """Hủy phiên vừa khởi chạy thừa (lần gọi khác đã gắn phiên của nó vào văn bản): chưa ai làm gì trong đó."""
+        """Hủy một phiên đang chạy, lịch sử giữ lý do (deleteReason): phiên vừa khởi chạy thừa (lần gọi khác đã gắn
+        phiên của nó vào văn bản), đơn của ứng dụng người gửi tự hủy (#325). Phiên đã xong: Flowable trả 404."""
         await self._request("DELETE", f"/runtime/process-instances/{_path_id(process_id)}",
                             params={"deleteReason": reason})
 
@@ -362,7 +363,7 @@ class FlowableClient:
 
     async def historic_processes(self, query: dict[str, Any]) -> list[dict[str, Any]]:
         data = await self._request("POST", "/query/historic-process-instances",
-                                   json={**query, "includeProcessVariables": True, "size": 500})
+                                   json={"size": 500, **query, "includeProcessVariables": True})
         return data["data"]
 
     async def activities(self, process_id: str) -> list[dict[str, Any]]:

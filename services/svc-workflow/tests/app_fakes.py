@@ -118,6 +118,7 @@ class AppFlowable:
         self.down = False
         self.claim_conflict = False
         self.gone_on_complete = False
+        self.finish_before_delete = False
         self.n = 0
 
     def _next(self) -> int:
@@ -215,13 +216,28 @@ class AppFlowable:
         self.queries.append(query)
         out = []
         for inst in self.instances.values():
-            if inst["processDefinitionId"].split(":")[0] != query["processDefinitionKey"]:
+            if "processDefinitionKey" in query and inst["processDefinitionId"].split(":")[0] != query[
+                    "processDefinitionKey"]:
+                continue
+            if "processInstanceId" in query and inst["id"] != query["processInstanceId"]:
                 continue
             if any(inst["variables"].get(v["name"]) != v["value"] for v in query.get("variables", [])):
                 continue
             out.append({**inst, "variables": [{"name": k, "value": v, "scope": "local"}
                                               for k, v in inst["variables"].items()]})
-        return out
+        if query.get("sort") == "startTime":
+            out.sort(key=lambda r: r["startTime"], reverse=query.get("order") == "desc")
+        return out[:query.get("size", 500)]
+
+    async def delete_process(self, process_id: str, reason: str) -> None:
+        self._check()
+        if self.finish_before_delete:                   # người duyệt bấm xong ngay trước lúc hủy
+            self.instances[process_id]["endTime"] = "2026-10-26T11:00:00.000+07:00"
+        inst = self.instances.get(process_id)
+        if inst is None or inst["endTime"]:
+            raise FlowableError("not running", 404)
+        inst.update(endTime="2026-10-26T12:00:00.000+07:00", deleteReason=reason)
+        self.tasks = {k: t for k, t in self.tasks.items() if t.process_instance_id != process_id}
 
     async def task(self, task_id: str) -> Task | None:
         self._check()

@@ -4704,6 +4704,19 @@ def quy_trinh() -> None:
         raise DemoFailed(f"việc duyệt đơn {pid} vẫn còn trong danh sách của {QT_MANAGER}")
     ok(f"422 {json.dumps(QT_BAD_DECISION)}; rồi 204 — \"Đơn của tôi\": kết thúc lúc {done['endedAt']}, quyết định "
        "dong-y; việc không còn")
+    # #325: đơn thứ hai người gửi tự hủy qua cổng (WAF chỉ cho DELETE ở đường này, luật 10099); người khác hủy → 404
+    pid2 = (qt_ok(staff, "POST", f"/processes/{QT_PROCESS}", leave_request(today, f"{tag}-huy"), want=201)
+            or {}).get("id")
+    for who_, token, target, want in ((QT_MANAGER, manager, pid2, 404), (QT_STAFF, staff, pid2, 204),
+                                      (QT_STAFF, staff, pid2, 409), (QT_STAFF, staff, pid, 409)):
+        status, body = qt_call(token, "DELETE", f"/processes/{target}")
+        if status != want:
+            raise DemoFailed(f"{who_} hủy đơn {target}: cần {want}, nhận {status} {json.dumps(body)[:300]}")
+    page = qt_list(staff, "/processes?limit=1")
+    if [(p.get("id"), p.get("cancelled")) for p in page] != [(pid2, True)] or task_of(qt_list(manager, "/tasks"), pid2):
+        raise DemoFailed(f"đơn {pid2} vừa hủy phải đứng đầu trang limit=1 với cancelled, việc duyệt mất theo: {page}")
+    ok(f"đơn thứ hai {pid2}: {QT_MANAGER} hủy → 404; người gửi hủy → 204, lần hai → 409, đơn đã duyệt → 409; "
+       "trang limit=1 chỉ có đơn đó, cancelled; việc duyệt mất theo")
 
     say(8, f"Chạy lại moc app install {QT_MANIFEST}: không đổi gì")
     container, digest, versions = app_container(QT_NAME), state_digest(), qt_versions()
