@@ -388,7 +388,8 @@ gh pr create --base develop --title "chore(release): merge v1.1.1 back into deve
   `ghcr.io/hit-champion/signet/<tên>:X.Y.Z` (vd `svc-workflow`, `app-office`), kèm SBOM và provenance SLSA của
   BuildKit (`docker buildx imagetools inspect <image> --format '{{json .SBOM}}'`). Job chạy song song với job gói nguồn,
   một image hỏng không chặn Release. Chỉ dùng docker CLI và `GITHUB_TOKEN`; quyền `packages: write` chỉ ở job này. PR
-  sửa `release.yml` chạy job image để dựng thử, không đẩy. `make up` vẫn dựng từ mã nguồn (PoF #4); image trên GHCR
+  sửa `release.yml` chạy job image để dựng thử, không đẩy: image xuất ra tệp OCI, bước "Kiểm SBOM và provenance trong
+  image" đòi đủ hai attestation. `make up` vẫn dựng từ mã nguồn (PoF #4); image trên GHCR
   là cách cài thêm. Gói mới trên GHCR mặc định riêng tư: người quản trị repo đổi sang công khai một lần ở trang
   Packages.
 - Không xóa hay gắn lại thẻ đã đẩy — ruleset thẻ `v*` chặn hẳn, `release.yml` và `release.sh` cũng từ

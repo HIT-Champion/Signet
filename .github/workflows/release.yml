@@ -188,8 +188,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
 
-      # SBOM, provenance là attestation của BuildKit: cần builder docker-container. PR không có --push: kết quả chỉ nằm
-      # trong cache của builder, đủ để biết image và hai attestation dựng được
+      # SBOM, provenance là attestation của BuildKit: cần builder docker-container, gắn vào image lúc xuất. PR không
+      # đẩy: xuất ra tệp OCI để bước sau kiểm có đủ hai attestation
       - name: Dựng image, kèm SBOM và provenance (thẻ thì đẩy lên GHCR)
         env:
           V: ${{ steps.ver.outputs.version }}
@@ -203,7 +203,34 @@ jobs:
                 --label "org.opencontainers.image.version=$V"
                 --label "org.opencontainers.image.revision=$GITHUB_SHA")
           if [ -n "$EXTRA" ]; then args+=(--build-context "$EXTRA"); fi
-          if [ "$GITHUB_EVENT_NAME" = push ]; then args+=(--push); fi
+          if [ "$GITHUB_EVENT_NAME" = push ]; then args+=(--push)
+          else args+=(--output "type=oci,dest=$RUNNER_TEMP/image.tar"); fi
           docker buildx create --use --driver docker-container > /dev/null
           docker buildx build "${args[@]}" "$CONTEXT"
           echo "$ref" >> "$GITHUB_STEP_SUMMARY"
+
+      # Lượt PR: chỉ mục OCI phải có manifest attestation chứa SBOM (SPDX) và provenance (SLSA) — lỗi thì biết ngay ở PR
+      # chứ không đợi tới lúc gắn thẻ
+      - name: Kiểm SBOM và provenance trong image
+        if: github.event_name != 'push'
+        run: |
+          python3 - "$RUNNER_TEMP/image.tar" <<'PY'
+          import json, sys, tarfile
+          with tarfile.open(sys.argv[1]) as tar:
+              def blob(digest):
+                  return json.load(tar.extractfile("blobs/" + digest.replace(":", "/")))
+              found, todo = set(), list(json.load(tar.extractfile("index.json"))["manifests"])
+              while todo:
+                  desc = todo.pop()
+                  doc = blob(desc["digest"])
+                  todo += doc.get("manifests", [])
+                  if desc.get("annotations", {}).get("vnd.docker.reference.type") == "attestation-manifest":
+                      found |= {layer.get("annotations", {}).get("in-toto.io/predicate-type")
+                                for layer in doc.get("layers", [])}
+          kinds = sorted(str(t) for t in found if t)
+          provenance = any(t.startswith("https://slsa.dev/provenance/") for t in kinds)
+          if "https://spdx.dev/Document" not in found or not provenance:
+              print(f"::error::Image thiếu SBOM hoặc provenance, attestation có: {kinds}")
+              sys.exit(1)
+          print("Attestation:", ", ".join(kinds))
+          PY
