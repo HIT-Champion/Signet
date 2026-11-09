@@ -22,8 +22,8 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
 import {
-  API, FORM_DON, FORM_DUYET, LOI, MA_LOI, QUY_TRINH, TRANG, conTrang, docThan, docTraLoi, doiChieu, duong, ghepDon,
-  huyDuoc, ngayGio, sapXepDon, sapXepViec, nguoiGui, soNgay, tenNguoi, trangThai, yeuCau,
+  API, FORM_DON, FORM_DUYET, LOI, MA_LOI, OFFSET_TOI_DA, QUY_TRINH, TRANG, conTrang, docThan, docTraLoi, doiChieu,
+  duong, ghepDon, huyDuoc, ngayGio, sapXepDon, sapXepViec, nguoiGui, soNgay, tenNguoi, trangThai, yeuCau,
 } from '../public/don.js'
 import { t } from '../public/i18n.js'
 
@@ -122,6 +122,10 @@ test('Đơn của tôi theo trang (#325): còn trang khi đủ TRANG mục; ghé
   assert.equal(conTrang(Array.from({ length: TRANG }, (_, i) => ({ id: `d${i}` }))), true)
   assert.equal(conTrang(MAU), false)
   assert.equal(conTrang(null), false)
+  // lõi nhận offset tới 10000: trang bắt đầu ở 9950 đủ mục thì vẫn còn trang 10000, ở 10000 thì thôi
+  const du = Array.from({ length: TRANG }, (_, i) => ({ id: `d${i}` }))
+  assert.equal(conTrang(du, OFFSET_TOI_DA - TRANG), true)
+  assert.equal(conTrang(du, OFFSET_TOI_DA), false)
   // đơn mới gửi chen vào đầu: trang sau lặp lại p3; p1 vừa được duyệt thì lấy bản mới
   const moi = [{ ...MAU[0], endedAt: '2026-11-10T02:00:00.000+07:00', data: { quyetDinh: 'tu-choi' } },
     { id: 'p0', startedAt: '2026-11-10T03:00:00.000+07:00', endedAt: null, data: {} }]

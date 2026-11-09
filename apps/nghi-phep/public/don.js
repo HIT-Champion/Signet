@@ -145,8 +145,11 @@ export const sapXepDon = (list) => [...list].sort((a, b) => at(b.startedAt) - at
 /** Hủy được khi đơn còn chờ duyệt, chưa hủy (#325; lõi kiểm lại: đã xong → 409). */
 export const huyDuoc = (don) => !don?.endedAt && don?.cancelled !== true
 
-/** Còn trang sau khi trang vừa tải đủ TRANG mục. */
-export const conTrang = (trang) => Array.isArray(trang) && trang.length === TRANG
+/** Lõi nhận offset tối đa 10000 (#325, quá thì 422): sau 200 trang thì thôi "Xem thêm". */
+export const OFFSET_TOI_DA = 10000
+
+/** Còn trang sau khi trang vừa tải (bắt đầu ở offset tu) đủ TRANG mục và trang sau còn trong mức lõi nhận. */
+export const conTrang = (trang, tu = 0) => Array.isArray(trang) && trang.length === TRANG && tu + TRANG <= OFFSET_TOI_DA
 
 /**
  * Ghép một trang vừa tải vào các đơn đang có: cùng id thì lấy bản mới. Đơn mới gửi chen vào đầu nên trang sau có thể

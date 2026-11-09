@@ -146,7 +146,7 @@ async function xemThem(forms) {
     const daCo = new Set(view.don.map((d) => d.id))
     view.don = ghepDon(view.don, trang)
     view.xemThem += 1
-    view.tiep = conTrang(trang) ? tu + TRANG : null
+    view.tiep = conTrang(trang, tu) ? tu + TRANG : null
     veDon(forms)
     const moi = view.don.filter((d) => !daCo.has(d.id))
     baoTin(() => (moi.length ? t('mine.loadedMore', { n: moi.length }) : t('mine.noMore')))
