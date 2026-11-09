@@ -447,14 +447,16 @@ trước dùng `app/lib/schema-form.js`, bản chép từng byte của `apps/ngh
 
 Giới hạn:
 
-- Chỉ quy trình duyệt: không timer, không nhắc hạn (hạn chỉ hiện ở `dueAt`), không bước tự động, không gửi thư hay gọi
-  API ra ngoài, không quy trình con. Điều kiện chỉ so chuỗi bằng, khác.
+- Chỉ quy trình duyệt: timer chỉ là `timeDuration` hằng gắn vào việc người làm (quá hạn thì chuyển bước hay thêm việc,
+  không gửi thông báo); không bước tự động, không gửi thư hay gọi API ra ngoài, không quy trình con (#325, để sau khi
+  nộp). Điều kiện chỉ so một trường bắt buộc của form với hằng: chuỗi bằng, khác; số, ngày so lớn nhỏ.
 - Form không có tệp đính kèm, không trường nhiều giá trị.
 - Đơn vị tách bằng biến `tenantId` và nhóm ứng viên `t:<đơn vị>:…` như quy trình Văn phòng điện tử, không dùng tenant
   của Flowable.
-- "Đơn của tôi" đọc lịch sử theo các `processKey` trong bản cài mới nhất; mỗi truy vấn tối đa 500 dòng, chưa phân trang.
+- "Đơn của tôi" đọc lịch sử theo các `processKey` trong bản cài mới nhất, từng trang (`limit` tới 100, `offset` tới
+  10 000); chưa lọc theo trạng thái hay ngày.
 - Gỡ không xóa gì khỏi Flowable; chưa có lệnh dọn lịch sử quy trình của ứng dụng đã gỡ.
-- Không hủy được đơn đã gửi.
+- Chỉ người gửi hủy được đơn, và chỉ khi đơn còn chờ duyệt; không rút lại đơn đã xong, không ủy quyền.
 
 ## 2. Ứng dụng nhận gì từ lõi
 
@@ -579,9 +581,9 @@ manifest, kiểm BPMN và mở API chung là phần lõi của #301 trong tài l
 |---|---|
 | Manifest | [`apps/nghi-phep/app.yaml`](../apps/nghi-phep/app.yaml): `/nghi-phep`, cổng 8080, 64 MiB; `database` chỉ vì manifest bắt buộc (schema trống `nghi_phep`, không migration); `workflow`: một quy trình, hai form |
 | Quy trình | [`workflow/don-nghi-phep.bpmn20.xml`](../apps/nghi-phep/workflow/don-nghi-phep.bpmn20.xml), id `nghi-phep.don`: gửi đơn → "Trưởng phòng duyệt" (nhóm `t:${tenantId}:d:${departmentId}:manager`, như bước duyệt cấp phòng của văn bản đi) → cổng rẽ theo `quyetDinh` và `soNgayLam` (đồng ý, quá 3 ngày làm việc → "Hiệu trưởng duyệt", nhóm `t:${tenantId}:director`) → "Đã duyệt" / "Bị từ chối"; timer `P2D` trên bước trưởng phòng chuyển đơn lên Hiệu trưởng (#325). Chỉ sự kiện, việc người làm, cổng rẽ, timer; có sơ đồ BPMN DI |
-| Form | `forms/don.json` (loại nghỉ, từ ngày, đến ngày, lý do) và `forms/duyet.json` (quyết định, ghi chú): JSON Schema, kiểm ở trình duyệt bằng `public/schema-form.js` và ở lõi khi nhận |
+| Form | `forms/don.json` (loại nghỉ, từ ngày, đến ngày, số ngày làm việc nghỉ, lý do) và `forms/duyet.json` (quyết định, ghi chú): JSON Schema, kiểm ở trình duyệt bằng `public/schema-form.js` và ở lõi khi nhận |
 | Image | Python thư viện chuẩn trên `python:3.13.16-slim` ghim digest (như Bảng tin), không root (10001), chỉ trang tĩnh; bản dựng cho trình duyệt của `oidc-client-ts` lấy từ npm lúc dựng |
-| Trang | Đăng nhập Authorization Code + PKCE (client `app-nghi-phep`, `response_mode=fragment`). Ba phần: Gửi đơn; Đơn của tôi (trạng thái, nội dung, quyết định); Việc cần duyệt (chỉ hiện khi có việc, tự làm mới mỗi 30 giây). Lỗi `422` của lõi hiện dưới đúng ô |
+| Trang | Đăng nhập Authorization Code + PKCE (client `app-nghi-phep`, `response_mode=fragment`). Ba phần: Gửi đơn; Đơn của tôi (trạng thái, nội dung, quyết định; 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn"; đơn đang chờ có nút "Hủy đơn", hỏi lại trước khi hủy, #325); Việc cần duyệt (chỉ hiện khi có việc, tự làm mới mỗi 30 giây). Lỗi `422` của lõi hiện dưới đúng ô |
 
 Trang gọi `/api/workflow/nghi-phep/…` bằng token của người dùng: lấy form, gửi đơn, xem đơn của mình, xem và làm việc
 duyệt của mình. Ai thấy việc nào, dữ liệu có hợp form không, đơn lưu ở đâu là việc của lõi; trang không quyết định
@@ -611,8 +613,9 @@ cùng đơn vị Trường CNTT & TT: chuyên viên `giangvienktpm` và trưởn
 10. `git status` trước và sau giống hệt.
 
 Thẻ việc cần duyệt ghi "Người gửi: …" (Đổi, bù lịch giảng: "Người đề nghị: …") lấy từ `initiatorName` của API chung
-(#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: một bước
-duyệt, không ủy quyền, không hủy đơn đã gửi.
+(#506); tên trống (tài khoản đã khóa, chưa đồng bộ danh bạ) thì thẻ bỏ dòng đó. Giới hạn của ứng dụng mẫu: tối đa hai
+bước duyệt (trưởng phòng, rồi Hiệu trưởng khi quá 3 ngày làm việc), không ủy quyền; chỉ hủy được đơn còn chờ
+duyệt.
 
 ## 8. Sinh từ bảng: Studio, PostgREST và trang `/sinh`
 
@@ -697,8 +700,9 @@ Hai hàm gắn khung và ghi sổ chạy bằng `moc_harness` (không superuser,
 - Mọi vai trò người dùng có cùng quyền đọc, ghi trong đơn vị (khung cấp `select`, `insert`, `update`, `delete` cho
   cả năm vai trò). Muốn hẹp hơn (vd chỉ lãnh đạo sửa) thì người vận hành thêm trong Studio một policy dạng
   `RESTRICTIVE`: policy permissive thêm sau không thu hẹp được, vì `moc_mo` đã mở cả đơn vị.
-- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; chưa có ô cho cột json, jsonb,
-  mảng; ô chọn để trống thì không gửi, nên lúc sửa không xóa về trống được
+- Trang `/sinh/` chưa xóa dòng, chưa phân trang (chỉ 50 dòng mới nhất), lọc hay tìm; cột mảng chỉ đọc, trừ mảng
+  enum có cột thường cùng kiểu enum trong schema `sinh`; gợi ý dưới ô một thứ tiếng; ô chọn để trống thì không gửi,
+  nên lúc sửa không xóa về trống được
   ([`apps/sinh/README.md`](../apps/sinh/README.md) mục "Chưa làm").
 - Báo cáo (8.6): một cột nhóm, một phép tính; chưa lọc theo khoảng ngày hay giá trị trong khai báo, chưa xuất tệp; chỉ
   trên bảng `sinh`, không trên dữ liệu Văn phòng điện tử.

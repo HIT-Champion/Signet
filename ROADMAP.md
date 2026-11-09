@@ -48,7 +48,8 @@ trường số khép kín.
       token (F1.1, F2.1)
 - [x] Một điểm vào: cổng API APISIX, danh sách trắng đường dẫn, kiểm JWT ở biên, giới hạn tốc độ (F1.2)
 - [x] Tường lửa ứng dụng web ở cổng: Coraza + OWASP CRS trong APISIX, chặn mặc định, loại trừ có lý do (F3.15,
-      nguyên lý iv; mức Dùng được: chữ lạ ở ô chữ ngắn có thể bị chặn nhầm, người quản trị phải thêm loại trừ)
+      nguyên lý iv; Cơ quan ban hành, Nơi nhận nhận đường dẫn, câu "File …?" từ #260; chữ lạ ở ô chữ ngắn khác vẫn có
+      thể bị chặn nhầm, giao diện báo kèm mã để người quản trị thêm loại trừ)
 - [x] Lưu trữ tệp nội bộ: SeaweedFS, tệp chỉ vào và ra qua `svc-files`, ClamAV quét trước khi ghi (F1.5, F1.6)
 - [x] Cấu trúc thư mục **P.A.R.A**: Không gian cá nhân `apps/ca-nhan` (Dự án, Lĩnh vực, Tài nguyên, Lưu trữ), ứng
       dụng thứ hai cắm vào lõi, không sửa dòng nào trong `services/`
@@ -61,7 +62,8 @@ trường số khép kín.
       (`/ung-dung`) của Văn phòng mở các ứng dụng khác, các ứng dụng kia có liên kết về Văn phòng; chưa có trang cổng
       riêng
 - [ ] **Một phần** — truyền thông nội bộ: thông báo tức thời trong ứng dụng (Centrifugo, F2.5), thêm email, webhook
-      Mattermost, Slack, ntfy, SMS, Zalo, tắt mặc định (`docs/muc-hoan-thien.md` mục 3, cụm ⑦); không có chat riêng
+      Mattermost, Slack, ntfy, SMS, Zalo, tắt mặc định (`docs/muc-hoan-thien.md` mục 3, cụm ⑦); chưa có chat
+      riêng, chat Matrix đăng nhập Keycloak để sau khi nộp (#368)
 - [x] Hệ quản trị tri thức (wiki): DokuWiki ở `/wiki/`, profile `wiki` tắt mặc định; đăng nhập Keycloak, mỗi đơn vị
       một không gian chỉ người của đơn vị đọc, sửa ([`docs/van-hanh.md`](docs/van-hanh.md) mục Wiki nội bộ, bước CI
       `make demo-wiki`, #367). Chưa có không gian chung cả trường, trang wiki chưa vào tìm kiếm và trợ lý hỏi đáp
@@ -89,9 +91,11 @@ bộ phận.
       toán `core.audit_log`; ứng dụng cài bằng `moc app install` nhận luồng `core.app_events` qua Hasura Event
       Triggers (đến, vào sổ, phát hành; không văn bản hạn chế). Chưa có broker streaming: không phát lại, không bảo
       đảm thứ tự (cụm ⑥)
-- [ ] **Một phần** — biểu mẫu low-code: form của ứng dụng cắm bằng manifest khai bằng JSON Schema, trang tự dựng form
-      (Đơn nghỉ phép, #312); form của Văn phòng viết trong mã, JSON Schema dùng chung mới có cho form tiếp nhận văn bản
-      đến, khuôn văn bản đi viết trong `services/svc-files/src/svc_files/render.py` (F2.4). Trang Dựng form của Văn
+- [ ] **Một phần** — biểu mẫu low-code: tạo bảng trong Supabase Studio là có form, trang `/sinh` dựng ô theo kiểu
+      cột, nhãn hai thứ tiếng lấy từ chú thích của bảng, cột (F1.11, #303); form của ứng dụng cắm bằng manifest khai
+      bằng JSON Schema, trang tự dựng form (Đơn nghỉ phép, #312); form của Văn phòng viết trong mã, JSON Schema dùng
+      chung mới có cho form tiếp nhận văn bản đến, khuôn văn bản đi viết trong
+      `services/svc-files/src/svc_files/render.py` (F2.4). Trang Dựng form của Văn
       phòng (`/ung-dung/dung-form`, quản trị đơn vị, #303): khai trường, xem trước, tải tệp JSON Schema về đặt vào gói
       ứng dụng; form chỉ vào lõi khi chạy `moc app install`
 - [ ] **Một phần** — tự động hóa không cần sửa mã dịch vụ (kịch bản serverless, cụm ⑤): Node-RED ở `/tu-dong/`,
@@ -212,13 +216,21 @@ Việc nào chưa xong trước 26/11 thì để sau `v1.5.0`.
 7. **Khuôn văn bản, biểu mẫu sửa được không cần sửa mã** ([P] low-code): trước hết cho quản trị đơn vị tự sửa mẫu văn
    bản đi (F2.4). Thiết kế quy trình bằng giao diện cần một công cụ thay `bpmn-js`, vốn bị loại vì giấy phép
    (`docs/du-thi/ke-hoach-phat-trien.md` §6).
-8. **Hạn chế đã ghi của tính năng đã có**: gửi lại liên thông lỗi (F3.12), thời hạn từng bước của quy trình không
+8. **Tách Văn phòng điện tử khỏi lõi, bước 3–5** (#324, [`docs/architecture.md`](docs/architecture.md) §4.7): dọn
+   CSDL để `core` không trỏ sang `office`, đóng gói phần Văn phòng thành gói riêng, sau cùng mới tách dịch vụ. Form
+   của Văn phòng dựng từ JSON Schema đi cùng việc này. Để sau khi nộp: bước 1–2 (#302) đã đủ cho ứng dụng thứ hai,
+   thứ ba chạy trên lõi mà không sửa `services/`.
+9. **Chat nội bộ** (#368): Matrix (Synapse, Matrix Authentication Service, Element Web), đăng nhập Keycloak, dữ liệu
+   trong PostgreSQL chung, tắt liên kết liên máy chủ. Để sau khi nộp: cần thêm tên miền con `chat.<miền>`.
+10. **Quy trình của ứng dụng, phần còn lại** (#325): bước BPMN gọi API ra ngoài (phải chặn SSRF; tự động hóa ra ngoài
+    hiện qua Node-RED), quy trình con, mỗi ứng dụng một tên miền con.
+11. **Hạn chế đã ghi của tính năng đã có**: gửi lại liên thông lỗi (F3.12), thời hạn từng bước của quy trình không
    trừ ngày nghỉ, ngày lễ (F2.3), lịch ngày lễ âm lịch tự có thay vì người vận hành thêm mỗi năm (F4.3), chữ OCR của cả
    bản scan chứ không chỉ 3 trang đầu (F2.7), két bí mật có TLS và xoay khóa (F3.2), tự chép kho sao lưu ra ngoài máy
    chủ (F3.4).
-9. **Dịch thuật trong lõi** (cụm ②): dịch vụ dịch chạy tại chỗ cho mọi ứng dụng. Xếp sau vì người dùng hiện là cơ
+12. **Dịch thuật trong lõi** (cụm ②): dịch vụ dịch chạy tại chỗ cho mọi ứng dụng. Xếp sau vì người dùng hiện là cơ
    quan trong nước và giao diện đã có tiếng Anh.
-10. **WebGIS** (đề nêu ở [D] của Tầng 2): nghiệp vụ văn thư hiện chưa cần bản đồ; làm khi có ứng dụng cần.
+13. **WebGIS** (đề nêu ở [D] của Tầng 2): nghiệp vụ văn thư hiện chưa cần bản đồ; làm khi có ứng dụng cần.
 
 Cần tổ chức bên ngoài cấp phép hay cấp kết nối, nên chỉ làm khi có đơn vị dùng đứng ra
 ([`docs/dac-ta-san-pham.md`](docs/dac-ta-san-pham.md) §4.4 xếp vào "Không làm"): chữ ký số công cộng, USB token, HSM
