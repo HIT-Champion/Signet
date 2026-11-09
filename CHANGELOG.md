@@ -45,6 +45,9 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   vẽ (#603).
 - Trang văn bản có mục "Sơ đồ quy trình": sơ đồ BPMN của văn bản vẽ bằng SVG, bước đã qua, đang chờ, timer quá hạn
   đã bắn, kèm danh sách bước dạng chữ (#603).
+- `/sinh` dựng ô theo kiểu cột: `text` nhiều dòng, `timestamp` chọn ngày giờ, `json` có kiểm cú pháp, mảng enum nhiều
+  ô đánh dấu, mảng khác chỉ đọc (#303).
+- `/sinh` có nhãn hai thứ tiếng: dòng `en: …` trong `COMMENT ON COLUMN`, `COMMENT ON TABLE` là nhãn tiếng Anh (#303).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
