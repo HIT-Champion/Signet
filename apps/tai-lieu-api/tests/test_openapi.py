@@ -135,7 +135,7 @@ class Split(unittest.TestCase):
             self.assertEqual(sorted(p.name for p in pathlib.Path(tmp).iterdir()), ["loi.json", "van-phong.json"])
             self.assertEqual(json.loads((pathlib.Path(tmp) / "loi.json").read_text(encoding="utf-8")),
                              self.docs["loi"])
-            self.assertIn("loi.json: 12 đường", out.getvalue())
+            self.assertIn("loi.json: 13 đường", out.getvalue())
 
 
 if __name__ == "__main__":

@@ -54,6 +54,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   so lớn nhỏ trên trường số, trường ngày của form; lõi kiểm kiểu trường lúc cài (#325).
 - Đơn nghỉ phép có trường "Số ngày làm việc nghỉ": quá 3 ngày thì thêm bước Hiệu trưởng duyệt, trưởng phòng để quá 2
   ngày thì đơn chuyển lên Hiệu trưởng (#325).
+- API quy trình của ứng dụng: người gửi hủy đơn còn chờ duyệt (`DELETE /api/workflow/<ứng dụng>/processes/<id>`, WAF
+  luật 10099); "Đơn của tôi" chia trang bằng `limit`, `offset` và có `cancelled` (#325).
 - Đơn nghỉ phép: nút Hủy đơn ở "Đơn của tôi" cho đơn đang chờ duyệt, hỏi lại trước khi hủy; đơn đã hủy ghi "Đã hủy"
   (#325).
 - "Đơn của tôi" tải 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn" tải tiếp (#325).
@@ -75,6 +77,7 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Đổi, bù lịch giảng gọi cấp duyệt thứ hai là lãnh đạo đơn vị như Văn phòng điện tử, thay cho lãnh đạo khoa (#537).
 
 ### Đã sửa lỗi
+- WAF không còn chặn đường dẫn `http://<IP>`, câu "File …?" ở Cơ quan ban hành, Nơi nhận (luật 10094, 10095, #260).
 - Tải lên không còn chờ lúc ClamAV nạp lại chữ ký: clamd nạp song song, RAM lên khoảng 1,9 GiB trong khoảng 10 giây
   (#288).
 - Nâng cấp máy có dữ liệu thật không còn tự lùi vì smoke cần tài khoản mẫu: bỏ smoke khi tắt client `moc-cli`, chọn

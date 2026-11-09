@@ -18,13 +18,15 @@ import { expect, test, type Page } from '@playwright/test'
 import { PASSWORD, SCAN_TIMEOUT, shot, signIn, textPdf } from './helpers'
 
 // Tường lửa ứng dụng web ở cổng (F3.15, platform/apisix/README.md, mục WAF) trên trình duyệt thật: chữ thật mà OWASP
-// CRS từng chặn nhầm — tên tệp có ' ; =, nội dung có đề mục La Mã và đường dẫn theo IP, câu tìm "File …?" — đi qua
-// được theo đúng đường trình duyệt gửi (FormData của Chrome, biến GraphQL của trang Soạn, vue-router); ô chữ ngắn không
-// được loại trừ thì vẫn bị chặn, và giao diện nói rõ "Cổng an ninh chặn…" kèm mã X-Request-Id thay cho lỗi đọc JSON.
+// CRS từng chặn nhầm — tên tệp có ' ; =, nội dung có đề mục La Mã và đường dẫn theo IP (cả ở Nơi nhận, #260), câu tìm
+// "File …?" — đi qua được theo đúng đường trình duyệt gửi (FormData của Chrome, biến GraphQL của trang Soạn,
+// vue-router); tải tấn công ở ô đã loại trừ thì vẫn bị chặn, và giao diện nói rõ "Cổng an ninh chặn…" kèm mã
+// X-Request-Id thay cho lỗi đọc JSON.
 // Ca chặn cần MOC_WAF=On (mặc định của .env.example, CI dùng giá trị đó).
 
 const tag = Math.random().toString(36).slice(2, 7).toUpperCase()
 const URL_IP = 'http://192.168.1.10:8080/van-ban/12'
+const XSS = '<script>alert(1)</script>'
 const FILE_NAME = "Tờ trình 'gấp'; đợt 1 = mới.pdf"
 const QUESTION = 'File đính kèm ở đâu?'
 const BODY = [
@@ -63,11 +65,12 @@ test("tải lên tệp tên có ' ; = qua cổng, trang văn bản hiện đúng
   await shot(staff, 'waf-1-ten-tep')
 })
 
-test('nội dung có đề mục I. II. III. và đường dẫn theo IP: lưu nháp, mở lại nguyên văn', async ({ browser }) => {
+test('đề mục La Mã, đường dẫn theo IP ở nội dung và Nơi nhận: lưu nháp, mở lại nguyên văn', async ({ browser }) => {
   const staff = await signIn(browser, 'chuyenviendt')
   const summary = `Về việc kế hoạch rà soát đề cương học phần (thử ${tag})`
-  // loại trừ 10031 trên o.body khi thêm mới, set.body khi sửa
-  await compose(staff, summary, BODY, 'Phòng Đào tạo')
+  const recipients = `Phòng Đào tạo\n${URL_IP}`
+  // loại trừ 10031 trên o.body khi thêm mới, set.body khi sửa; 10095 trên dòng Nơi nhận thứ hai (o, set.recipients.1)
+  await compose(staff, summary, BODY, recipients)
   await staff.getByRole('button', { name: 'Lưu dự thảo' }).click()
   await expect(staff.getByRole('heading', { level: 1, name: summary })).toBeVisible()
   await expect(staff.getByText('III. TỔ CHỨC THỰC HIỆN')).toBeVisible()
@@ -78,6 +81,7 @@ test('nội dung có đề mục I. II. III. và đường dẫn theo IP: lưu n
   await expect(staff.getByRole('heading', { level: 1, name: summary })).toBeVisible()
   await staff.getByRole('link', { name: 'Sửa dự thảo' }).click()
   await expect(staff.getByLabel('Nội dung', { exact: true })).toHaveValue(BODY)
+  await expect(staff.getByLabel('Nơi nhận')).toHaveValue(recipients)
 })
 
 test('ô Tìm kiếm: "File đính kèm ở đâu?" mở được trang kết quả, tải lại vẫn mở', async ({ browser }) => {
@@ -97,11 +101,11 @@ test('ô Tìm kiếm: "File đính kèm ở đâu?" mở được trang kết qu
   await shot(staff, 'waf-3-tim-kiem')
 })
 
-test('ô chữ ngắn không được loại trừ: cổng chặn, giao diện báo rõ kèm mã X-Request-Id', async ({ browser }) => {
+test('tải tấn công ở ô Nơi nhận: cổng chặn, giao diện báo rõ kèm mã X-Request-Id', async ({ browser }) => {
   test.skip((process.env.MOC_WAF ?? 'On') !== 'On', `MOC_WAF=${process.env.MOC_WAF}: cổng không chặn`)
   const staff = await signIn(browser, 'chuyenviendt')
-  // Nơi nhận chỉ là một đường dẫn theo IP: o.recipients không có trong loại trừ 10031 → luật 931100 (RFI) → 403
-  await compose(staff, `Về việc thử cổng an ninh với ô Nơi nhận (thử ${tag})`, 'Nội dung thử.', URL_IP)
+  // 10095 chỉ gỡ hai luật RFI trên o.recipients.N: XSS vẫn bị luật 941… chặn → 403
+  await compose(staff, `Về việc thử cổng an ninh với ô Nơi nhận (thử ${tag})`, 'Nội dung thử.', XSS)
   const [response] = await Promise.all([
     staff.waitForResponse((r) => r.url().endsWith('/v1/graphql')
       && (r.request().postData() ?? '').includes('insert_office_documents_one')),
@@ -116,5 +120,5 @@ test('ô chữ ngắn không được loại trừ: cổng chặn, giao diện b
   await shot(staff, 'waf-4-cong-chan')
   // không lưu gì: vẫn ở trang soạn, chữ đã gõ còn nguyên để sửa
   await expect(staff).toHaveURL(/\/van-ban-di\/soan/)
-  await expect(staff.getByLabel('Nơi nhận')).toHaveValue(URL_IP)
+  await expect(staff.getByLabel('Nơi nhận')).toHaveValue(XSS)
 })
