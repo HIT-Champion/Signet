@@ -21,8 +21,8 @@
 
 import { signIn, signOut } from './auth.js'
 import {
-  FORM_DON, FORM_DUYET, LOI, docThan, docTraLoi, doiChieu, duong, ngayGio, nguoiGui, sapXepDon, soNgay, tenNguoi,
-  trangThai, yeuCau,
+  FORM_DON, FORM_DUYET, LOI, TRANG, conTrang, docThan, docTraLoi, doiChieu, duong, ghepDon, huyDuoc, ngayGio, nguoiGui,
+  sapXepDon, soNgay, tenNguoi, trangThai, yeuCau,
 } from './don.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { mountForm, summary } from './schema-form.js'
@@ -32,13 +32,16 @@ const make = (tag, props = {}) => Object.assign(document.createElement(tag), pro
 const LAM_MOI_MS = 30000
 
 // Phần đang hiện. Tên người và hai dòng báo là hàm trả câu theo ngôn ngữ đang dùng; forms: hai mẫu đã nạp; don: đơn
-// của tôi vừa tải (null khi chưa tải xong lần nào); formDon: form gửi đơn đang hiện
+// của tôi đã tải (null khi chưa tải xong lần nào); tiep: offset của trang sau, null khi hết; xemThem: số lần đã bấm
+// "Xem thêm"; formDon: form gửi đơn đang hiện
 const view = {
   nguoi: () => t('status.signingIn'),
   tin: () => t('status.loadingForms'),
   loi: () => '',
   forms: null,
   don: null,
+  tiep: null,
+  xemThem: 0,
   formDon: null,
 }
 
@@ -110,35 +113,115 @@ function bangDon(rows, data) {
   return dl
 }
 
-// --- Đơn của tôi ---
+// --- Đơn của tôi: tải theo trang (#325). Lượt đầu và lượt làm mới tải trang đầu; đã bấm "Xem thêm" thì ghép trang
+// đầu vào, giữ các đơn cũ hơn đã tải ---
 async function taiDon(forms) {
-  const kq = await goi('GET', duong.donCuaToi())
+  const kq = await goi('GET', duong.donCuaToi(0))
   if (!kq.ok) {
     baoLoi(() => t('error.loadMine', { error: kq.message }))
     return
   }
-  view.don = sapXepDon(Array.isArray(kq.data) ? kq.data : [])
+  const trang = Array.isArray(kq.data) ? kq.data : []
+  if (view.xemThem) view.don = ghepDon(view.don, trang)
+  else {
+    view.don = sapXepDon(trang)
+    view.tiep = conTrang(trang) ? TRANG : null
+  }
   veDon(forms)
+}
+
+let dangXemThem = false
+async function xemThem(forms) {
+  if (dangXemThem || view.tiep === null) return
+  dangXemThem = true
+  el('xem-them-don').setAttribute('aria-disabled', 'true')
+  try {
+    const tu = view.tiep
+    const kq = await goi('GET', duong.donCuaToi(tu))
+    if (!kq.ok) {
+      baoLoi(() => t('error.loadMine', { error: kq.message }))
+      return
+    }
+    const trang = Array.isArray(kq.data) ? kq.data : []
+    const daCo = new Set(view.don.map((d) => d.id))
+    view.don = ghepDon(view.don, trang)
+    view.xemThem += 1
+    view.tiep = conTrang(trang, tu) ? tu + TRANG : null
+    veDon(forms)
+    const moi = view.don.filter((d) => !daCo.has(d.id))
+    baoTin(() => (moi.length ? t('mine.loadedMore', { n: moi.length }) : t('mine.noMore')))
+    // tiêu điểm tới đơn đầu tiên vừa tải: nút Xem thêm có thể vừa ẩn, người dùng bàn phím đọc tiếp từ đó
+    if (moi.length) theDon(moi[0].id)?.focus()
+    else if (view.tiep === null) el('tieu-de-don-cua-toi').focus()
+  } finally {
+    dangXemThem = false
+    el('xem-them-don').removeAttribute('aria-disabled')
+  }
+}
+
+const theDon = (id) => [...el('danh-sach-don').children].find((li) => li.dataset.id === id)
+
+// --- Hủy đơn (#325): hỏi lại bằng hộp thoại modal, Esc hay "Không hủy" là thôi ---
+function hoiHuy(don) {
+  const hop = el('hoi-huy')
+  el('hoi-huy-don').textContent = t('mine.sentAt', { time: ngayGio(don.startedAt) })
+  hop.returnValue = ''
+  return new Promise((xong) => {
+    hop.addEventListener('close', () => xong(hop.returnValue === 'co'), { once: true })
+    hop.showModal()
+  })
+}
+
+async function huyDon(don, forms) {
+  if (!(await hoiHuy(don))) return
+  const kq = await goi('DELETE', duong.huyDon(don.id))
+  if (!kq.ok) {
+    baoLoi(() => kq.message)
+    if (kq.status === 404 || kq.status === 409) await taiDon(forms)
+    return
+  }
+  // đổi ngay mục đó (đơn có thể ở trang đã xem thêm, lượt làm mới không tải lại trang đó)
+  const luc = new Date().toISOString()
+  view.don = view.don.map((d) => (d.id === don.id ? { ...d, cancelled: true, endedAt: d.endedAt ?? luc } : d))
+  veDon(forms)
+  baoTin(() => t('notice.cancelled'))
+  // nút Hủy vừa mất: tiêu điểm về thẻ của đơn đó
+  theDon(don.id)?.focus()
 }
 
 function veDon(forms) {
   const list = view.don
   el('danh-sach-don').replaceChildren(...list.map((don) => {
     const tt = trangThai(don)
-    const li = make('li', { className: 'the' })
+    const li = make('li', { className: 'the', tabIndex: -1 })
+    li.dataset.id = don.id
     const dau = make('div', { className: 'the-dau' })
+    const gui = t('mine.sentAt', { time: ngayGio(don.startedAt) })
     dau.append(make('span', { className: `nhan nhan-${tt.ma}`, textContent: tt.nhan }),
-      make('span', { className: 'gio', textContent: t('mine.sentAt', { time: ngayGio(don.startedAt) }) }))
+      make('span', { className: 'gio', textContent: gui }))
     li.append(dau, bangDon(tomTat(forms.don, don.data), don.data))
     if (don.endedAt) {
       const ketQua = tomTat(forms.duyet, don.data).filter((r) => don.data?.[r.name] !== undefined)
       if (ketQua.length) li.append(bangDon(ketQua))
-      li.append(make('p', { className: 'gio', textContent: t('mine.endedAt', { time: ngayGio(don.endedAt) }) }))
+      const time = ngayGio(don.endedAt)
+      const chu = don.cancelled === true ? t('mine.cancelledAt', { time }) : t('mine.endedAt', { time })
+      li.append(make('p', { className: 'gio', textContent: chu }))
+    }
+    if (huyDuoc(don)) {
+      // nhãn đọc kèm giờ gửi: nhiều đơn đang chờ thì mỗi nút một tên khác nhau, vẫn bắt đầu bằng chữ trên nút
+      const nut = make('button', { type: 'button', className: 'btn ghost', textContent: t('mine.cancel') })
+      nut.setAttribute('aria-label', t('mine.cancelLabel', { time: ngayGio(don.startedAt) }))
+      nut.addEventListener('click', () => huyDon(don, forms))
+      const hang = make('div', { className: 'the-nut' })
+      hang.append(nut)
+      li.append(hang)
     }
     return li
   }))
   el('khong-co-don').hidden = list.length > 0
-  el('dem-don').textContent = list.length ? String(list.length) : ''
+  // còn trang sau thì số đếm có dấu +
+  el('dem-don').textContent = list.length ? `${list.length}${view.tiep === null ? '' : '+'}` : ''
+  el('xem-them-don').hidden = view.tiep === null
 }
 
 // --- Việc cần duyệt: thẻ còn việc giữ nguyên khi làm mới, để không mất ghi chú đang gõ. Mỗi việc: {task, li, form} ---
@@ -296,6 +379,7 @@ async function main() {
     document.querySelector(`[data-phan="${p}"]`).addEventListener('click', () => moPhan(p))
   }
   moPhan('gui-don', { focus: false })
+  el('xem-them-don').addEventListener('click', () => xemThem(forms))
   // một lượt tải lại mỗi lúc: lượt trước chậm quá LAM_MOI_MS thì lượt sau dùng chung, không chồng kết quả cũ lên mới
   let dangTai = null
   const lamMoi = () => (dangTai ??= Promise.all([taiDon(forms), taiViec(forms)])

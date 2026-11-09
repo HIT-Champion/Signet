@@ -56,6 +56,9 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
   ngày thì đơn chuyển lên Hiệu trưởng (#325).
 - API quy trình của ứng dụng: người gửi hủy đơn còn chờ duyệt (`DELETE /api/workflow/<ứng dụng>/processes/<id>`, WAF
   luật 10099); "Đơn của tôi" chia trang bằng `limit`, `offset` và có `cancelled` (#325).
+- Đơn nghỉ phép: nút Hủy đơn ở "Đơn của tôi" cho đơn đang chờ duyệt, hỏi lại trước khi hủy; đơn đã hủy ghi "Đã hủy"
+  (#325).
+- "Đơn của tôi" tải 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn" tải tiếp (#325).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người

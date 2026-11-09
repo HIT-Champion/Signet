@@ -77,6 +77,9 @@
         <h1 id="tieu-de-don-cua-toi" tabindex="-1" data-i18n="mine.heading">Đơn của tôi</h1>
         <p id="khong-co-don" class="empty" data-i18n="mine.empty" hidden>Bạn chưa gửi đơn nào.</p>
         <ul id="danh-sach-don" class="danh-sach"></ul>
+        <!-- trang sau của danh sách (#325): hiện khi lần tải vừa rồi trả đủ một trang -->
+        <button id="xem-them-don" type="button" class="btn ghost xem-them" data-i18n="mine.more" hidden>Xem thêm đơn
+          cũ hơn</button>
       </section>
 
       <section id="viec-can-duyet" class="phan" aria-labelledby="tieu-de-viec-can-duyet" hidden>
@@ -88,6 +91,21 @@
       </section>
     </div>
   </main>
+
+  <!-- hỏi lại trước khi hủy đơn (#325): hộp thoại modal của trình duyệt giữ tiêu điểm bên trong, Esc là không hủy;
+       nút mặc định là "Không hủy" -->
+  <dialog id="hoi-huy" aria-labelledby="hoi-huy-tieu-de" aria-describedby="hoi-huy-chu">
+    <form method="dialog">
+      <h2 id="hoi-huy-tieu-de" data-i18n="cancel.title">Hủy đơn này?</h2>
+      <p id="hoi-huy-don" class="gio"></p>
+      <p id="hoi-huy-chu" data-i18n="cancel.text">Đơn dừng ngay, trưởng phòng không còn thấy để duyệt. Không khôi phục
+        được.</p>
+      <div class="hoi-nut">
+        <button type="submit" value="co" class="btn nguy" data-i18n="cancel.yes">Hủy đơn</button>
+        <button type="submit" value="khong" class="btn ghost" data-i18n="cancel.no" autofocus>Không hủy</button>
+      </div>
+    </form>
+  </dialog>
 
   <footer class="foot" data-i18n="page.footer">
     Ứng dụng này không có máy chủ nghiệp vụ: đơn, việc duyệt, ai được thấy việc nào đều do động cơ quy trình của lõi
