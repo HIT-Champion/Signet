@@ -500,7 +500,7 @@ def test_page_out_of_range_is_422(client, params):
 
 
 def test_sender_cancels_a_pending_request(client, fl, pending, caplog):
-    with caplog.at_level(logging.INFO, logger="svc_workflow.apps.api"):
+    with caplog.at_level(logging.INFO, logger="svc_workflow"):
         r = client.delete(f"{API}/processes/{pending}", headers={**STAFF, "X-Request-Id": "rid-huy-1"})
     assert r.status_code == 204 and r.content == b""
     assert fl.instances[pending]["deleteReason"] == CANCELLED
