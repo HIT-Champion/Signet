@@ -102,6 +102,10 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Tải tệp không còn trả 503 trên máy ít đĩa: SeaweedFS mở mỗi collection 1 volume thay vì 7, nên kho lưu lạnh không
   lấy hết ô của kho tệp (#579).
 
+### Bảo mật
+- Nâng opentelemetry 1.45.2 trong `svc-files`, `svc-workflow` (GHSA-mf5v-w3w3-f6cg); nâng nuxt 4.6.4, node-forge
+  1.4.3 cho `apps/office` (#619).
+
 ## [1.4.0] - 2026-10-31
 
 Bản online tự nâng khi có bản phát hành trên `main`: reconciler theo thẻ `vX.Y.Z` mới nhất, nâng bằng

@@ -90,7 +90,7 @@ Centrifugo                      v6.9.7          Apache-2.0              Đẩy t
 
 TẦNG 2 — ỨNG DỤNG WEB
 ===========================================================================================================================================================================
-Nuxt                            4.6.3           MIT                     Khung ứng dụng web                        https://nuxt.com
+Nuxt                            4.6.4           MIT                     Khung ứng dụng web                        https://nuxt.com
 Vue                             3.5             MIT                     Thư viện giao diện                        https://vuejs.org
 oidc-client-ts                  3.5.0           Apache-2.0              Đăng nhập OIDC                            https://github.com/authts/oidc-client-ts
 Swagger UI (swagger-ui-dist)    5.33.2          Apache-2.0              Trang Tài liệu API /tai-lieu-api/         https://github.com/swagger-api/swagger-ui
@@ -137,8 +137,8 @@ asn1crypto, tzlocal, lxml,
 aiohttp và 7 gói con,
 oscrypto, uritools, certifi;
 tzdata chỉ trên Windows)
-OpenTelemetry Python (SDK,      1.45.1 ·        Apache-2.0              Truy vết phân tán                         https://opentelemetry.io/docs/languages/python/
-exporter OTLP/HTTP,             0.66b1
+OpenTelemetry Python (SDK,      1.45.2 ·        Apache-2.0              Truy vết phân tán                         https://opentelemetry.io/docs/languages/python/
+exporter OTLP/HTTP,             0.66b2
 instrumentation FastAPI và
 httpx2, kéo theo protobuf,
 requests, wrapt…)
