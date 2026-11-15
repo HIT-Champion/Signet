@@ -7,7 +7,7 @@ Hasura Actions của Văn phòng điện tử: API nội bộ, chỉ Hasura gọ
 bằng GraphQL. Riêng /api/workflow/{app}/… (quy trình của ứng dụng cắm bằng manifest) đi qua cổng, cần token của client
 app-<tên> (docs/api/README.md).
 
-OpenAPI 3.1.0, 11 thao tác:
+OpenAPI 3.1.0, 12 thao tác:
 
 | Thao tác | Tóm tắt |
 |---|---|
@@ -17,6 +17,7 @@ OpenAPI 3.1.0, 11 thao tác:
 | `POST /api/workflow/{app}/processes/{process_key}` | Bắt đầu quy trình với dữ liệu form bắt đầu |
 | `GET /api/workflow/{app}/processes` | Đơn người này đã gửi qua ứng dụng, mới nhất trước, từng trang |
 | `DELETE /api/workflow/{app}/processes/{process_id}` | Người gửi hủy đơn còn chờ duyệt |
+| `GET /api/workflow/{app}/processes/{process_id}/files/{file_id}` | Tải tệp đính kèm của một đơn: người gửi đơn, người có hoặc đã có việc trong đơn |
 | `GET /api/workflow/{app}/tasks` | Việc của ứng dụng giao cho người này hoặc nhóm của người này, cũ nhất trước |
 | `POST /api/workflow/{app}/tasks/{task_id}` | Hoàn thành một việc với dữ liệu form của việc |
 | `POST /actions/channels/{name}` | Kênh thông báo của chính người gọi (SMS, Zalo): myChannels, setMyChannel |
@@ -175,6 +176,29 @@ Trả về:
 | 404 | Ứng dụng đã gỡ; đơn không còn hoặc không thuộc người này |  |
 | 503 | Chưa gọi được Flowable hoặc Keycloak, thử lại sau |  |
 | 409 | Đơn đã duyệt xong hoặc đã hủy |  |
+| 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
+
+## `GET /api/workflow/{app}/processes/{process_id}/files/{file_id}`
+
+Tải tệp đính kèm của một đơn: người gửi đơn, người có hoặc đã có việc trong đơn
+
+Tham số:
+
+| Tên | Ở | Bắt buộc | Kiểu | Mô tả |
+|---|---|:-:|---|---|
+| `app` | đường dẫn | ✓ | `string` |  |
+| `process_id` | đường dẫn | ✓ | `string` |  |
+| `file_id` | đường dẫn | ✓ | `string` |  |
+
+Trả về:
+
+| Mã | Nghĩa | Nội dung |
+|---|---|---|
+| 200 | Nội dung tệp, luôn ở dạng tải về | `application/octet-stream` |
+| 401 | Thiếu hoặc sai token |  |
+| 403 | Token không phải của client app-<tên>, hoặc tài khoản chưa gán đơn vị |  |
+| 404 | Ứng dụng đã gỡ; đơn, tệp không có hoặc người này không được xem — trả như nhau |  |
+| 503 | Chưa gọi được Flowable hoặc Keycloak, thử lại sau |  |
 | 422 | Dữ liệu gửi lên sai kiểu, thiếu trường | `application/json` `HTTPValidationError` |
 
 ## `GET /api/workflow/{app}/tasks`

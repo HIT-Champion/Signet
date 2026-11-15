@@ -731,6 +731,79 @@
         }
       }
     },
+    "/api/workflow/{app}/processes/{process_id}/files/{file_id}": {
+      "get": {
+        "tags": [
+          "Quy trình của ứng dụng"
+        ],
+        "summary": "Tải tệp đính kèm của một đơn: người gửi đơn, người có hoặc đã có việc trong đơn",
+        "operationId": "get_file_api_workflow__app__processes__process_id__files__file_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "app",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "App"
+            }
+          },
+          {
+            "name": "process_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Process Id"
+            }
+          },
+          {
+            "name": "file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "File Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nội dung tệp, luôn ở dạng tải về",
+            "content": {
+              "application/octet-stream": {}
+            }
+          },
+          "401": {
+            "description": "Thiếu hoặc sai token"
+          },
+          "403": {
+            "description": "Token không phải của client app-<tên>, hoặc tài khoản chưa gán đơn vị"
+          },
+          "404": {
+            "description": "Ứng dụng đã gỡ; đơn, tệp không có hoặc người này không được xem — trả như nhau"
+          },
+          "503": {
+            "description": "Chưa gọi được Flowable hoặc Keycloak, thử lại sau"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/workflow/{app}/tasks": {
       "get": {
         "tags": [
