@@ -163,6 +163,12 @@ def check_bundle(app: str, data: bytes) -> Bundle:
     fields = {f for form in forms.values() for f in form.fields}
     required = {f for form in forms.values() for f in form.required}
     kinds = field_kinds(forms.values())
+    # trường tệp khai khác kiểu ở form khác: người gửi gõ id tệp của người khác vào ô chữ, rồi tải tệp đó qua đơn
+    file_fields = {n for form in forms.values() for n in form.files}
+    mixed_files = sorted(n for n in file_fields if kinds.get(n) == "mixed")
+    if mixed_files:
+        errors.append(f"trường {', '.join(mixed_files)} là tệp (x-moc-file) ở form này nhưng không ở form khác — "
+                      "biến chung cả quy trình nên mọi form khai cùng kiểu")
     processes: dict[str, bpmn.Process] = {}
     for path in paths:
         if path not in files:

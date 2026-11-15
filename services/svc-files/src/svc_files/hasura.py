@@ -87,6 +87,15 @@ query FileLocation($id: uuid!) {
   }
 }"""
 
+# Tệp đính kèm form của ứng dụng (#325): svc-workflow đã xét người xem, đọc bằng quyền service của thuê ước
+APP_FILE = """
+query AppFile($id: uuid!) {
+  core_files_by_pk(id: $id) {
+    id filename mime_type size_bytes sha256 encrypted object_key wrapped_dek
+    restricted_links: document_files(where: {document: {restricted: {_eq: true}}}, limit: 1) { document_id }
+  }
+}"""
+
 # Đồng bộ chỉ mục tìm kiếm: đọc xuyên mọi thuê ước, lật trang theo id. Văn bản cũng được đọc lại khi
 # một tệp của nó vừa được đọc chữ (F2.7) — việc đó không đổi updated_at của văn bản.
 CHANGED_DOCUMENTS = """
@@ -525,6 +534,19 @@ class HasuraClient:
         if not row:
             return None
         return Location(row["object_key"], row.get("wrapped_dek"), bool(row.get("restricted_links")))
+
+    async def app_file(
+        self, *, tenant_id: uuid.UUID, actor_id: str, request_id: str, file_id: uuid.UUID
+    ) -> tuple[StoredFile, Location] | None:
+        """Thông tin và vị trí một tệp của thuê ước (quyền service), cho đường nội bộ đọc tệp đính kèm của ứng dụng."""
+        data = await self._call(APP_FILE, {"id": str(file_id)}, self._as_service(tenant_id, actor_id, request_id))
+        row = data.get("core_files_by_pk")
+        if not row:
+            return None
+        meta = StoredFile(id=uuid.UUID(row["id"]), filename=row["filename"], mime_type=row["mime_type"],
+                          size_bytes=int(row["size_bytes"]), sha256=from_bytea(row["sha256"]),
+                          encrypted=bool(row.get("encrypted")))
+        return meta, Location(row["object_key"], row.get("wrapped_dek"), bool(row.get("restricted_links")))
 
     async def audit_head(self) -> tuple[int, str]:
         """(id dòng cuối, hash dòng cuối) của sổ kiểm toán."""

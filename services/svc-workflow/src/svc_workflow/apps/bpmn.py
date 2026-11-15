@@ -197,9 +197,11 @@ def _expression_free(value: str) -> bool:
 
 def _comparison_problem(name: str, op: str, text: str | None, kind: str) -> str | None:
     """Một phép so ``name op hằng`` hợp với kiểu trường không. ``text``: hằng chuỗi, None khi hằng là số. ``kind``:
-    ``number``, ``date``, ``text`` hoặc ``mixed`` (các form khai trường này khác kiểu)."""
+    ``number``, ``date``, ``text``, ``file`` hoặc ``mixed`` (các form khai trường này khác kiểu)."""
     if kind == "mixed":
         return f"trường {name} khai khác kiểu ở các form — không so được trong điều kiện"
+    if kind == "file":
+        return f"trường tệp {name} (x-moc-file) không dùng được trong điều kiện"
     if text is None:
         return None if kind == "number" else f"chỉ trường số (integer, number) mới so với số; {name} không phải"
     if kind == "number":
@@ -218,7 +220,8 @@ def _comparison_problem(name: str, op: str, text: str | None, kind: str) -> str 
 def check_condition(text: str, fields: set[str] | Mapping[str, str],
                     kinds: Mapping[str, str] | None = None) -> tuple[set[str], str | None]:
     """``${a == 'x' && n > 3 || d >= '2026-01-01'}`` → (biến dùng, None) hoặc (…, lý do sai). ``kinds``: trường →
-    ``number`` | ``date`` | ``text`` | ``mixed`` (``field_kinds`` của forms.py); không có thì coi mọi trường là chữ."""
+    ``number`` | ``date`` | ``text`` | ``file`` | ``mixed`` (``field_kinds`` của forms.py); không có thì coi mọi
+    trường là chữ."""
     body = text.strip()
     if not (body.startswith("${") and body.endswith("}")) or body.count("${") != 1:
         return set(), "điều kiện phải có dạng ${bien == 'chuoi'}"

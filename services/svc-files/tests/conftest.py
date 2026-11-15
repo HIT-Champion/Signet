@@ -219,6 +219,15 @@ class FakeHasura:
             return None
         return Location(row["object_key"], row.get("wrapped_dek"), file_id in self.in_restricted)
 
+    async def app_file(self, *, tenant_id, actor_id, request_id, file_id) -> tuple[StoredFile, Location] | None:
+        self._check()
+        row = self.files.get(file_id)
+        if not row or row["tenant_id"] != tenant_id:
+            return None
+        meta = StoredFile(file_id, row["filename"], row["mime_type"], row["size_bytes"], row["sha256_hex"],
+                          encrypted=row.get("wrapped_dek") is not None)
+        return meta, Location(row["object_key"], row.get("wrapped_dek"), file_id in self.in_restricted)
+
     def add_document(self, tenant: uuid.UUID, summary: str, *, readers: set[str] | None = None, **cols) -> str:
         doc_id = str(uuid.uuid4())
         self.documents[doc_id] = {

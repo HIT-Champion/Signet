@@ -26,7 +26,7 @@
 
 export type FormRule = 'size' | 'json' | 'depth' | 'root' | 'draft' | 'root-type' | 'additional-properties'
   | 'properties' | 'reserved' | 'engine-name' | 'el-keyword' | 'field-name' | 'field-schema' | 'scalar' | 'enum'
-  | 'x-moc-date' | 'required' | 'x-moc-range' | 'root-only' | 'ref-external' | 'dynamic-ref' | 'format'
+  | 'x-moc-date' | 'x-moc-file' | 'required' | 'x-moc-range' | 'root-only' | 'ref-external' | 'dynamic-ref' | 'format'
   | 'pattern-properties' | 'ref-target' | 'ref-loop' | 'steps' | 'pattern' | 'schema'
 
 export interface FormProblem {
@@ -55,6 +55,11 @@ export const FORM_LIMITS = {
   SCALAR_TYPES: ['boolean', 'integer', 'null', 'number', 'string'],
   FORMATS: ['date', 'uuid'],
   DATE_RULES: ['not-after-today', 'not-before-today'],
+  // trường tệp đính kèm (#325): loại nhận được, cỡ (MB) mặc định và tối đa, số trường tệp một form
+  FILE_MIMES: ['application/pdf', 'image/jpeg', 'image/png'],
+  DEFAULT_FILE_MB: 10,
+  MAX_FILE_MB: 20,
+  MAX_FILE_FIELDS: 5,
   MAX_FORM_BYTES: 256 * 1024,
   MAX_DEPTH: 32,
   MAX_REF_DEPTH: 16,
@@ -71,8 +76,8 @@ export const FORM_LIMITS = {
 
 export const FORM_RULES: FormRule[] = ['size', 'json', 'depth', 'root', 'draft', 'root-type', 'additional-properties',
   'properties', 'reserved', 'engine-name', 'el-keyword', 'field-name', 'field-schema', 'scalar', 'enum', 'x-moc-date',
-  'required', 'x-moc-range', 'root-only', 'ref-external', 'dynamic-ref', 'format', 'pattern-properties', 'ref-target',
-  'ref-loop', 'steps', 'pattern', 'schema']
+  'x-moc-file', 'required', 'x-moc-range', 'root-only', 'ref-external', 'dynamic-ref', 'format', 'pattern-properties',
+  'ref-target', 'ref-loop', 'steps', 'pattern', 'schema']
 
 export const SERVER_ONLY_RULES: FormRule[] = ['pattern', 'schema']
 
@@ -92,6 +97,21 @@ function own(node: JsonObject, key: string): Json | undefined {
 
 function oneOf(value: unknown, allowed: string[]): boolean {
   return typeof value === 'string' && allowed.includes(value)
+}
+
+// Trường tệp (#325): chuỗi uuid (id tệp đã tải lên /api/files), x-moc-file chỉ gồm maxMB (số nguyên 1..MAX_FILE_MB)
+// và mime (danh sách khác rỗng trong FILE_MIMES)
+function fileFieldOk(prop: JsonObject): boolean {
+  const type = JSON.stringify(own(prop, 'type'))
+  if (own(prop, 'format') !== 'uuid' || !['"string"', '["string","null"]', '["null","string"]'].includes(type)) {
+    return false
+  }
+  const spec = own(prop, 'x-moc-file')
+  if (!isObject(spec) || !Object.keys(spec).every((key) => key === 'maxMB' || key === 'mime')) return false
+  const mb = own(spec, 'maxMB') ?? FORM_LIMITS.DEFAULT_FILE_MB
+  if (typeof mb !== 'number' || !Number.isInteger(mb) || mb < 1 || mb > FORM_LIMITS.MAX_FILE_MB) return false
+  const mime = own(spec, 'mime')
+  return Array.isArray(mime) && mime.length > 0 && mime.every((m) => oneOf(m, FORM_LIMITS.FILE_MIMES))
 }
 
 function scalar(value: Json): boolean {
@@ -240,7 +260,10 @@ export function checkForm(text: string): FormProblem[] {
     if (Object.hasOwn(prop, 'x-moc-date') && !oneOf(prop['x-moc-date'], FORM_LIMITS.DATE_RULES)) {
       problems.push({ rule: 'x-moc-date', field: name })
     }
+    if (Object.hasOwn(prop, 'x-moc-file') && !fileFieldOk(prop)) problems.push({ rule: 'x-moc-file', field: name })
   }
+  const fileFields = Object.values(props).filter((prop) => isObject(prop) && Object.hasOwn(prop, 'x-moc-file'))
+  if (fileFields.length > FORM_LIMITS.MAX_FILE_FIELDS) problems.push({ rule: 'x-moc-file' })
   const required = Object.hasOwn(schema, 'required') ? schema.required : []
   if (!Array.isArray(required)) {
     problems.push({ rule: 'required' })

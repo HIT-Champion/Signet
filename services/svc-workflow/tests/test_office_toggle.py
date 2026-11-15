@@ -54,6 +54,7 @@ ROUTES = [("/openapi.json", {"GET", "HEAD"}), ("/docs", {"GET", "HEAD"}), ("/doc
 APP_ROUTES = [("/api/workflow/{app}/forms/{form_key}", {"GET"}),
               ("/api/workflow/{app}/processes/{process_key}", {"POST"}), ("/api/workflow/{app}/processes", {"GET"}),
               ("/api/workflow/{app}/processes/{process_id}", {"DELETE"}),
+              ("/api/workflow/{app}/processes/{process_id}/files/{file_id}", {"GET"}),
               ("/api/workflow/{app}/tasks", {"GET"}), ("/api/workflow/{app}/tasks/{task_id}", {"POST"})]
 APP_PATHS = [path for path, _ in APP_ROUTES]
 # kênh SMS, Zalo người dùng tự bật (#365, subscriptions.py), cảnh báo vận hành (#284, alerts.py) và robot của flow

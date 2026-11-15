@@ -24,6 +24,7 @@ import zipfile
 from typing import Any
 
 from svc_workflow.apps.bundle import make_zip
+from svc_workflow.service_token import FilesError
 from svc_workflow.flowable import FlowableError, Task
 
 APP = "nghi-phep"
@@ -114,6 +115,7 @@ class AppFlowable:
         self.started: list[tuple[str, list[dict[str, Any]]]] = []
         self.claims: list[tuple[str, str | None]] = []
         self.completed: list[tuple[str, list[dict[str, Any]]]] = []
+        self.done: list[dict[str, Any]] = []            # lịch sử việc đã xong: processInstanceId, assignee
         self.queries: list[dict[str, Any]] = []
         self.down = False
         self.claim_conflict = False
@@ -205,6 +207,10 @@ class AppFlowable:
                 continue
             if "assignee" in query and t.assignee != query["assignee"]:
                 continue
+            if "processInstanceId" in query and t.process_instance_id != query["processInstanceId"]:
+                continue
+            if query.get("unassigned") and t.assignee is not None:
+                continue
             if "candidateGroupIn" in query and (t.assignee is not None
                                                 or not set(self.groups[t.id]) & set(query["candidateGroupIn"])):
                 continue
@@ -257,4 +263,54 @@ class AppFlowable:
         self._check()
         self.completed.append((task_id, variables))
         task = self.tasks.pop(task_id)
+        who = task.assignee or next((u for t, u in reversed(self.claims) if t == task_id), None)
+        self.done.append({"id": task_id, "processInstanceId": task.process_instance_id, "assignee": who})
         self.instances[task.process_instance_id]["variables"].update({v["name"]: v["value"] for v in variables})
+
+    async def historic_tasks(self, query: dict[str, Any]) -> list[dict[str, Any]]:
+        """Việc đã xong và việc đang mở có người nhận, như lịch sử của Flowable."""
+        self._check()
+        self.queries.append(query)
+        rows = self.done + [{"id": t.id, "processInstanceId": t.process_instance_id, "assignee": t.assignee}
+                            for t in self.tasks.values() if t.assignee]
+        return [r for r in rows if r["processInstanceId"] == query.get("processInstanceId", r["processInstanceId"])
+                and r["assignee"] == query.get("taskAssignee", r["assignee"])][:query.get("size", 500)]
+
+
+class FileStream:
+    """Phản hồi svc-files đang mở (httpx2.Response với stream=True), đủ cho route tải tệp."""
+
+    def __init__(self, body: bytes, filename: str, mime: str) -> None:
+        self.body = body
+        self.closed = False
+        self.headers = {"content-type": mime, "content-length": str(len(body)),
+                        "content-disposition": f"attachment; filename=\"{filename}\""}
+
+    async def aiter_bytes(self) -> Any:
+        yield self.body
+
+    async def aclose(self) -> None:
+        self.closed = True
+
+
+class FakeAppFiles:
+    """svc-files giả cho tệp đính kèm: (thuê ước, id) → nội dung; ``refused``: tệp mã hóa, gắn văn bản hạn chế."""
+
+    def __init__(self) -> None:
+        self.blobs: dict[tuple[str, str], FileStream] = {}
+        self.refused: set[str] = set()
+        self.calls: list[tuple[str, str]] = []
+        self.down = False
+        self.closed = False
+
+    async def open(self, tenant_id: Any, file_id: str) -> FileStream:
+        self.calls.append((str(tenant_id), file_id))
+        if self.down:
+            raise FilesError("Không gọi được svc-files: down")
+        found = self.blobs.get((str(tenant_id), file_id))
+        if found is None or file_id in self.refused:
+            raise FilesError("svc-files trả 404", 404)
+        return found
+
+    async def aclose(self) -> None:
+        self.closed = True
