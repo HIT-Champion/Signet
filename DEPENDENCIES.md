@@ -50,6 +50,10 @@ dưới đây bằng `make copyright`; `scripts/tests/test_copyright_txt.py` bá
   đều chỉ chạy lúc dựng. Khóa npm sinh lại với `npm install --package-lock-only --before=<giờ ra bản vá>`, nên không
   gói kéo theo nào mới hơn bản vá; lần sinh lại này đưa serialize-javascript của `apps/office` lên 7.1.4 (23/10),
   `website/` vẫn ép 7.1.3.
+  15/11/2026 (#619): opentelemetry 1.45.2 · 0.66b2 (29/10) trong `svc-files`, `svc-workflow`, vá GHSA-mf5v-w3w3-f6cg
+  (13/11, đọc header `traceparent` tốn thời gian bậc hai, chỉ khi bật truy vết); nuxt 4.6.4 (02/11, GHSA-r99w-jh2x-3mg9,
+  GHSA-mjrq-cffv-q4qc) và node-forge 1.4.3 (04/11, bốn GHSA công bố 10/11) cho `apps/office`, chỉ chạy lúc dựng. Khóa
+  npm sinh lại cùng cách, `--before` là giờ ra node-forge 1.4.3.
 - **Digest**: image bên thứ ba trong `docker-compose.yml`, các `Dockerfile` và image Playwright của `make e2e`
   ghi dạng `thẻ@sha256:…`. Docker kéo theo digest (bản đã chạy CI), thẻ chỉ để người đọc: thẻ bị đẩy lại
   (`postgres:16-alpine`, `python:3.13.16-slim`, `clamav/clamav:1.5.4` đã bị đẩy lại sau khi đội kéo) thì
@@ -164,7 +168,7 @@ Thư viện được cài qua `npm` với `package-lock.json`; phiên bản dư�
 
 | Thành phần | Phiên bản | Giấy phép | Vai trò | Cách nạp | Phase |
 |---|---|---|---|---|---|
-| [Nuxt](https://nuxt.com) | 4.6.3 | MIT | Khung ứng dụng web (chế độ SPA, dựng thành trang tĩnh) | npm | 1 |
+| [Nuxt](https://nuxt.com) | 4.6.4 | MIT | Khung ứng dụng web (chế độ SPA, dựng thành trang tĩnh) | npm | 1 |
 | [Vue](https://vuejs.org) | 3.5 | MIT | Thư viện giao diện (qua Nuxt) | npm | 1 |
 | [oidc-client-ts](https://github.com/authts/oidc-client-ts) | 3.5.0 | Apache-2.0 | Đăng nhập OIDC (Authorization Code + PKCE) với Keycloak; `app-ca-nhan`, `app-bang-tin`, `app-nghi-phep`, `app-lich-giang`, `app-sinh`, `app-tai-lieu-api` dùng bản dựng sẵn cho trình duyệt của cùng gói (`dist/browser/oidc-client-ts.min.js`, đã gồm jwt-decode 4.0.0, MIT) — không thêm gói nào | npm | 1 |
 | [Swagger UI](https://github.com/swagger-api/swagger-ui) (`swagger-ui-dist`) | 5.33.2 | Apache-2.0 | Trang Tài liệu API `/tai-lieu-api/` (`app-tai-lieu-api`, #357): đọc và gọi thử API lõi, API Văn phòng điện tử từ OpenAPI. Dùng nguyên `swagger-ui-bundle.js`, `swagger-ui.css` của gói, kèm `LICENSE`, `NOTICE`; bản dựng sẵn đã gồm các thư viện swagger-ui dùng: React, Redux, Immutable và đa số còn lại MIT, swagger-client Apache-2.0, DOMPurify MPL-2.0 hoặc Apache-2.0, sha.js, ieee754 BSD-3-Clause, zenscroll Unlicense (đều được OSI phê duyệt). Gói kéo theo `@scarf/scarf` 1.4.0 (Apache-2.0), chỉ có bước postinstall gửi số liệu sử dụng: cài bằng `npm ci --ignore-scripts` nên không chạy, không vào image. Trang không gọi CDN | npm, ghim trong `package-lock.json` của `apps/tai-lieu-api` | 3 |
@@ -218,7 +222,7 @@ Thư viện Python cài qua `pip` với tệp khóa phiên bản.
 | [jsonschema](https://github.com/python-jsonschema/jsonschema) (+ referencing, jsonschema-specifications, rpds-py, attrs) | 4.26 | MIT | `svc-workflow` kiểm lại dữ liệu form theo JSON Schema dùng chung (`schemas/`) | pip | 2 |
 | [DuckDB](https://duckdb.org) | 1.5.6 | MIT | Nộp lưu hồ sơ (F3.8, `svc-files`): ghi bảng văn bản, giao việc, dòng thời gian thành Parquet (nén zstd) và đọc lại cho phòng đọc. Một wheel nhúng, không kéo thêm gói Python, không chạy máy chủ riêng | pip | 3 |
 | [pyHanko](https://github.com/MatthiasValvekens/pyHanko) (+ pyhanko-certvalidator, asn1crypto, tzlocal, lxml, aiohttp và 7 gói con, oscrypto, uritools, certifi; tzdata chỉ trên Windows) | 0.37.0 · 0.32.1 | MIT (lxml BSD-3, aiohttp Apache-2.0/MIT, certifi MPL-2.0, aiohappyeyeballs PSF-2.0) | Ký số PAdES bản phát hành bằng khóa trong Transit, kiểm chữ ký (svc-files, F4.5, chỉ minh họa) | pip | 4 |
-| [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) (SDK, exporter OTLP/HTTP, instrumentation FastAPI và httpx2, kéo theo protobuf, requests, wrapt…) | 1.45.1 · 0.66b1 | Apache-2.0 (protobuf BSD-3, wrapt BSD-2, asgiref BSD-3, urllib3 MIT) | Truy vết phân tán (#364): `svc-files`, `svc-workflow` ghi span của yêu cầu APISIX đã chọn, che theo danh sách trắng rồi gửi Jaeger (`tracing.py`). Chỉ nạp khi `MOC_TRACE_RATIO` > 0 | pip | 4 |
+| [OpenTelemetry Python](https://opentelemetry.io/docs/languages/python/) (SDK, exporter OTLP/HTTP, instrumentation FastAPI và httpx2, kéo theo protobuf, requests, wrapt…) | 1.45.2 · 0.66b2 | Apache-2.0 (protobuf BSD-3, wrapt BSD-2, asgiref BSD-3, urllib3 MIT) | Truy vết phân tán (#364): `svc-files`, `svc-workflow` ghi span của yêu cầu APISIX đã chọn, che theo danh sách trắng rồi gửi Jaeger (`tracing.py`). Chỉ nạp khi `MOC_TRACE_RATIO` > 0 | pip | 4 |
 
 **Ký số văn bản đi (F4.5, chỉ minh họa)** thêm một gói khai trực tiếp, pyHanko, cùng các gói nó kéo theo. Ghim bản mới
 nhất phát hành trước 06/10/2026 (quy tắc hai tuần); ngày lấy từ PyPI (lần tải lên đầu tiên của bản đó), giấy phép từ
@@ -254,13 +258,13 @@ ngày lấy từ PyPI, giấy phép từ METADATA. Tắt (mặc định) thì kh
 
 | Gói | Bản | Phát hành | Giấy phép | Vì sao có |
 |---|---|---|---|---|
-| opentelemetry-sdk | 1.45.1 | 06/10/2026 | Apache-2.0 | Khai trực tiếp: TracerProvider, lấy mẫu theo cha, xử lý lô |
-| opentelemetry-exporter-otlp-proto-http | 1.45.1 | 06/10/2026 | Apache-2.0 | Khai trực tiếp: gửi span tới Jaeger qua OTLP/HTTP |
-| opentelemetry-instrumentation-fastapi | 0.66b1 | 06/10/2026 | Apache-2.0 | Khai trực tiếp: span cho mỗi route |
-| opentelemetry-instrumentation-httpx | 0.66b1 | 06/10/2026 | Apache-2.0 | Khai trực tiếp: span cho lời gọi httpx2 (`HTTPX2ClientInstrumentor`) |
-| opentelemetry-exporter-otlp-proto-common, opentelemetry-proto | 1.45.1 | 06/10/2026 | Apache-2.0 | Exporter: mã hóa span sang protobuf |
-| opentelemetry-exporter-http-transport, opentelemetry-exporter-otlp-common | 0.66b1 | 06/10/2026 | Apache-2.0 | Exporter |
-| opentelemetry-instrumentation, -instrumentation-asgi, -semantic-conventions, -util-http | 0.66b1 | 06/10/2026 | Apache-2.0 | Instrumentation FastAPI, httpx |
+| opentelemetry-sdk | 1.45.2 | 29/10/2026 | Apache-2.0 | Khai trực tiếp: TracerProvider, lấy mẫu theo cha, xử lý lô |
+| opentelemetry-exporter-otlp-proto-http | 1.45.2 | 29/10/2026 | Apache-2.0 | Khai trực tiếp: gửi span tới Jaeger qua OTLP/HTTP |
+| opentelemetry-instrumentation-fastapi | 0.66b2 | 29/10/2026 | Apache-2.0 | Khai trực tiếp: span cho mỗi route |
+| opentelemetry-instrumentation-httpx | 0.66b2 | 29/10/2026 | Apache-2.0 | Khai trực tiếp: span cho lời gọi httpx2 (`HTTPX2ClientInstrumentor`) |
+| opentelemetry-exporter-otlp-proto-common, opentelemetry-proto | 1.45.2 | 29/10/2026 | Apache-2.0 | Exporter: mã hóa span sang protobuf |
+| opentelemetry-exporter-http-transport, opentelemetry-exporter-otlp-common | 0.66b2 | 29/10/2026 | Apache-2.0 | Exporter |
+| opentelemetry-instrumentation, -instrumentation-asgi, -semantic-conventions, -util-http | 0.66b2 | 29/10/2026 | Apache-2.0 | Instrumentation FastAPI, httpx |
 | asgiref | 3.12.1 | 14/07/2026 | BSD-3-Clause | Instrumentation ASGI; 3.13.0 (23/10) quá mới |
 | protobuf | 7.36.2 | 17/09/2026 | BSD-3-Clause | opentelemetry-proto |
 | googleapis-common-protos | 1.75.5 | 29/09/2026 | Apache-2.0 | Exporter; 1.76.0 (22/10) quá mới |
@@ -271,7 +275,7 @@ ngày lấy từ PyPI, giấy phép từ METADATA. Tắt (mặc định) thì kh
 | wrapt | 2.5.0 | 27/09/2026 | BSD-2-Clause | Instrumentation; 2.5.1 (14/10) quá mới |
 | packaging | 26.3 | 04/08/2026 | Apache-2.0 OR BSD-2-Clause | Instrumentation |
 
-`opentelemetry-api` 1.45.1 đã có trong khóa từ trước (FastAPI kéo theo), giữ nguyên.
+`opentelemetry-api` đã có trong khóa từ trước (FastAPI kéo theo); 15/11 nâng cùng cả nhóm lên 1.45.2 (#619).
 
 Phiên bản cụ thể kèm băm nằm ở `requirements.txt` của từng dịch vụ; image dịch vụ dựng từ
 `python:3.13.16-slim` (PSF-2.0). Image `svc-files` cài thêm từ kho Debian: Pango (LGPL-2.1+, nạp động lúc
