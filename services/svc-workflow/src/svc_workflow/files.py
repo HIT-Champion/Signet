@@ -24,23 +24,13 @@ từ Keycloak bằng client credentials — cùng client dùng để đọc danh
 
 from __future__ import annotations
 
-import asyncio
-import time
 import uuid
 from typing import Any
 
 import httpx2
 
 from .hasura import Actor
-
-
-class FilesError(Exception):
-    """svc-files không trả lời hoặc từ chối. code: ``detail.code`` trong thân lỗi của svc-files, nếu đọc được."""
-
-    def __init__(self, message: str, status: int | None = None, code: str | None = None) -> None:
-        super().__init__(message)
-        self.status = status
-        self.code = code
+from .service_token import FilesError, ServiceToken
 
 
 def _detail_code(r: httpx2.Response) -> str | None:
@@ -75,46 +65,6 @@ class DispatchFileError(FilesError):
         self.code = code
         self.message = message
         self.detail = detail  # nguyên văn để ghi nhật ký, không đưa ra giao diện
-
-
-class ServiceToken:
-    """Access token của tài khoản dịch vụ; dùng lại tới gần lúc hết hạn.
-
-    Hạn tính theo giờ thật (``time.time``) như ``exp`` của token, không theo ``time.monotonic``: đồng hồ monotonic đứng
-    yên khi máy ngủ hay VM bị tạm dừng, thức dậy token đã hết hạn mà vẫn tưởng còn."""
-
-    def __init__(self, keycloak_url: str, realm: str, client_id: str, client_secret: str, *,
-                 transport: httpx2.AsyncBaseTransport | None = None) -> None:
-        self._path = f"/realms/{realm}/protocol/openid-connect/token"
-        self._form = {"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret}
-        self._http = httpx2.AsyncClient(base_url=keycloak_url, timeout=15, transport=transport)
-        self._token = ""
-        self._expires_at = 0.0
-        self._lock = asyncio.Lock()          # nhiều lời gọi cùng lúc thấy token hết hạn: chỉ một lần hỏi Keycloak
-
-    async def aclose(self) -> None:
-        await self._http.aclose()
-
-    def forget(self, token: str) -> None:
-        """Bỏ ``token`` nếu vẫn đang giữ nó (lời gọi khác có thể đã lấy token mới): lần ``get`` sau lấy token mới."""
-        if self._token == token:
-            self._token = ""
-
-    async def get(self) -> str:
-        async with self._lock:
-            if self._token and time.time() < self._expires_at:
-                return self._token
-            try:
-                r = await self._http.post(self._path, data=self._form)
-            except httpx2.HTTPError as exc:
-                raise FilesError(f"Không gọi được Keycloak: {exc}") from exc
-            if r.status_code != 200:
-                raise FilesError(f"Keycloak từ chối tài khoản dịch vụ: HTTP {r.status_code}", r.status_code)
-            body = r.json()
-            self._token = body["access_token"]
-            # trừ hao 30 giây: token không hết hạn giữa đường
-            self._expires_at = time.time() + max(float(body.get("expires_in", 60)) - 30, 0)
-            return self._token
 
 
 class FilesClient:

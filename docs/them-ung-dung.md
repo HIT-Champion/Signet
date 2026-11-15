@@ -385,6 +385,17 @@ biến); còn lại lõi kiểm bằng đúng `schemas.FormSchema` của form ti
 trường sau; kiểm sau cùng, bỏ qua khi một trong hai trường đã có lỗi). Chỉ trường đã khai, có mặt và khác `null` được
 ghi thành biến, giữ kiểu (chuỗi, long, double, boolean).
 
+**Trường tệp đính kèm** (#325): `{"type": "string", "format": "uuid", "x-moc-file": {"maxMB": 10, "mime":
+["application/pdf"]}}`. `mime` khác rỗng, chỉ `application/pdf`, `image/jpeg`, `image/png` (không HTML, SVG, tệp
+Office có macro); `maxMB` số nguyên 1–20, mặc định 10; tối đa 5 trường tệp một form, mỗi trường một tệp. Một tên trường
+là tệp ở form này thì phải là tệp ở mọi form của gói, và không dùng được trong điều kiện rẽ nhánh. Trang của ứng dụng
+tải tệp lên `POST /api/files` của svc-files (quét ClamAV, như Không gian cá nhân) rồi gửi id tệp trong `data`. Lúc gửi
+form, lõi kiểm tệp có trong đơn vị, do chính người gửi tải lên, không mã hóa, đúng loại và cỡ; sai điều nào cũng chỉ
+`{"<trường>": "x-moc-file"}`, không nói vì sao. Flowable chỉ giữ id tệp. Người gửi đơn và người có, hoặc đã có, việc
+trong đơn tải được tệp; tệp ở lại khi đơn bị từ chối hay bị hủy. svc-workflow lấy tệp qua đường nội bộ
+`GET /internal/app-files/<id>` của svc-files bằng token dịch vụ; tệp mã hóa hay đang gắn văn bản hạn chế không đi đường
+này.
+
 **API** (route APISIX `svc-workflow`: `/api/workflow/*`, `GET`/`POST`/`DELETE` — WAF chỉ cho `DELETE` ở đường hủy
 đơn, luật 10099 —, cùng kiểm token, giới hạn tốc độ như `/api/files`; bảng đủ ở [`docs/api/README.md`](api/README.md)):
 
@@ -392,9 +403,10 @@ ghi thành biến, giữ kiểu (chuỗi, long, double, boolean).
 |---|---|
 | `GET /api/workflow/<tên>/forms/<formKey>` | `200`: JSON Schema của form, đúng tệp manifest khai (bản mới nhất) |
 | `POST /api/workflow/<tên>/processes/<processKey>` `{"data": {…}}` | `201 {"id"}`; kiểm theo form của sự kiện bắt đầu; lõi tự đặt `tenantId`, `departmentId` (rỗng nếu người gửi không thuộc phòng nào), `initiator` từ token |
-| `GET /api/workflow/<tên>/processes?limit=50&offset=0` | Đơn người này đã gửi, mới nhất trước, từng trang (`limit` 1–100, mặc định 50; `offset` 0–10000; ngoài khoảng → `422`): `[{id, processKey, startedAt, endedAt, cancelled, data}]` — `data` gồm dữ liệu đơn và dữ liệu các bước đã xong (vd `quyetDinh`, `ghiChu`); `cancelled` là `true` khi đơn bị hủy (#325) |
+| `GET /api/workflow/<tên>/processes?limit=50&offset=0` | Đơn người này đã gửi, mới nhất trước, từng trang (`limit` 1–100, mặc định 50; `offset` 0–10000; ngoài khoảng → `422`): `[{id, processKey, startedAt, endedAt, cancelled, data, files}]` — `data` gồm dữ liệu đơn và dữ liệu các bước đã xong (vd `quyetDinh`, `ghiChu`); `cancelled` là `true` khi đơn bị hủy; `files`: trường tệp → `{id, filename, mimeType, sizeBytes}` (#325) |
 | `DELETE /api/workflow/<tên>/processes/<id>` | `204`: người gửi hủy đơn còn chờ duyệt, việc đang chờ của đơn mất theo, nhật ký ghi `app.workflow.cancelled`; `404 process_not_found` khi đơn không có, của người khác, ứng dụng hay đơn vị khác (không lộ đơn có tồn tại hay không); `409 already_finished` khi đơn đã xong hay đã hủy (#325) |
-| `GET /api/workflow/<tên>/tasks` | Việc của ứng dụng giao cho người này (`assignee`) hoặc cho một nhóm của người này, cùng đơn vị, cũ nhất trước: `[{id, name, formKey, processKey, processId, createdAt, dueAt, initiatorName, data}]` — `initiatorName`: họ tên người gửi đơn theo danh bạ `core.users`, `null` khi không tìm được (tài khoản lạ, đã khóa, không có người gửi, danh bạ tạm lỗi); không trả id người gửi (#506) |
+| `GET /api/workflow/<tên>/processes/<id>/files/<fileId>` | `200`: tệp đính kèm của đơn, luôn ở dạng tải về (`Content-Disposition: attachment`), nhật ký ghi `app.workflow.file_read`; người gửi đơn và người có hoặc đã có việc trong đơn; còn lại `404 file_not_found` như nhau (#325) |
+| `GET /api/workflow/<tên>/tasks` | Việc của ứng dụng giao cho người này (`assignee`) hoặc cho một nhóm của người này, cùng đơn vị, cũ nhất trước: `[{id, name, formKey, processKey, processId, createdAt, dueAt, initiatorName, data, files}]` — `initiatorName`: họ tên người gửi đơn theo danh bạ `core.users`, `null` khi không tìm được (tài khoản lạ, đã khóa, không có người gửi, danh bạ tạm lỗi); không trả id người gửi (#506) |
 | `POST /api/workflow/<tên>/tasks/<taskId>` `{"data": {…}}` | `204`: kiểm theo form của việc, nhận việc rồi hoàn thành |
 
 Thân yêu cầu tối đa 64 KB, lớn hơn → `413 too_large` (#323). Lỗi kiểm dữ liệu: `422 {"errors": {trường: mã}}` (gửi tên

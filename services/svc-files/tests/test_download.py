@@ -128,3 +128,40 @@ def test_content_disposition(name, ascii_part, utf8_part):
     assert ascii_part in header
     assert utf8_part in header
     assert "\n" not in header and "\r" not in header
+
+
+# --- tệp đính kèm form của ứng dụng (#325): đường nội bộ, svc-workflow đã xét người xem ---------------------------
+
+
+def app_file(client, token: str | None, file_id, tenant=TENANT_A):
+    return client.get(f"/internal/app-files/{file_id}", params={"tenant": str(tenant)},
+                      headers=auth(token) if token else {})
+
+
+def test_app_file_is_read_by_the_workflow_service_within_the_tenant(client, make_token):
+    file_id = upload(client, make_token(sub="u-nhan-vien"))
+    service = make_token(azp="svc-workflow", tenant=None)
+    r = app_file(client, service, file_id)
+    assert r.status_code == 200 and r.content == PDF
+    assert r.headers["content-disposition"].startswith("attachment;")
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert app_file(client, service, file_id, tenant=uuid.uuid4()).status_code == 404
+    assert app_file(client, service, uuid.uuid4()).status_code == 404
+
+
+def test_app_file_needs_a_service_token(client, make_token):
+    token = make_token(sub="u-nhan-vien")
+    file_id = upload(client, token)
+    assert app_file(client, None, file_id).status_code == 401
+    assert app_file(client, token, file_id).status_code == 403          # cả chủ tệp cũng không đi đường này
+    assert app_file(client, make_token(azp="app-nghi-phep"), file_id).status_code == 403
+
+
+def test_app_file_never_serves_sealed_or_restricted_files(client, make_token, hasura):
+    file_id = upload(client, make_token())
+    service = make_token(azp="svc-workflow", tenant=None)
+    hasura.in_restricted.add(uuid.UUID(file_id))                        # tệp rõ gắn vào văn bản hạn chế
+    assert app_file(client, service, file_id).status_code == 404
+    hasura.in_restricted.clear()
+    hasura.files[uuid.UUID(file_id)]["wrapped_dek"] = "vault:v1:khoa"   # tệp mã hóa
+    assert app_file(client, service, file_id).status_code == 404

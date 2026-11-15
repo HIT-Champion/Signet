@@ -1006,6 +1006,35 @@ def create_app(
             headers = {"WWW-Authenticate": "Bearer"} if exc.status == 401 else None
             raise HTTPException(exc.status, {"code": exc.code, "message": exc.message}, headers) from exc
 
+    # Tệp đính kèm form của ứng dụng (#325), lõi, luôn có: svc-workflow (apps/files.py) đã xét người xem — người gửi
+    # đơn, người có việc trong đơn — rồi gọi bằng token dịch vụ; ở đây chỉ trả tệp thường của đúng thuê ước. Tệp mã hóa
+    # hay đang gắn văn bản hạn chế (F3.7) không đi đường này (404): chỉ mở theo quyền đọc văn bản, có dấu người xem.
+    @app.get("/internal/app-files/{file_id}", response_class=StreamingResponse, include_in_schema=False)
+    async def app_file(
+        file_id: uuid.UUID,
+        tenant: uuid.UUID,
+        request: Request,
+        caller: Annotated[str, Depends(service_caller)],
+    ) -> StreamingResponse:
+        try:
+            found = await hasura.app_file(tenant_id=tenant, actor_id=caller, request_id=request.state.request_id,
+                                          file_id=file_id)
+        except HasuraError as exc:
+            log_event("core.file.lookup_failed", request, file_id=file_id, code=exc.code, error=str(exc))
+            raise error(503, "database_unavailable", "CSDL chưa sẵn sàng") from exc
+        if found is None or found[0].encrypted or found[1].wrapped_dek is not None or found[1].restricted:
+            raise error(404, "not_found", "Không có tệp này")
+        meta, loc = found
+        try:
+            chunks: Iterator[bytes] = await asyncio.to_thread(store.read_stream, loc.object_key, CHUNK_SIZE)
+        except StorageError as exc:
+            log_event("core.file.read_failed", request, file_id=file_id, object_key=loc.object_key, error=str(exc))
+            raise error(503, "storage_unavailable", "Kho lưu tệp chưa sẵn sàng") from exc
+        log_event("core.file.downloaded", request, tenant_id=tenant, actor_id=caller, file_id=file_id)
+        return StreamingResponse(chunks, media_type=meta.mime_type, headers={
+            **DOWNLOAD_HEADERS, "Content-Disposition": content_disposition(meta.filename),
+            "Content-Length": str(meta.size_bytes), "ETag": f'"{meta.sha256}"'})
+
     # Route của Văn phòng (office/api.py) gắn ở đúng ba chỗ cũ, xen với route của lõi: thứ tự đường dẫn — nên cả
     # OpenAPI docs/api/openapi/svc-files.json — như khi chúng còn khai trong hàm này
     routes = None

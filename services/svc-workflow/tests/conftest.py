@@ -218,6 +218,8 @@ class FakeHasura:
     lookups: list[dict[str, Any]] = field(default_factory=list)
     # văn bản hạn chế (F3.7): tệp tải lên ở chế độ hạn chế; người đọc được văn bản (as_user); lỗi khi cấp quyền xem
     sealed: set[str] = field(default_factory=set)
+    # core.files cho tệp đính kèm form của ứng dụng (#325): id → dòng, kèm tenant_id
+    files: dict[str, dict[str, Any]] = field(default_factory=dict)
     viewers: set[str] = field(default_factory=set)
     fail_share: bool = False
     # lần gọi khác gắn quy trình này vào văn bản ngay trước lần ghi của mình (giành process_id thua)
@@ -494,6 +496,10 @@ class FakeHasura:
             found = [w for w in self.writes if w[0] == "GhiSuKien" and w[1]["event"]["kind"] == variables["kind"]
                      and w[1]["event"]["data"].get("sla_task_id") == variables["task"]["sla_task_id"]]
             return {"office_document_events": [{"id": 1}] if found else []}
+        if op == "AppFiles":
+            return {"core_files": [{k: v for k, v in row.items() if k != "tenant_id"}
+                                   for fid, row in self.files.items()
+                                   if fid in variables["ids"] and row["tenant_id"] == str(actor.tenant_id)]}
         if op == "People":
             pool = self.tenant_users.get(actor.tenant_id, self.users)
             return {"core_users": [{"id": u, "role": r["role"], "department_id": r["department_id"],

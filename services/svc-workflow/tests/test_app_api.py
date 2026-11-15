@@ -28,20 +28,23 @@ import uuid
 from dataclasses import dataclass
 from typing import Any
 
+import httpx2
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from app_fakes import APP, BPMN, DON, DUYET, AppFlowable, bundle_zip, form_bytes
+from app_fakes import APP, BPMN, DON, DUYET, AppFlowable, FakeAppFiles, FileStream, bundle_zip, form_bytes
 from conftest import DEPT_DT, DEPT_KTPM, OTHER, TENANT, FakeHasura
 from svc_workflow.apps import deploy
 from svc_workflow.apps.api import CANCELLED, MAX_BODY, AppWorkflow, rest_variables
 from svc_workflow.apps.auth import HASURA_CLAIMS, AppUser, AuthError, TokenVerifier, default_role
-from svc_workflow.apps.bundle import check_bundle
+from svc_workflow.apps.bundle import BundleError, check_bundle
+from svc_workflow.apps.files import AppFiles
 from svc_workflow.config import Settings
 from svc_workflow.hasura import HasuraError
+from svc_workflow.service_token import FilesError, ServiceToken
 
 ISSUER = "https://signet.example/realms/moc"
 KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -331,7 +334,7 @@ def test_my_processes_hold_the_request_then_the_decision(client, fl):
     r = client.get(f"{API}/processes", headers=STAFF)
     assert r.status_code == 200
     assert r.json() == [{"id": pid, "processKey": f"{APP}.don", "startedAt": fl.instances[pid]["startTime"],
-                         "endedAt": None, "cancelled": False, "data": REQ}]
+                         "endedAt": None, "cancelled": False, "data": REQ, "files": {}}]
     fl.add_task("t-1", pid, groups=[f"t:{TENANT}:d:{DEPT_DT}:manager"])
     assert client.post(f"{API}/tasks/t-1", json={"data": {"quyetDinh": "dong-y", "ghiChu": "Được"}},
                        headers=MANAGER).status_code == 204
@@ -350,7 +353,8 @@ def test_tasks_show_the_request_to_the_managers_of_the_senders_department_only(c
     r = client.get(f"{API}/tasks", headers=MANAGER)
     assert r.json() == [{"id": "t-1", "name": "Duyệt đơn nghỉ", "formKey": f"{APP}.duyet",
                          "processKey": f"{APP}.don", "processId": pid, "createdAt": "2026-10-26T09:30:00.000+07:00",
-                         "dueAt": "2026-10-28T09:30:00.000+07:00", "initiatorName": SENDER, "data": REQ}]
+                         "dueAt": "2026-10-28T09:30:00.000+07:00", "initiatorName": SENDER, "data": REQ,
+                         "files": {}}]
     assert "u-staff" not in r.text                       # tên người gửi, không phải id
     for who in (OTHER_MANAGER, STAFF, DIRECTOR, OTHER_TENANT):
         assert client.get(f"{API}/tasks", headers=who).json() == []
@@ -577,10 +581,198 @@ def test_rest_variables_keep_types():
         {"name": "c", "type": "double", "value": 1.5}, {"name": "d", "type": "string", "value": "x"}]
 
 
-def test_openapi_lists_the_six_routes(client):
+def test_openapi_lists_the_seven_routes(client):
     paths = client.get("/openapi.json").json()["paths"]
     assert sorted(paths) == [f"/api/workflow/{{app}}/{p}" for p in (
-        "forms/{form_key}", "processes", "processes/{process_id}", "processes/{process_key}", "tasks",
-        "tasks/{task_id}")]
+        "forms/{form_key}", "processes", "processes/{process_id}", "processes/{process_id}/files/{file_id}",
+        "processes/{process_key}", "tasks", "tasks/{task_id}")]
     assert list(paths[f"{API.replace(APP, '{app}')}/processes/{{process_id}}"]) == ["delete"]
     assert form_bytes(DON)                               # mẫu dùng chung còn đọc được
+
+
+# --- tệp đính kèm (#325) ------------------------------------------------------------------------------------------
+
+PDF = {"mime": ["application/pdf"], "maxMB": 1}
+DON_TEP = copy.deepcopy(DON)
+DON_TEP["properties"]["giayTo"] = {"type": "string", "format": "uuid", "x-moc-file": PDF}
+DUYET_TEP = copy.deepcopy(DUYET)
+DUYET_TEP["properties"]["bienBan"] = {"type": "string", "format": "uuid", "x-moc-file": PDF}
+TEP = "0b5e7a52-1c1d-4f0e-9a4a-3d2f1e0c9b01"            # của u-staff, PDF nhỏ
+TEP_KHAC = "0b5e7a52-1c1d-4f0e-9a4a-3d2f1e0c9b02"       # mỗi tệp sai một điều
+MANAGER_GROUP = f"t:{TENANT}:d:{DEPT_DT}:manager"
+
+
+def file_row(by: str = "u-staff", *, tenant: uuid.UUID = TENANT, mime: str = "application/pdf",
+             size: int = 2048, encrypted: bool = False, name: str = "giay-kham.pdf") -> dict[str, Any]:
+    return {"tenant_id": str(tenant), "filename": name, "mime_type": mime, "size_bytes": size,
+            "encrypted": encrypted, "created_by": by}
+
+
+@pytest.fixture
+def store() -> FakeAppFiles:
+    files = FakeAppFiles()
+    files.blobs[(str(TENANT), TEP)] = FileStream(b"%PDF-1.7 giay kham", "giay-kham.pdf", "application/pdf")
+    return files
+
+
+@pytest.fixture
+def tep(people, store) -> TestClient:
+    """Gói nghỉ phép có trường tệp ở form gửi (giayTo) và form duyệt (bienBan)."""
+    fl = AppFlowable()
+    install(fl, don=DON_TEP, duyet=DUYET_TEP)
+    people.files[TEP] = {"id": TEP, **file_row()}
+    app = FastAPI()
+    AppWorkflow(fl, TokenVerifier(ISSUER, "unused", keys=StaticKeys(KEY.public_key())), people, store).install(app)
+    client = TestClient(app)
+    client.fl = fl                                       # type: ignore[attr-defined]
+    return client
+
+
+def test_start_keeps_only_the_file_id_and_lists_show_name_type_size(tep, store):
+    pid = start(tep, {**REQ, "giayTo": TEP})
+    assert {v["name"]: v["value"] for v in tep.fl.started[-1][1]}["giayTo"] == TEP
+    info = {"giayTo": {"id": TEP, "filename": "giay-kham.pdf", "mimeType": "application/pdf", "sizeBytes": 2048}}
+    assert tep.get(f"{API}/processes", headers=STAFF).json()[0]["files"] == info
+    tep.fl.add_task("t-1", pid, groups=[MANAGER_GROUP])
+    task = tep.get(f"{API}/tasks", headers=MANAGER).json()[0]
+    assert task["data"]["giayTo"] == TEP and task["files"] == info
+    assert store.calls == []                             # danh sách không đọc tệp
+
+
+@pytest.mark.parametrize("row", [
+    pytest.param(None, id="khong-co"),
+    pytest.param(file_row("u-manager"), id="cua-nguoi-khac"),
+    pytest.param(file_row(tenant=OTHER), id="don-vi-khac"),
+    pytest.param(file_row(encrypted=True), id="ma-hoa"),
+    pytest.param(file_row(mime="image/png"), id="sai-loai"),
+    pytest.param(file_row(size=1024 * 1024 + 1), id="qua-co"),
+])
+def test_attachment_that_is_not_the_senders_own_fitting_file_is_one_422(tep, people, row):
+    if row is not None:
+        people.files[TEP_KHAC] = {"id": TEP_KHAC, **row}
+    r = tep.post(f"{API}/processes/{APP}.don", json={"data": {**REQ, "giayTo": TEP_KHAC}}, headers=STAFF)
+    assert r.status_code == 422 and r.json() == {"errors": {"giayTo": "x-moc-file"}}
+    assert tep.fl.started == []
+
+
+def test_attachment_is_checked_against_the_directory_or_nothing_starts(tep, people):
+    async def down(actor: Any, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        raise HasuraError("Không gọi được Hasura")
+
+    people.as_service = down
+    r = tep.post(f"{API}/processes/{APP}.don", json={"data": {**REQ, "giayTo": TEP}}, headers=STAFF)
+    assert r.status_code == 503 and r.json()["detail"]["code"] == "files_unavailable"
+    assert tep.fl.started == []
+    pid = start(tep)                                     # đơn không kèm tệp không cần hỏi gì
+    assert [(p["id"], p["files"]) for p in tep.get(f"{API}/processes", headers=STAFF).json()] == [(pid, {})]
+
+
+def test_approver_attaches_only_a_file_of_their_own(tep, people):
+    pid = start(tep, {**REQ, "giayTo": TEP})
+    tep.fl.add_task("t-1", pid, groups=[MANAGER_GROUP])
+    sent = tep.post(f"{API}/tasks/t-1", json={"data": {"quyetDinh": "dong-y", "bienBan": TEP}}, headers=MANAGER)
+    assert sent.status_code == 422 and sent.json() == {"errors": {"bienBan": "x-moc-file"}}
+    people.files[TEP_KHAC] = {"id": TEP_KHAC, **file_row("u-manager", name="bien-ban.pdf")}
+    assert tep.post(f"{API}/tasks/t-1", json={"data": {"quyetDinh": "dong-y", "bienBan": TEP_KHAC}},
+                    headers=MANAGER).status_code == 204
+    assert set(tep.get(f"{API}/processes", headers=STAFF).json()[0]["files"]) == {"giayTo", "bienBan"}
+
+
+def test_sender_and_the_approvers_download_the_file(tep, store):
+    pid = start(tep, {**REQ, "giayTo": TEP})
+    url = f"{API}/processes/{pid}/files/{TEP}"
+    tep.fl.add_task("t-1", pid, groups=[MANAGER_GROUP, f"t:{TENANT}:director"])
+    for who in (STAFF, MANAGER, DIRECTOR):               # người gửi; hai nhóm ứng viên của việc chưa ai nhận
+        r = tep.get(url, headers=who)
+        assert r.status_code == 200 and r.content == b"%PDF-1.7 giay kham"
+        assert r.headers["content-disposition"].startswith("attachment;")
+        assert r.headers["x-content-type-options"] == "nosniff" and "no-store" in r.headers["cache-control"]
+    assert store.blobs[(str(TENANT), TEP)].closed
+    for who in (OTHER_MANAGER, OTHER_TENANT, auth(token("u-staff-2"))):
+        assert tep.get(url, headers=who).status_code == 404
+    assert tep.post(f"{API}/tasks/t-1", json={"data": {"quyetDinh": "tu-choi"}}, headers=MANAGER).status_code == 204
+    assert tep.get(url, headers=MANAGER).status_code == 200      # đã làm việc trong đơn: vẫn xem
+    assert tep.get(url, headers=DIRECTOR).status_code == 404     # chỉ còn là ứng viên của việc người khác đã làm
+    assert tep.get(url, headers=STAFF).status_code == 200        # đơn bị từ chối: tệp vẫn còn cho người gửi
+
+
+def test_download_needs_the_file_in_a_file_field_of_that_request(tep, store, people):
+    pid = start(tep, {**REQ, "giayTo": TEP})
+    other = start(tep, {**REQ, "lyDo": TEP_KHAC})        # gõ id tệp vào ô chữ
+    store.blobs[(str(TENANT), TEP_KHAC)] = FileStream(b"bi mat", "bi-mat.pdf", "application/pdf")
+    for url in (f"{API}/processes/{other}/files/{TEP_KHAC}", f"{API}/processes/{other}/files/{TEP}",
+                f"{API}/processes/{pid}/files/{TEP.upper()}", f"{API}/processes/{pid}/files/khong-phai-id",
+                f"{API}/processes/khong-co/files/{TEP}"):
+        r = tep.get(url, headers=STAFF)
+        assert r.status_code == 404 and r.json()["detail"]["code"] == "file_not_found", url
+    assert store.calls == []
+
+
+def test_file_svc_files_refuses_is_404_and_svc_files_down_is_503(tep, store):
+    pid = start(tep, {**REQ, "giayTo": TEP})
+    url = f"{API}/processes/{pid}/files/{TEP}"
+    store.refused.add(TEP)                               # vd đã gắn vào văn bản hạn chế
+    assert tep.get(url, headers=STAFF).status_code == 404
+    store.refused.clear()
+    store.down = True
+    r = tep.get(url, headers=STAFF)
+    assert r.status_code == 503 and r.json()["detail"]["code"] == "files_unavailable"
+
+
+def test_lists_leave_files_empty_when_the_directory_is_down(tep, people):
+    pid = start(tep, {**REQ, "giayTo": TEP})
+
+    async def down(actor: Any, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        raise HasuraError("Không gọi được Hasura")
+
+    people.as_service = down
+    mine = tep.get(f"{API}/processes", headers=STAFF).json()
+    assert [(p["id"], p["data"]["giayTo"], p["files"]) for p in mine] == [(pid, TEP, {})]
+
+
+def test_a_field_cannot_be_a_file_in_one_form_and_text_in_another():
+    duyet = copy.deepcopy(DUYET)
+    duyet["properties"]["giayTo"] = {"type": "string", "maxLength": 100}
+    with pytest.raises(BundleError) as err:
+        check_bundle(APP, bundle_zip(don=DON_TEP, duyet=duyet))
+    assert any("giayTo là tệp (x-moc-file)" in e for e in err.value.errors)
+
+
+def test_part_closes_its_own_svc_files_client(fl, people, store):
+    asyncio.run(AppWorkflow(fl, None, people, store).aclose())
+    assert store.closed
+
+
+def test_app_files_reads_the_internal_route_with_a_fresh_token_after_401():
+    seen: list[tuple[str, str, str]] = []
+    tokens = iter(["tok-cu", "tok-moi", "tok-3"])
+
+    def keycloak(request: httpx2.Request) -> httpx2.Response:
+        return httpx2.Response(200, json={"access_token": next(tokens), "expires_in": 300})
+
+    def svc_files(request: httpx2.Request) -> httpx2.Response:
+        seen.append((request.url.path, request.url.params["tenant"], request.headers["authorization"]))
+        if request.headers["authorization"] == "Bearer tok-cu":
+            return httpx2.Response(401)
+        if request.url.path.endswith(TEP_KHAC):
+            return httpx2.Response(404)
+        return httpx2.Response(200, content=b"%PDF", headers={"content-type": "application/pdf"})
+
+    async def go() -> tuple[bytes, int | None]:
+        token = ServiceToken("http://keycloak:8080", "moc", "svc-workflow", "s",
+                             transport=httpx2.MockTransport(keycloak))
+        client = AppFiles("http://svc-files:8000", token, transport=httpx2.MockTransport(svc_files))
+        try:
+            r = await client.open(TENANT, TEP)
+            body = b"".join([chunk async for chunk in r.aiter_bytes()])
+            await r.aclose()
+            with pytest.raises(FilesError) as missing:
+                await client.open(TENANT, TEP_KHAC)
+            return body, missing.value.status
+        finally:
+            await client.aclose()
+
+    assert asyncio.run(go()) == (b"%PDF", 404)
+    assert seen == [(f"/internal/app-files/{TEP}", str(TENANT), "Bearer tok-cu"),
+                    (f"/internal/app-files/{TEP}", str(TENANT), "Bearer tok-moi"),
+                    (f"/internal/app-files/{TEP_KHAC}", str(TENANT), "Bearer tok-moi")]

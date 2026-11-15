@@ -366,6 +366,11 @@ class FlowableClient:
                                    json={"size": 500, **query, "includeProcessVariables": True})
         return data["data"]
 
+    async def historic_tasks(self, query: dict[str, Any]) -> list[dict[str, Any]]:
+        """Việc đã xong và đang mở (lịch sử Flowable), vd ``{"processInstanceId", "taskAssignee"}``."""
+        data = await self._request("POST", "/query/historic-task-instances", json={"size": 500, **query})
+        return data["data"]
+
     async def activities(self, process_id: str) -> list[dict[str, Any]]:
         """Các bước một phiên đã qua và đang chờ (``endTime`` rỗng), cả đường đã đi (``sequenceFlow``).
 

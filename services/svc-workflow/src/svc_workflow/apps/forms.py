@@ -22,6 +22,12 @@ cộng một từ khóa riêng chỉ form của ứng dụng dùng: ``"x-moc-ran
 ``x-moc-range`` gắn vào trường sau. Kiểm sau mọi từ khóa khác; trường nào đã có lỗi hoặc không phải chuỗi thì không so.
 Không thêm vào ``schemas.py`` để form của Văn phòng điện tử (Ajv biên dịch sẵn) không lệch với máy chủ.
 
+Trường tệp đính kèm (#325): ``{"type": "string", "format": "uuid", "x-moc-file": {"maxMB": 10, "mime": [...]}}``,
+giá trị là id tệp đã tải lên svc-files (``POST /api/files``). Form chỉ khai giới hạn; tệp có thật, của người gửi, đúng
+loại và cỡ thì api.py kiểm lúc gửi (mã ``x-moc-file``). ``mime`` chỉ trong ``FILE_MIMES`` (không HTML, SVG, tệp Office
+có macro); ``maxMB`` 1..``MAX_FILE_MB``, mặc định ``DEFAULT_FILE_MB``; tối đa ``MAX_FILE_FIELDS`` trường tệp một form.
+Trường tệp không dùng được trong điều kiện của BPMN (``field_kinds`` trả ``file``).
+
 Lúc triển khai, form phải: là JSON Schema 2020-12 hợp lệ, lồng không quá ``MAX_DEPTH`` tầng; ``type: object``,
 ``additionalProperties: false`` (mọi biến ghi vào quy trình đều được khai); tên trường dạng camelCase, không trùng biến
 hệ thống; giá trị là một giá trị đơn (biến Flowable); ``$ref`` chỉ trỏ trong chính tệp (không tải gì từ ngoài);
@@ -64,6 +70,10 @@ VARIABLE = re.compile(r"[a-z][A-Za-z0-9]{0,63}", re.ASCII)
 SCALAR_TYPES = {"string", "integer", "number", "boolean", "null"}
 FORMATS = {"date", "uuid"}
 DATE_RULES = {"not-after-today", "not-before-today"}
+FILE_MIMES = {"application/pdf", "image/jpeg", "image/png"}
+DEFAULT_FILE_MB = 10
+MAX_FILE_MB = 20
+MAX_FILE_FIELDS = 5
 MAX_FORM_BYTES = 256 * 1024
 # Tầng đối tượng, mảng lồng nhau trong tệp form: form thật chỉ vài tầng. Trần thấp để json.loads, _walk không chạm giới
 # hạn đệ quy của Python. Cũng là trần số tầng schema tính cả qua $ref (_cost): kiểm dữ liệu gửi lên, jsonschema đi đệ
@@ -160,6 +170,10 @@ class AppForm:
         self.schema = schema
         self.fields: tuple[str, ...] = tuple(schema.get("properties") or {})
         self.required: frozenset[str] = frozenset(schema.get("required") or ())
+        # trường tệp → x-moc-file đã kiểm lúc cài (check_form)
+        self.files: dict[str, dict[str, Any]] = {name: prop["x-moc-file"] for name, prop in
+                                                 (schema.get("properties") or {}).items()
+                                                 if isinstance(prop, dict) and "x-moc-file" in prop}
         self._ranges = [(pair[0], pair[1]) for pair in schema.get("x-moc-range") or ()]
 
     def errors(self, data: Any, today: date | None = None) -> dict[str, str]:
@@ -187,11 +201,35 @@ class AppForm:
         return {name: data[name] for name in self.fields if data.get(name) is not None}
 
 
+def file_bytes(spec: dict[str, Any]) -> int:
+    """Cỡ tối đa (byte) của một trường tệp theo ``x-moc-file``."""
+    return int(spec.get("maxMB", DEFAULT_FILE_MB)) * 1024 * 1024
+
+
+def _file_problem(prop: dict[str, Any]) -> str | None:
+    spec = prop["x-moc-file"]
+    if prop.get("format") != "uuid" or prop.get("type") not in ("string", ["string", "null"], ["null", "string"]):
+        return 'x-moc-file cần trường "type": "string", "format": "uuid" (id tệp đã tải lên /api/files)'
+    if not isinstance(spec, dict) or not set(spec) <= {"maxMB", "mime"}:
+        return "x-moc-file là đối tượng chỉ gồm maxMB, mime"
+    mb = spec.get("maxMB", DEFAULT_FILE_MB)
+    # như Number.isInteger của bản trên trình duyệt: 10.0 cũng là số nguyên
+    if isinstance(mb, bool) or not isinstance(mb, (int, float)) or not float(mb).is_integer() or not (
+            1 <= mb <= MAX_FILE_MB):
+        return f"x-moc-file: maxMB là số nguyên 1..{MAX_FILE_MB}"
+    mime = spec.get("mime")
+    if not isinstance(mime, list) or not mime or not all(_one_of(m, FILE_MIMES) for m in mime):
+        return f"x-moc-file: mime là danh sách khác rỗng trong {', '.join(sorted(FILE_MIMES))}"
+    return None
+
+
 def _kind(prop: Any) -> str:
-    """Kiểu của một trường cho điều kiện rẽ nhánh (bpmn.check_condition): ``number`` khi chỉ nhận số (``type``
-    integer/number, hay ``enum`` toàn số), ``date`` khi ``format: date``, còn lại ``text``."""
+    """Kiểu của một trường cho điều kiện rẽ nhánh (bpmn.check_condition): ``file`` khi có ``x-moc-file``, ``number``
+    khi chỉ nhận số (``type`` integer/number, hay ``enum`` toàn số), ``date`` khi ``format: date``, còn lại ``text``."""
     if not isinstance(prop, dict):
         return "text"
+    if "x-moc-file" in prop:
+        return "file"
     types = prop.get("type", [])
     types = {t for t in (types if isinstance(types, list) else [types])} - {"null"}
     enum = prop.get("enum")
@@ -453,6 +491,10 @@ def check_form(where: str, raw: bytes) -> tuple[AppForm | None, list[str]]:
             errors.append(f"{where}: trường {name}: enum chỉ gồm giá trị đơn")
         if "x-moc-date" in prop and not _one_of(prop["x-moc-date"], DATE_RULES):
             errors.append(f"{where}: trường {name}: x-moc-date chỉ nhận {', '.join(sorted(DATE_RULES))}")
+        if "x-moc-file" in prop and (problem := _file_problem(prop)):
+            errors.append(f"{where}: trường {name}: {problem}")
+    if sum(isinstance(p, dict) and "x-moc-file" in p for p in props.values()) > MAX_FILE_FIELDS:
+        errors.append(f"{where}: tối đa {MAX_FILE_FIELDS} trường tệp (x-moc-file) một form")
     required = schema.get("required", [])
     if not isinstance(required, list):
         errors.append(f"{where}: required phải là danh sách tên trường")

@@ -414,6 +414,7 @@ RULE_MESSAGES = {
     "scalar": r": chỉ nhận giá trị đơn",
     "enum": r": enum chỉ gồm giá trị đơn$",
     "x-moc-date": r": x-moc-date chỉ nhận",
+    "x-moc-file": r"x-moc-file",
     "required": r"^required ",
     "x-moc-range": r"^x-moc-range phải là",
     "root-only": r" chỉ khai ở gốc form",

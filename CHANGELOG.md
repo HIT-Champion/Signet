@@ -59,6 +59,8 @@ Mỗi thay đổi một dòng, kèm số issue hoặc PR trên GitHub; chi tiế
 - Đơn nghỉ phép: nút Hủy đơn ở "Đơn của tôi" cho đơn đang chờ duyệt, hỏi lại trước khi hủy; đơn đã hủy ghi "Đã hủy"
   (#325).
 - "Đơn của tôi" tải 50 đơn mỗi lần, nút "Xem thêm đơn cũ hơn" tải tiếp (#325).
+- Form của ứng dụng có trường tệp đính kèm (`x-moc-file`: PDF, JPEG, PNG, tối đa 20 MB); người gửi đơn và người có
+  việc trong đơn tải tệp qua `/api/workflow/<ứng dụng>/processes/<đơn>/files/<tệp>` (#325).
 
 ### Đã sửa đổi
 - Đơn vị mẫu đổi tên: Trường Công nghệ thông tin và Truyền thông (tên ngắn Trường CNTT & TT), Trường Kinh tế; người
