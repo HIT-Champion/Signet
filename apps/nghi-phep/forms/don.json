@@ -4,7 +4,7 @@
   "title": "Đơn xin nghỉ",
   "description": "Form bắt đầu quy trình nghỉ phép (formKey nghi-phep.don). Ca thử dùng chung: don.cases.json.",
   "x-moc-title": {"vi": "Đơn xin nghỉ", "en": "Leave request"},
-  "x-moc-order": ["loai", "tuNgay", "denNgay", "soNgayLam", "lyDo"],
+  "x-moc-order": ["loai", "tuNgay", "denNgay", "soNgayLam", "lyDo", "giayTo"],
   "x-moc-range": [["tuNgay", "denNgay"]],
   "x-moc-nfc": true,
   "type": "object",
@@ -65,6 +65,17 @@
       "maxLength": 500,
       "$ref": "#/$defs/text",
       "x-moc-ui": {"widget": "textarea", "rows": 3, "label": {"vi": "Lý do", "en": "Reason"}}
+    },
+    "giayTo": {
+      "title": "Giấy tờ kèm theo",
+      "description": "Id tệp đã tải lên /api/files (#325); lõi kiểm tệp của chính người gửi, đúng loại và cỡ.",
+      "type": "string",
+      "format": "uuid",
+      "x-moc-file": {"maxMB": 10, "mime": ["application/pdf", "image/jpeg", "image/png"]},
+      "x-moc-ui": {
+        "label": {"vi": "Giấy tờ kèm theo", "en": "Attachment"},
+        "help": {"vi": "Ví dụ giấy khám bệnh khi nghỉ ốm.", "en": "For example a doctor's note for sick leave."}
+      }
     }
   },
   "$defs": {

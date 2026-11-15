@@ -23,7 +23,8 @@ import { test } from 'node:test'
 
 import {
   API, FORM_DON, FORM_DUYET, LOI, MA_LOI, OFFSET_TOI_DA, QUY_TRINH, TRANG, conTrang, docThan, docTraLoi, doiChieu,
-  duong, ghepDon, huyDuoc, ngayGio, sapXepDon, sapXepViec, nguoiGui, soNgay, tenNguoi, trangThai, yeuCau,
+  duong, ghepDon, huyDuoc, ngayGio, sapXepDon, sapXepViec, nguoiGui, soNgay, TAI_LEN, tenNguoi, trangThai, yeuCau,
+  yeuCauTaiLen,
 } from '../public/don.js'
 import { t } from '../public/i18n.js'
 
@@ -115,6 +116,28 @@ test('hủy đơn (#325): chỉ đơn đang chờ; 404, 409 của lõi có câu 
     assert.equal(docTraLoi(404, { detail }).message, t(LOI[404]), JSON.stringify(detail))
   }
   for (const key of Object.values(MA_LOI)) assert.notEqual(t(key), key)
+})
+
+test('tệp đính kèm (#325): tải lên /api/files, tải về theo đơn, 404 của lõi có câu riêng; form có trường tệp', () => {
+  const [url, init] = yeuCauTaiLen('tok', new Blob(['%PDF-'], { type: 'application/pdf' }))
+  assert.equal(url, TAI_LEN)
+  assert.equal(url, '/api/files')
+  assert.equal(init.method, 'POST')
+  // không đặt Content-Type: trình duyệt tự ghi multipart kèm ranh giới
+  assert.deepEqual(init.headers, { Authorization: 'Bearer tok' })
+  assert.equal(init.body.get('file').size, 5)
+  assert.equal(`${API}${duong.tep('p/1', 'f?2')}`, '/api/workflow/nghi-phep/processes/p%2F1/files/f%3F2')
+  const gone = docTraLoi(404, { detail: { code: 'file_not_found', message: 'Không có tệp này' } })
+  assert.deepEqual(gone, { ok: false, status: 404, message: t('error.fileGone') })
+  // trường tệp theo K3: không bắt buộc, không dùng trong điều kiện rẽ nhánh (lõi từ chối)
+  const don = JSON.parse(read(APP, 'forms/don.json'))
+  assert.deepEqual(don.properties.giayTo['x-moc-file'],
+    { maxMB: 10, mime: ['application/pdf', 'image/jpeg', 'image/png'] })
+  assert.equal(don.required.includes('giayTo'), false)
+  assert.doesNotMatch(read(APP, 'workflow/don-nghi-phep.bpmn20.xml'), /giayTo/)
+  const app = read(APP, 'public/app.js')
+  assert.match(app, /upload: taiLen \}\)/)
+  assert.match(app, /setAttribute\('aria-label', `\$\{t\('detail\.download'\)\} \$\{r\.file\.filename\}`\)/)
 })
 
 test('Đơn của tôi theo trang (#325): còn trang khi đủ TRANG mục; ghép trang không nhân đôi, bản mới thắng', () => {

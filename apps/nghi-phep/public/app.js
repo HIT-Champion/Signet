@@ -22,7 +22,7 @@
 import { signIn, signOut } from './auth.js'
 import {
   FORM_DON, FORM_DUYET, LOI, TRANG, conTrang, docThan, docTraLoi, doiChieu, duong, ghepDon, huyDuoc, ngayGio, nguoiGui,
-  sapXepDon, soNgay, tenNguoi, trangThai, yeuCau,
+  sapXepDon, soNgay, tenNguoi, trangThai, yeuCau, yeuCauTaiLen,
 } from './don.js'
 import { locale, localize, saveLocale, savedLocale, setLocale, t } from './i18n.js'
 import { mountForm, summary } from './schema-form.js'
@@ -48,10 +48,51 @@ const view = {
 // Mọi chỗ dựng form, tóm tắt đơn đi qua hai hàm này: giao diện của schema-form.js đổi thì chỉ sửa ở đây. Cả hai theo
 // ngôn ngữ đang dùng: nhãn, lựa chọn, gợi ý lấy {vi, en} trong x-moc-ui của tệp form, câu chung lấy từ i18n.js
 function veForm(container, schema, { idPrefix, submitLabel, onSubmit, draft }) {
-  return mountForm(container, schema, { lang: locale(), draft, idPrefix, submitLabel, onSubmit })
+  return mountForm(container, schema, { lang: locale(), draft, idPrefix, submitLabel, onSubmit, upload: taiLen })
 }
-function tomTat(schema, data) {
-  return summary(schema, data, locale())
+function tomTat(schema, data, files) {
+  return summary(schema, data, locale(), files)
+}
+
+/** Tải tệp đính kèm lên kho tệp của lõi cho ô tệp của form (#325) → {id, filename, …}; lỗi mang mã của svc-files. */
+async function taiLen(file) {
+  const user = await signIn()
+  if (!user) throw Object.assign(new Error('session'), { code: 'session' })
+  const res = await fetch(...yeuCauTaiLen(user.access_token, file))
+  const body = docThan(await res.text())
+  if (res.status !== 201) throw Object.assign(new Error(`HTTP ${res.status}`), { code: body?.detail?.code })
+  return body
+}
+
+/** Tải về tệp đính kèm của một đơn: cần token nên fetch thành Blob rồi bấm hộ một link tải (như Không gian cá nhân). */
+async function taiVe(processId, file, nut) {
+  if (nut.getAttribute('aria-disabled')) return
+  nut.setAttribute('aria-disabled', 'true')
+  try {
+    const user = await signIn()
+    if (!user) return
+    let blob
+    try {
+      const res = await fetch(...yeuCau(user.access_token, 'GET', duong.tep(processId, file.id)))
+      if (!res.ok) {
+        const kq = docTraLoi(res.status, docThan(await res.text()))
+        baoLoi(() => kq.message)
+        return
+      }
+      blob = await res.blob()
+    } catch {
+      baoLoi(() => t(LOI.mang))
+      return
+    }
+    const href = URL.createObjectURL(blob)
+    const a = make('a', { href, download: file.filename })
+    document.body.append(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(href), 10_000)
+  } finally {
+    nut.removeAttribute('aria-disabled')
+  }
 }
 
 /** Gọi API chung của lõi bằng token hiện tại → kết quả của docTraLoi. */
@@ -104,10 +145,19 @@ function moPhan(ten, { focus = true } = {}) {
 /** Số ngày nghỉ thành chữ: tiếng Anh phân biệt "1 day" với "3 days". */
 const chuSoNgay = (n) => (n === 1 ? t('detail.oneDay') : t('detail.dayCount', { n }))
 
-/** Dòng nhãn — giá trị của một đơn (dl), thêm số ngày nghỉ khi có đủ hai ngày. */
-function bangDon(rows, data) {
+/** Dòng nhãn — giá trị của một đơn (dl), thêm số ngày nghỉ khi có đủ hai ngày. Ô tệp có nút tải về (processId: đơn). */
+function bangDon(rows, data, processId) {
   const dl = make('dl', { className: 'chi-tiet' })
-  for (const r of rows) dl.append(make('dt', { textContent: r.label }), make('dd', { textContent: r.value }))
+  for (const r of rows) {
+    const dd = make('dd', { textContent: r.value })
+    if (r.file && processId) {
+      const nut = make('button', { type: 'button', className: 'btn ghost tai-ve', textContent: t('detail.download') })
+      nut.setAttribute('aria-label', `${t('detail.download')} ${r.file.filename}`)
+      nut.addEventListener('click', () => taiVe(processId, r.file, nut))
+      dd.append(' ', nut)
+    }
+    dl.append(make('dt', { textContent: r.label }), dd)
+  }
   const n = soNgay(data?.tuNgay, data?.denNgay)
   if (n) dl.append(make('dt', { textContent: t('detail.days') }), make('dd', { textContent: chuSoNgay(n) }))
   return dl
@@ -199,7 +249,7 @@ function veDon(forms) {
     const gui = t('mine.sentAt', { time: ngayGio(don.startedAt) })
     dau.append(make('span', { className: `nhan nhan-${tt.ma}`, textContent: tt.nhan }),
       make('span', { className: 'gio', textContent: gui }))
-    li.append(dau, bangDon(tomTat(forms.don, don.data), don.data))
+    li.append(dau, bangDon(tomTat(forms.don, don.data, don.files), don.data, don.id))
     if (don.endedAt) {
       const ketQua = tomTat(forms.duyet, don.data).filter((r) => don.data?.[r.name] !== undefined)
       if (ketQua.length) li.append(bangDon(ketQua))
@@ -236,7 +286,7 @@ function dungTheViec(task, forms, draft) {
   // người duyệt cần biết đơn của ai (#506); lõi không trả tên thì bỏ dòng
   const name = nguoiGui(task)
   if (name) li.append(make('p', { className: 'gio', textContent: t('review.from', { name }) }))
-  li.append(bangDon(tomTat(forms.don, task.data), task.data))
+  li.append(bangDon(tomTat(forms.don, task.data, task.files), task.data, task.processId))
   if (task.dueAt) {
     li.append(make('p', { className: 'gio', textContent: t('review.due', { time: ngayGio(task.dueAt) }) }))
   }

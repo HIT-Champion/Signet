@@ -38,6 +38,17 @@ export const duong = {
   huyDon: (id) => `/processes/${encodeURIComponent(id)}`,
   viec: () => '/tasks',
   xongViec: (taskId) => `/tasks/${encodeURIComponent(taskId)}`,
+  tep: (processId, fileId) => `/processes/${encodeURIComponent(processId)}/files/${encodeURIComponent(fileId)}`,
+}
+
+/** Kho tệp của lõi (svc-files): trang tải tệp đính kèm lên đây rồi gửi id tệp trong đơn (#325). */
+export const TAI_LEN = '/api/files'
+
+/** Tải một tệp lên → [địa chỉ, tham số của fetch]: multipart, trường file, như Không gian cá nhân. */
+export function yeuCauTaiLen(token, file) {
+  const body = new FormData()
+  body.append('file', file)
+  return [TAI_LEN, { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body, cache: 'no-store' }]
 }
 
 /** Một lời gọi API → [địa chỉ, tham số của fetch]. Có dữ liệu thì gửi {"data": …} như API chung quy định. */
@@ -72,10 +83,11 @@ export const LOI = Object.freeze({
   500: 'error.unavailable',
 })
 
-/** Mã lỗi của lõi ({"detail": {"code"}}) có câu riêng thay câu theo mã HTTP: hủy đơn (#325). */
+/** Mã lỗi của lõi ({"detail": {"code"}}) có câu riêng thay câu theo mã HTTP: hủy đơn, tải tệp đính kèm (#325). */
 export const MA_LOI = Object.freeze({
   process_not_found: 'error.cancelGone',
   already_finished: 'error.alreadyFinished',
+  file_not_found: 'error.fileGone',
 })
 
 const isMap = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)

@@ -257,7 +257,8 @@ test('form dựng từ schema bằng tiếng Anh: nhãn, lựa chọn, gợi ý,
       for (const code of codes) assert.doesNotMatch(message(f, code, 'en', list, schema), VIET, `${f.name} ${code}`)
     }
   }
-  assert.deepEqual(fields(don, 'en').map((f) => f.label), ['Leave type', 'From', 'To', 'Working days off', 'Reason'])
+  assert.deepEqual(fields(don, 'en').map((f) => f.label),
+    ['Leave type', 'From', 'To', 'Working days off', 'Reason', 'Attachment'])
   assert.deepEqual(fields(duyet, 'en')[0].options.map((o) => o.label), ['Approve', 'Decline'])
   const leave = { loai: 'viec-rieng', tuNgay: '2026-10-27', denNgay: '2026-10-28', soNgayLam: 2 }
   assert.deepEqual(summary(don, leave, 'en'), [
@@ -266,6 +267,7 @@ test('form dựng từ schema bằng tiếng Anh: nhãn, lựa chọn, gợi ý,
     { name: 'denNgay', label: 'To', value: '28/10/2026' },
     { name: 'soNgayLam', label: 'Working days off', value: '2' },
     { name: 'lyDo', label: 'Reason', value: '—' },
+    { name: 'giayTo', label: 'Attachment', value: '—' },
   ])
   assert.deepEqual(summary(duyet, { quyetDinh: 'dong-y', ghiChu: 'OK' }, 'en').map((r) => [r.label, r.value]),
     [['Decision', 'Approve'], ['Note', 'OK']])
@@ -285,7 +287,7 @@ test('form dựng từ schema bằng tiếng Anh: nhãn, lựa chọn, gợi ý,
   // trang dựng form và tóm tắt theo ngôn ngữ đang dùng
   const app = scripts.find((s) => s.file === 'app.js').text
   assert.match(app, /mountForm\(container, schema, \{ lang: locale\(\),/)
-  assert.match(app, /summary\(schema, data, locale\(\)\)/)
+  assert.match(app, /summary\(schema, data, locale\(\), files\)/)
 })
 
 // DOM giả vừa đủ cho mountForm (gói không có jsdom): phần tử là đối tượng thường, chữ đọc lại bằng text()
@@ -317,7 +319,7 @@ test('form vẽ ra bằng tiếng Anh: nhãn, lựa chọn, lời báo khi gửi
   const root = box.children[0]
   assert.equal(root.attrs['aria-label'], 'Leave request')
   assert.deepEqual(nodes(box).filter((n) => n.className === 'sf-label').map(text),
-    ['Leave type', 'From', 'To', 'Working days off', 'Reason (optional)'])
+    ['Leave type', 'From', 'To', 'Working days off', 'Reason (optional)', 'Attachment (optional)'])
   assert.deepEqual(byId('don-loai').children.map(text),
     ['— Choose —', 'Annual leave', 'Sick leave', 'Personal leave', 'Unpaid leave'])
   assert.equal(text(byId('don-denNgay-help')), 'Inclusive. For a single day, pick the start date again.')
@@ -350,4 +352,83 @@ test('form vẽ ra bằng tiếng Anh: nhãn, lựa chọn, lời báo khi gửi
   assert.equal(text(nodes(box).find((n) => n.className === 'sf-label')), 'Loại nghỉ')
   again.reset()
   assert.deepEqual(again.values(), {})
+})
+
+test('ô tệp (#325): kiểm loại, cỡ trước khi tải lên; lỗi giữ tới khi chọn lại, bỏ tệp; gửi chờ tải lên', async () => {
+  const doc = fakeDocument()
+  const box = doc.createElement('div')
+  const calls = []
+  let finish                            // xong lượt tải lên đang chờ: finish(kết quả) hay finish(null, lỗi)
+  const upload = (file) => new Promise((ok, no) => {
+    calls.push(file.name)
+    finish = (r, err) => (err ? no(err) : ok(r))
+  })
+  const handle = mountForm(box, don, { lang: 'vi', idPrefix: 'don-', upload })
+  const byId = (id) => nodes(box).find((n) => n.id === id)
+  const remove = () => nodes(box).find((n) => n.className === 'sf-file-remove')
+  const pick = (name, type, size) => {
+    const input = byId('don-giayTo')
+    input.files = [{ name, type, size }]
+    input.on.change()
+  }
+  const send = () => box.children[0].on.submit({ preventDefault() {} })
+  const error = () => (byId('don-giayTo-error').hidden ? '' : text(byId('don-giayTo-error')))
+  const status = () => text(byId('don-giayTo-file'))
+  const input = byId('don-giayTo')
+  assert.equal(input.type, 'file')
+  assert.equal(input.accept, 'application/pdf,image/jpeg,image/png')
+  assert.equal(text(byId('don-giayTo-help')), 'Ví dụ giấy khám bệnh khi nghỉ ốm. Nhận PDF, JPEG, PNG; tối đa 10 MB.')
+  assert.equal(input.attrs['aria-describedby'], 'don-giayTo-help don-giayTo-file')
+  assert.equal(remove().hidden, true)
+
+  // sai loại, quá cỡ: báo ngay, không tải lên; gửi form vẫn báo, không lặng lẽ bỏ tệp đã chọn
+  pick('don.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 100)
+  assert.equal(error(), 'Chỉ nhận tệp PDF, JPEG, PNG')
+  pick('scan.pdf', 'application/pdf', 10 * 1024 * 1024 + 1)
+  assert.equal(error(), 'Tệp lớn hơn 10 MB')
+  assert.deepEqual(calls, [])
+  assert.equal(remove().hidden, false)
+  await send()
+  assert.equal(error(), 'Tệp lớn hơn 10 MB')
+  remove().on.click()
+  assert.equal(error(), '')
+  assert.equal(doc.focused, input)
+  assert.equal(Object.hasOwn(handle.values(), 'giayTo'), false)
+
+  // chọn tệp khác lúc tệp trước đang tải lên: kết quả của tệp trước bị bỏ
+  pick('cu.pdf', 'application/pdf', 2000)
+  const first = finish
+  pick('giay-kham.pdf', 'application/pdf', 2000)
+  assert.equal(status(), 'Đang tải lên «giay-kham.pdf»…')
+  const id = '0b6f8c3e-2a51-4c7e-9d0a-5e8f1c2b3a4d'
+  first({ id: '11111111-2222-4333-8444-555555555555', filename: 'cu.pdf' })
+  // gửi lúc đang tải lên: chờ xong rồi mới kiểm
+  const sending = send()
+  finish({ id, filename: 'giay-kham.pdf', size_bytes: 2000 })
+  await sending
+  assert.deepEqual(calls, ['cu.pdf', 'giay-kham.pdf'])
+  assert.equal(handle.values().giayTo, id)
+  assert.equal(status(), 'Đã tải lên «giay-kham.pdf»')
+  assert.equal(error(), '')
+
+  // đổi ngôn ngữ: form dựng lại từ draft vẫn hiện tên tệp
+  const again = mountForm(box, don, { lang: 'en', idPrefix: 'don-', draft: { giayTo: id }, upload })
+  assert.equal(status(), 'Uploaded "giay-kham.pdf"')
+  assert.equal(again.values().giayTo, id)
+
+  // svc-files từ chối: quá cỡ có câu riêng, còn lại (nhiễm mã độc, mạng…) là câu chung; lõi từ chối lúc gửi (422)
+  for (const [code, said] of [['too_large', 'The file is larger than 10 MB'],
+    ['infected', 'Could not upload the file (network error, damaged or infected file). Try again or pick another']]) {
+    pick('x.png', 'image/png', 10)
+    finish(null, Object.assign(new Error('HTTP 422'), { code }))
+    await send()
+    assert.equal(error(), said)
+  }
+  again.setErrors({ giayTo: 'x-moc-file' })
+  assert.equal(error(), 'This file cannot be attached. Please choose it again')
+
+  // trang không đưa hàm tải lên: báo không tải lên được, không ném lỗi
+  mountForm(box, don, { lang: 'vi', idPrefix: 'don-' })
+  pick('a.pdf', 'application/pdf', 10)
+  assert.match(error(), /^Chưa tải tệp lên được/)
 })

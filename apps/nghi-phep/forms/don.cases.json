@@ -16,7 +16,8 @@
      "set": {"loai": "khong-luong", "tuNgay": "2026-12-30", "denNgay": "2027-01-02"}},
     {"name": "việc riêng, lý do nhiều dòng", "set": {"loai": "viec-rieng", "lyDo": "Đưa con đi khám\nchiều về làm"}},
     {"name": "lý do đúng 500 ký tự có dấu", "set": {"lyDo": {"$repeat": "ệ", "times": 500}}},
-    {"name": "nghỉ dài, quá 3 ngày làm việc", "set": {"soNgayLam": 30}}
+    {"name": "nghỉ dài, quá 3 ngày làm việc", "set": {"soNgayLam": 30}},
+    {"name": "kèm giấy tờ: id tệp đã tải lên", "set": {"giayTo": "0b6f8c3e-2a51-4c7e-9d0a-5e8f1c2b3a4d"}}
   ],
   "invalid": [
     {"name": "thiếu loại nghỉ", "unset": ["loai"], "error": {"loai": "required"}},
@@ -45,6 +46,8 @@
     {"name": "số ngày bằng 0", "set": {"soNgayLam": 0}, "error": {"soNgayLam": "minimum"}},
     {"name": "số ngày quá 30", "set": {"soNgayLam": 31}, "error": {"soNgayLam": "maximum"}},
     {"name": "số ngày lẻ", "set": {"soNgayLam": 1.5}, "error": {"soNgayLam": "type"}},
-    {"name": "số ngày là chuỗi", "set": {"soNgayLam": "3"}, "error": {"soNgayLam": "type"}}
+    {"name": "số ngày là chuỗi", "set": {"soNgayLam": "3"}, "error": {"soNgayLam": "type"}},
+    {"name": "giấy tờ là tên tệp, không phải id", "set": {"giayTo": "giay-kham.pdf"}, "error": {"giayTo": "format"}},
+    {"name": "giấy tờ là null", "set": {"giayTo": null}, "error": {"giayTo": "type"}}
   ]
 }

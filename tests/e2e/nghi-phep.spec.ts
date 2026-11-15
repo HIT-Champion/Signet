@@ -14,9 +14,11 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+import { readFileSync } from 'node:fs'
+
 import AxeBuilder from '@axe-core/playwright'
-import { expect, test } from '@playwright/test'
-import { AXE_TAGS, PASSWORD, shot, signIn } from './helpers'
+import { expect, type Locator, type Page, test } from '@playwright/test'
+import { AXE_TAGS, PASSWORD, SCAN_TIMEOUT, shot, signIn, textPdf } from './helpers'
 
 // Hủy đơn nghỉ phép (#325) trên trình duyệt thật: gửi một đơn rồi hủy qua hộp thoại hỏi lại. DELETE đi qua cổng APISIX
 // tới API quy trình chung của lõi; "Không hủy" giữ đơn, tiêu điểm về nút vừa bấm; hủy xong đơn thành "Đã hủy", tải lại
@@ -89,3 +91,50 @@ test('hủy đơn đang chờ: hỏi lại, "Không hủy" giữ đơn, "Hủy �
   await expect(card).toContainText('Hủy lúc')
   await expect(card.getByRole('button')).toHaveCount(0)
 })
+
+// Tệp đính kèm (#325 e): chọn PDF thì ô tệp tải lên /api/files ngay (ClamAV quét), đơn gửi id tệp; "Đơn của tôi" hiện
+// tên tệp, nút tải về lấy tệp qua đường tải tệp của lõi, đúng từng byte. Đơn hủy rồi tệp vẫn còn, vẫn tải được.
+test('đơn kèm giấy tờ: tải lên lúc chọn, thẻ đơn có tên tệp, tải về đúng byte, cả khi đã hủy', async ({ browser }) => {
+  test.skip(!PASSWORD, 'đặt MOC_DEMO_PASSWORD (make e2e tự đọc từ .env)')
+  const page = await signIn(browser, 'giangvienktpm')
+  if (!(await page.request.get('/nghi-phep/').then((r) => r.text())).includes('id="form-don"')) {
+    expect(process.env.CI, 'CI phải cài Đơn nghỉ phép trước make e2e (ci.yml, bước make app-install)').toBeFalsy()
+    test.skip(true, 'chưa cài: make app-install APP=apps/nghi-phep/app.yaml')
+  }
+  await page.goto('/nghi-phep/')
+  const form = page.locator('#form-don form')
+  await expect(form).toBeVisible()
+  const lyDo = `Nghỉ ốm kèm giấy ${tag}`
+  const name = `giay-kham-${tag}.pdf`
+  const content = textPdf('Giay kham benh', `Ma thu ${tag}`)
+  await page.locator('#don-loai').selectOption({ label: 'Nghỉ ốm' })
+  await page.locator('#don-tuNgay').fill(ngay(31))
+  await page.locator('#don-denNgay').fill(ngay(31))
+  await page.locator('#don-soNgayLam').fill('1')
+  await page.locator('#don-lyDo').fill(lyDo)
+  await page.locator('#don-giayTo').setInputFiles({ name, mimeType: 'application/pdf', buffer: content })
+  await expect(page.locator('#don-giayTo-file')).toHaveText(`Đã tải lên «${name}»`, { timeout: SCAN_TIMEOUT })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const { violations } = await new AxeBuilder({ page }).withTags(AXE_TAGS).analyze()
+  expect(violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(' | ')}`)).toEqual([])
+  await shot(page, 'nghi-phep-giay-to')
+  await form.getByRole('button', { name: 'Gửi đơn' }).click()
+  await expect(page.locator('#tin')).toContainText('Đã gửi đơn')
+
+  await page.locator('[data-phan="don-cua-toi"]').click()
+  const card = page.locator('#danh-sach-don li').filter({ hasText: lyDo })
+  await expect(card).toContainText(name)
+  await taiVe(page, card.getByRole('button', { name: `Tải về ${name}` }), name, content)
+
+  // hủy đơn: tệp ở lại, người gửi vẫn tải về được
+  await card.getByRole('button', { name: /^Hủy đơn gửi lúc / }).click()
+  await page.getByRole('dialog', { name: 'Hủy đơn này?' }).getByRole('button', { name: 'Hủy đơn' }).click()
+  await expect(card).toContainText('Đã hủy')
+  await taiVe(page, card.getByRole('button', { name: `Tải về ${name}` }), name, content)
+})
+
+async function taiVe(page: Page, button: Locator, name: string, content: Buffer) {
+  const [download] = await Promise.all([page.waitForEvent('download'), button.click()])
+  expect(download.suggestedFilename()).toBe(name)
+  expect(readFileSync(await download.path()).equals(content)).toBe(true)
+}

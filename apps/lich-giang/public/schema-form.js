@@ -27,6 +27,9 @@
 // rows, options, errors). Chữ là chuỗi hoặc {vi, en}. Câu chung (ô không bắt buộc, câu báo lỗi theo mã, schema hỏng)
 // lấy từ bảng dịch của ứng dụng (i18n.js, khóa form.*, schema.*). Mọi chữ gán bằng textContent, không bao giờ
 // innerHTML.
+//
+// Trường có x-moc-file (#325) là ô chọn tệp: chọn xong thì kiểm loại, cỡ rồi tải lên ngay bằng options.upload của
+// trang (POST /api/files); giá trị gửi đi là id tệp, lõi kiểm lại lúc nhận đơn.
 
 import { t } from './i18n.js'
 
@@ -308,8 +311,11 @@ export function formErrors(schema, data, today = todayVN()) {
       if (found.has(a) || found.has(b) || typeof data[a] !== 'string' || typeof data[b] !== 'string') continue
       if (data[b] < data[a]) found.set(b, 'x-moc-range')
     }
-    // chỉ có trong dữ liệu clean() dọn từ ô json, không bao giờ từ JSON gửi tới
-    for (const [name, value] of Object.entries(data)) if (value instanceof Unparsed) found.set(name, 'x-moc-json')
+    // chỉ có trong dữ liệu clean() dọn từ ô json, ô tệp, không bao giờ từ JSON gửi tới
+    for (const [name, value] of Object.entries(data)) {
+      if (value instanceof Unparsed) found.set(name, 'x-moc-json')
+      if (value instanceof FileProblem) found.set(name, value.code)
+    }
   }
   const errors = {}
   for (const [name, code] of found) {
@@ -354,6 +360,25 @@ function parseJson(text) {
   }
 }
 
+// Ô tệp chọn tệp không dùng được (sai loại, quá cỡ, tải lên hỏng): giữ mã lỗi đến khi chọn tệp khác hay bỏ tệp, để
+// form không lặng lẽ gửi đơn thiếu tệp người dùng đã chọn
+class FileProblem {
+  constructor(code) { this.code = code }
+}
+/** Cỡ mặc định (MB) của trường tệp khi x-moc-file không ghi maxMB, như lõi. */
+export const FILE_MB = 10
+// mã lỗi svc-files (detail.code) → mã của ô; còn lại là tải lên hỏng (mạng, quét mã độc, máy chủ bận…)
+const UPLOAD_CODES = { too_large: 'x-moc-file-size', type_mismatch: 'x-moc-file-type',
+  type_not_allowed: 'x-moc-file-type', image_unreadable: 'x-moc-file-type' }
+// id tệp đã tải lên → tên tệp: form dựng lại (đổi ngôn ngữ) vẫn hiện tên
+const uploaded = new Map()
+
+/** Kiểm sớm một tệp vừa chọn theo x-moc-file ({mime, mb}): mã lỗi, hay null khi tải lên được. Lõi vẫn kiểm lại. */
+export function fileProblem(spec, file) {
+  if (!spec.mime.includes(file.type)) return 'x-moc-file-type'
+  return file.size > spec.mb * 1024 * 1024 ? 'x-moc-file-size' : null
+}
+
 /** Chữ trong schema theo ngôn ngữ: chuỗi giữ nguyên, {vi, en} lấy đúng tiếng, thiếu thì lấy tiếng kia. */
 export function say(text, lang) {
   if (text === undefined || text === null) return ''
@@ -365,6 +390,7 @@ export function say(text, lang) {
 export const formTitle = (schema, lang = 'vi') => say(schema['x-moc-title'], lang) || String(schema.title ?? '')
 
 function widgetOf(prop, ui, types) {
+  if (isObject(prop['x-moc-file'])) return 'file'
   if (WIDGETS.has(ui.widget)) return ui.widget
   if (types.includes('array')) return 'checkboxes'
   if (Array.isArray(prop.enum)) return 'select'
@@ -388,6 +414,13 @@ export function fields(schema, lang = 'vi', idPrefix = 'sf-') {
     const types = [prop.type].flat().filter((x) => x !== undefined)
     const widget = widgetOf(prop, ui, types)
     const values = (widget === 'checkboxes' ? prop.items?.enum : prop.enum) ?? []
+    const spec = prop['x-moc-file']
+    // ô tệp: loại nhận được (kể cả mime lạ do form khai sai, lõi đã chặn lúc cài) và cỡ tối đa, kèm câu gợi ý
+    const file = widget === 'file' ? {
+      mime: Array.isArray(spec.mime) ? spec.mime.filter((m) => typeof m === 'string') : [],
+      mb: Number.isInteger(spec.maxMB) && spec.maxMB > 0 ? spec.maxMB : FILE_MB,
+    } : undefined
+    const hint = file ? word(lang, 'form.fileHint', { types: fileTypes(file), mb: file.mb }) : ''
     return {
       name,
       id: ui.id ?? `${idPrefix}${name}`,
@@ -399,11 +432,15 @@ export function fields(schema, lang = 'vi', idPrefix = 'sf-') {
       ui,
       label: say(ui.label, lang) || String(prop.title ?? name),
       note: say(ui.note, lang),
-      help: say(ui.help, lang),
+      help: [say(ui.help, lang), hint].filter(Boolean).join(' '),
       options: values.map((value) => ({ value, label: say(ui.options?.[String(value)], lang) || String(value) })),
+      file,
     }
   })
 }
+
+// 'application/pdf', 'image/jpeg' → 'PDF, JPEG'
+const fileTypes = (file) => file.mime.map((m) => m.split('/').pop().toUpperCase()).join(', ')
 
 // Dọn như form tiếp nhận văn bản đến của Văn phòng: đưa về NFC, bỏ ký tự ẩn và khoảng trắng hai đầu; ô một dòng gộp
 // xuống dòng thành dấu cách. Schema vẫn từ chối dữ liệu bẩn gửi thẳng vào API, chỉ người gõ tay là được dọn giúp
@@ -470,6 +507,11 @@ export function message(f, code, lang = 'vi', list = [], schema = {}) {
     }
     case 'x-moc-nfc': return word(lang, 'form.nfc')
     case 'x-moc-json': return word(lang, 'form.json')
+    // lõi từ chối tệp (không có, không do người này tải lên, sai loại, quá cỡ: một mã cho mọi lý do, #325)
+    case 'x-moc-file': return word(lang, 'form.file')
+    case 'x-moc-file-type': return word(lang, 'form.fileType', { types: f.file ? fileTypes(f.file) : '' })
+    case 'x-moc-file-size': return word(lang, 'form.fileSize', { mb: f.file?.mb ?? FILE_MB })
+    case 'x-moc-file-upload': return word(lang, 'form.fileUpload')
     case 'not': return word(lang, 'form.not')
     case 'enum': return word(lang, 'form.enum')
     case 'const': return word(lang, 'form.const')
@@ -498,20 +540,32 @@ function shown(f, value, lang) {
   return typeof value === 'object' ? JSON.stringify(value) : String(value)
 }
 
-/** Dữ liệu một đơn để đọc (vd người duyệt xem đơn): nhãn ô và giá trị đã đổi ra chữ, theo thứ tự của form. */
-export function summary(schema, data, lang = 'vi') {
-  return fields(schema, lang).filter((f) => !f.hidden)
-    .map((f) => ({ name: f.name, label: f.label, value: shown(f, data?.[f.name], lang) }))
+/**
+ * Dữ liệu một đơn để đọc (vd người duyệt xem đơn): nhãn ô và giá trị đã đổi ra chữ, theo thứ tự của form. files: tệp
+ * đính kèm lõi trả kèm đơn ({trường: {id, filename, mimeType, sizeBytes}}, #325); ô tệp hiện tên tệp và thêm file để
+ * trang vẽ nút tải.
+ */
+export function summary(schema, data, lang = 'vi', files = {}) {
+  return fields(schema, lang).filter((f) => !f.hidden).map((f) => {
+    const value = data?.[f.name]
+    if (f.widget !== 'file') return { name: f.name, label: f.label, value: shown(f, value, lang) }
+    const file = isObject(files) && Object.hasOwn(files, f.name) && isObject(files[f.name]) ? files[f.name] : null
+    // có id mà lõi không trả tên (danh bạ tệp tạm lỗi): vẫn báo là có tệp
+    const name = file && typeof file.filename === 'string' ? file.filename : ''
+    const text = name || (value ? word(lang, 'form.fileAttached') : word(lang, 'form.empty'))
+    return { name: f.name, label: f.label, value: text, ...(file && name ? { file } : {}) }
+  })
 }
 
 /**
  * Dựng form vào container. onSubmit(data) chỉ được gọi với dữ liệu đã dọn và qua kiểm; nút gửi khóa đến khi promise
  * của nó xong. Trả về setErrors(lỗi {trường: mã}, vd từ 422 của máy chủ), values() (dữ liệu đã dọn) và reset().
  * options.draft: chữ đang gõ dở điền vào ô lúc dựng (trang dựng lại form khi đổi ngôn ngữ); khác values, reset() không
- * quay về draft mà về values hay default của schema.
+ * quay về draft mà về values hay default của schema. options.upload(file): tải một tệp lên (POST /api/files) → promise
+ * {id, filename}; lỗi mang code là detail.code của svc-files. Không có upload thì ô tệp báo không tải lên được.
  */
 export function mountForm(container, schema, options = {}) {
-  const { values: given = {}, draft, onSubmit, submitLabel, idPrefix = 'sf-' } = options
+  const { values: given = {}, draft, onSubmit, submitLabel, idPrefix = 'sf-', upload } = options
   const lang = String(options.lang ?? 'vi').toLowerCase().startsWith('en') ? 'en' : 'vi'
   checkSchema(schema)
   const list = fields(schema, lang, idPrefix)
@@ -540,6 +594,7 @@ export function mountForm(container, schema, options = {}) {
   form.append(top)
 
   const controls = new Map()
+  const uploads = new Set()             // tệp đang tải lên: gửi form thì chờ xong
   for (const f of list.filter((g) => !g.hidden)) controls.set(f.name, field(f))
 
   const submit = make('button', { type: 'submit', className: 'sf-submit' })
@@ -561,7 +616,7 @@ export function mountForm(container, schema, options = {}) {
     // Câu lỗi của từng ô không là role=alert (nhiều ô sai sẽ đọc dồn một lượt): ô sai đầu tiên nhận tiêu điểm và đọc
     // câu lỗi qua aria-describedby, các ô sau đọc khi người dùng tới
     const error = make('p', { className: 'sf-error', id: `${f.id}-error`, hidden: true })
-    let inputs, get, set
+    let inputs, get, set, status, extra = []
 
     if (group) {
       const box = make('div', { className: 'sf-options' })
@@ -616,6 +671,9 @@ export function mountForm(container, schema, options = {}) {
         input = make('input', { type: 'datetime-local' })
         get = () => input.value
         set = (v) => { input.value = localTime(v) }
+      } else if (f.widget === 'file') {
+        input = make('input', { type: 'file', accept: f.file.mime.join(',') })
+        ;[get, set, status, extra] = fileControl(f, input, show)
       } else {
         input = make(f.widget === 'textarea' ? 'textarea' : 'input')
         if (f.widget === 'textarea') input.rows = f.ui.rows ?? 4
@@ -635,29 +693,88 @@ export function mountForm(container, schema, options = {}) {
       // name là id chứ không là tên trường: ô tên "append", "submit"… sẽ che phương thức cùng tên của form
       Object.assign(input, { id: f.id, name: f.id, required: f.required })
       inputs = [input]
-      wrap.append(caption, input)
+      wrap.append(caption, input, ...extra)
     }
     if (help) wrap.append(help)
     wrap.append(error)
     form.append(wrap)
-    // gợi ý và câu lỗi gắn vào từng ô (cả từng nút chọn), trình đọc màn hình đọc chắc hơn gắn vào fieldset
+    // gợi ý và câu lỗi gắn vào từng ô (cả từng nút chọn), trình đọc màn hình đọc chắc hơn gắn vào fieldset; ô tệp thêm
+    // dòng tên tệp đã tải lên
     const describe = (bad) => {
-      const ids = [help?.id, bad ? error.id : ''].filter(Boolean).join(' ')
+      const ids = [help?.id, status?.id, bad ? error.id : ''].filter(Boolean).join(' ')
       for (const x of inputs) {
         if (ids) x.setAttribute('aria-describedby', ids)
         else x.removeAttribute('aria-describedby')
       }
     }
     describe(false)
-    return {
-      f, inputs, get, set,
-      show(text) {
-        error.textContent = text
-        error.hidden = !text
-        for (const x of inputs) x.setAttribute('aria-invalid', String(Boolean(text)))
-        describe(Boolean(text))
-      },
+    // câu lỗi của ô tệp hiện sau khi tải lên xong, lúc tiêu điểm có thể đã ở chỗ khác: đọc khi nó đổi. Vùng đọc phải
+    // có sẵn trong cây trợ năng nên không ẩn, chỉ để trống
+    const live = f.widget === 'file'
+    if (live) error.setAttribute('aria-live', 'polite')
+    function show(text) {
+      error.textContent = text
+      error.hidden = !text && !live
+      for (const x of inputs) x.setAttribute('aria-invalid', String(Boolean(text)))
+      describe(Boolean(text))
     }
+    return { f, inputs, get, set, show }
+  }
+
+  // Ô tệp: chọn tệp thì kiểm loại, cỡ rồi tải lên ngay; giá trị là id tệp, FileProblem khi tệp không dùng được
+  // (formErrors báo mã của nó), undefined khi chưa có tệp. Nút "Bỏ tệp" để ô không bắt buộc thoát được tệp hỏng. Trả
+  // [get, set, dòng trạng thái, phần tử thêm sau ô]
+  function fileControl(f, input, show) {
+    const status = make('p', { className: 'sf-file', id: `${f.id}-file` })
+    status.setAttribute('aria-live', 'polite')
+    const remove = make('button', { type: 'button', className: 'sf-file-remove', hidden: true })
+    remove.textContent = word(lang, 'form.fileRemove')
+    remove.setAttribute('aria-label', `${word(lang, 'form.fileRemove')}: ${f.label}`)
+    let chosen
+    let turn = 0                        // chọn tệp khác lúc tệp trước đang tải lên: bỏ kết quả của tệp trước
+    const put = (value, text = '') => {
+      chosen = value
+      status.textContent = text || (chosen?.id ? word(lang, 'form.fileDone', { name: chosen.name }) : '')
+      remove.hidden = chosen === undefined
+    }
+    const fail = (code) => {
+      put(new FileProblem(code))
+      show(message(f, code, lang))
+    }
+    const get = () => (chosen instanceof FileProblem ? chosen : chosen?.id)
+    const set = (v) => {
+      turn += 1
+      input.value = ''
+      if (v instanceof FileProblem) put(v)
+      else if (typeof v === 'string' && v) put({ id: v, name: uploaded.get(v) ?? word(lang, 'form.fileAttached') })
+      else put(undefined)
+    }
+    input.addEventListener('change', () => {
+      const file = input.files?.[0]
+      if (!file) return                 // đóng hộp chọn tệp không chọn gì: giữ tệp cũ
+      const mine = ++turn
+      const code = fileProblem(f.file, file) ?? (upload ? null : 'x-moc-file-upload')
+      if (code) return fail(code)
+      put(undefined, word(lang, 'form.fileSending', { name: file.name }))
+      show('')
+      // gọi upload ngay; ném lỗi ngay cũng thành promise lỗi
+      const job = new Promise((ok) => ok(upload(file))).then((r) => {
+        if (mine !== turn) return
+        if (typeof r?.id !== 'string' || !r.id) throw new Error('upload: no id')
+        const name = typeof r.filename === 'string' && r.filename ? r.filename : file.name
+        uploaded.set(r.id, name)
+        put({ id: r.id, name })
+      }).catch((err) => {
+        if (mine === turn) fail(Object.hasOwn(UPLOAD_CODES, err?.code) ? UPLOAD_CODES[err.code] : 'x-moc-file-upload')
+      }).finally(() => uploads.delete(job))
+      uploads.add(job)
+    })
+    remove.addEventListener('click', () => {
+      set(undefined)
+      show('')
+      input.focus()
+    })
+    return [get, set, status, [status, remove]]
   }
 
   // ô "đến" của một cặp x-moc-range không mời chọn ngày trước ô "từ"
@@ -722,15 +839,17 @@ export function mountForm(container, schema, options = {}) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault()
     if (busy) return
-    const data = current()
-    const errors = formErrors(schema, data, todayVN())
-    setErrors(errors)
-    if (Object.keys(errors).length || !onSubmit) return
     // aria-disabled chứ không disabled: nút disabled làm rơi tiêu điểm về đầu trang; bấm lại lúc đang gửi đã bị busy
     // chặn
     busy = true
     submit.setAttribute('aria-disabled', 'true')
     try {
+      // tệp đang tải lên: chờ xong (hay hỏng) rồi mới đọc ô; job không bao giờ lỗi (fileControl bắt lỗi)
+      while (uploads.size) await Promise.all(uploads)
+      const data = current()
+      const errors = formErrors(schema, data, todayVN())
+      setErrors(errors)
+      if (Object.keys(errors).length || !onSubmit) return
       await onSubmit(data)
     } finally {
       busy = false

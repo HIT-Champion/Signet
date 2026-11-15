@@ -25,7 +25,7 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { test } from 'node:test'
 
 import {
-  PRIORITY, checkSchema, clean, fields, formErrors, formTitle, message, summary, todayVN,
+  FILE_MB, PRIORITY, checkSchema, clean, fields, fileProblem, formErrors, formTitle, message, summary, todayVN,
 } from '../public/schema-form.js'
 
 const SHARED = new URL('../../../schemas/', import.meta.url)
@@ -101,7 +101,7 @@ test('đơn xin nghỉ: ô theo thứ tự, kiểu ô suy từ schema, nhãn the
   const vi = fields(don, 'vi')
   assert.deepEqual(vi.map((f) => [f.name, f.widget, f.required]), [
     ['loai', 'select', true], ['tuNgay', 'date', true], ['denNgay', 'date', true], ['soNgayLam', 'number', true],
-    ['lyDo', 'textarea', false],
+    ['lyDo', 'textarea', false], ['giayTo', 'file', false],
   ])
   assert.equal(vi[0].id, 'sf-loai')
   assert.equal(fields(don, 'vi', 'don-')[0].id, 'don-loai')
@@ -178,9 +178,38 @@ test('tóm tắt một đơn cho người duyệt: nhãn, tên lựa chọn, ng�
     { name: 'denNgay', label: 'Đến ngày', value: '28/10/2026' },
     { name: 'soNgayLam', label: 'Số ngày làm việc nghỉ', value: '—' },
     { name: 'lyDo', label: 'Lý do', value: '—' },
+    { name: 'giayTo', label: 'Giấy tờ kèm theo', value: '—' },
   ])
   assert.equal(summary(don, { loai: 'mot-loai-moi' }, 'en')[0].value, 'mot-loai-moi')
   assert.equal(summary(json(FORMS, 'duyet.json'), { quyetDinh: 'tu-choi' }, 'en')[0].value, 'Decline')
+})
+
+test('trường tệp (#325): ô tệp theo x-moc-file, gợi ý loại và cỡ; tóm tắt hiện tên tệp kèm tệp để tải về', () => {
+  const don = json(FORMS, 'don.json')
+  const giayTo = fields(don, 'en').find((f) => f.name === 'giayTo')
+  assert.deepEqual(giayTo.file, { mime: ['application/pdf', 'image/jpeg', 'image/png'], mb: 10 })
+  assert.match(giayTo.help, / Accepts PDF, JPEG, PNG; up to 10 MB\.$/)
+  // x-moc-file thắng widget khai khác; không ghi maxMB thì cỡ mặc định như lõi
+  const one = { type: 'object', properties: {
+    a: { type: 'string', format: 'uuid', 'x-moc-file': { mime: ['image/png'] }, 'x-moc-ui': { widget: 'text' } } } }
+  assert.equal(fields(one)[0].widget, 'file')
+  assert.deepEqual(fields(one)[0].file, { mime: ['image/png'], mb: FILE_MB })
+  const spec = { mime: ['application/pdf'], mb: 1 }
+  assert.equal(fileProblem(spec, { type: 'application/pdf', size: 1024 * 1024 }), null)
+  assert.equal(fileProblem(spec, { type: 'application/pdf', size: 1024 * 1024 + 1 }), 'x-moc-file-size')
+  assert.equal(fileProblem(spec, { type: 'text/html', size: 10 }), 'x-moc-file-type')
+  assert.equal(fileProblem(spec, { type: '', size: 10 }), 'x-moc-file-type')
+
+  const id = '0b6f8c3e-2a51-4c7e-9d0a-5e8f1c2b3a4d'
+  const file = { id, filename: 'giay-kham.pdf', mimeType: 'application/pdf', sizeBytes: 123 }
+  const row = (data, files) => summary(don, data, 'vi', files).find((r) => r.name === 'giayTo')
+  const label = 'Giấy tờ kèm theo'
+  assert.deepEqual(row({ giayTo: id }, { giayTo: file }), { name: 'giayTo', label, value: 'giay-kham.pdf', file })
+  // lõi không trả tên tệp (đọc danh bạ tệp lỗi), files sai dạng: vẫn báo có tệp, không hiện id, không có nút tải
+  for (const files of [{}, null, { giayTo: 'x' }, { giayTo: { id } }]) {
+    assert.deepEqual(row({ giayTo: id }, files), { name: 'giayTo', label, value: 'Có tệp đính kèm' })
+  }
+  assert.deepEqual(row({}), { name: 'giayTo', label, value: '—' })
 })
 
 test('kiểu, danh mục, số, mảng, đối tượng lồng: cùng mã lỗi như Ajv và svc-workflow', () => {
